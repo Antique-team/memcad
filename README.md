@@ -1,2 +1,4 @@
-# memcad
-The MemCAD static analyzer
+# MemCAD
+
+A static analyzer doing shape analyzis.
+
