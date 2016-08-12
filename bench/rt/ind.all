@@ -1,0 +1,169 @@
+prec: list.
+
+%----------------------------------
+% Singly-linked lists
+list<0,0> :=
+| [0] -   emp
+      -   this = 0
+| [2 addr int]
+      -   this->0 |-> $0
+        * this->4 |-> $1
+        * $0.list( )
+      -   this != 0
+        & alloc( this, 8 )
+.
+list : list.
+
+
+%----------------------------------
+% Doubly-linked lists
+dllo<1,0> :=
+| [0] -   emp
+      -   this = 0
+| [1 addr]
+      -   this->0 |-> $0
+        * this->4 |-> @p0
+        * $0.dllo( this | | )
+      -   this != 0
+        & alloc( this, 8 )
+.
+
+
+%----------------------------------
+% Lists with a length parameter
+slllo<0,1> :=
+| [0] -   emp
+      -   this = 0
+        & @i0 = 0
+| [3 addr int int]
+      -   this->0 |-> $0
+        * this->4 |-> $1
+        * $0.slllo( | $2 | )
+      -   this != 0
+        & @i0 = $2 + 1
+        & alloc( this, 8 )
+.
+
+
+%----------------------------------
+% Lists of integers all equal to a constant
+lo_icst<0,1> :=
+| [0] -   emp
+      -   this = 0
+| [1 addr]
+      -   this->0 |-> $0
+        * this->4 |-> @i0
+        * $0.lo_icst( | @i0 | )
+      -   this != 0
+        & alloc( this, 8 )
+.
+
+
+%----------------------------------
+% Lists of integers all equal to a constant
+% Definition for the list body and wrapper
+lo_pcst<1,0> :=
+| [0] -   emp
+      -   this = 0
+| [1 addr]
+      -   this->0 |-> $0
+        * this->4 |-> @p0
+        * $0.lo_pcst( @p0 | | )
+      -   this != 0
+        & alloc( this, 8 )
+.
+lo_wpcst<0,0> :=
+| [2 addr addr]
+      -   this->0 |-> $0
+        * this->4 |-> $1
+        * $0.lo_pcst( $1 | | )
+      -   this != 0
+        & alloc( this, 8 )
+.
+
+
+%----------------------------------
+% Sorted lists
+% sllordo<0,1> :=
+% | [0] -   emp
+%       -   this = 0
+% | [2 addr int]
+%       -   this->0 |-> $0
+%         * this->4 |-> $1
+%         * $0.sllordo( | $1 | )
+%       -   this != 0
+%         & @i0 <= $1
+%         & alloc( this, 8 )
+% .
+
+
+%----------------------------------
+% Binary trees
+bintree_o<0,0> :=
+| [0] -   emp
+      -   this = 0
+| [3 addr addr int]
+      -   this->0 |-> $0
+        * this->4 |-> $1
+        * this->8 |-> $2
+        * $0.bintree_o( )
+        * $1.bintree_o( )
+      -   this != 0
+        & alloc( this, 12 )
+.
+
+
+%----------------------------------
+% Inductive definitions with set parameters
+% list the elements of which are in a given set
+lsetin<0,0,1> :=
+| [0] -   emp
+      -   this = 0
+| [2 int addr]
+      -   this->0 |-> $0
+        * this->4 |-> $1
+        * $0.lsetin( | | @s0 )
+      -   this != 0
+        & this # @s0
+        & alloc( this, 8 )
+.
+% list *exactly* corresponding to a given set
+lsetex<0,0,1> :=
+| [0] -   emp
+      -   this = 0
+        & @s0 == { }
+| [3 addr int set]
+      -   this->0 |-> $0
+        * this->4 |-> $1
+        * $0.lsetex( | | $2 )
+      -   this != 0
+        & @s0 == $2 + { this }
+        & alloc( this, 8 )
+.
+% Graph inductive definition
+edges<0,0,1> :=
+| [0] -   emp
+      -   this = 0
+        & @s0 == { }
+| [3 addr raw set]
+      -   this->0 |-> $0
+        * this->4 |-> $1
+        * $0.edges( | | @s0 )
+      -   this != 0
+        & $1 # @s0
+        & alloc( this, 8 )
+.
+graphc<0,0,2> :=
+| [0] -   emp
+      -   this = 0
+        & @s1 == { }
+| [4 addr addr raw set]
+      -   this->0 |-> $0
+        * this->4 |-> $1
+        * this->8 |-> $2
+        * $0.graphc( | | @s0, $3 )
+        * $1.edges( | | @s0 )
+      -   this != 0
+        & @s1 == $3 + { this }
+        & alloc( this, 12 )
+.

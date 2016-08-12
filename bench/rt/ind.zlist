@@ -1,0 +1,14 @@
+prec: list.
+
+%----------------------------------
+% Singly-linked lists
+zlist<0,0> :=
+| [0] -   emp
+      -   this = 0
+| [1 addr]
+      -   this->0 |-> $0
+        * $0.zlist( )
+      -   this != 0
+        & alloc( this, 4 )
+.
+zlist : zlist.

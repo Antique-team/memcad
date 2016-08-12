@@ -1,0 +1,172 @@
+\appendix
+\chapter{Appendix}
+
+This appendix provides information about the syntactic transformation
+performed on the AST prior to analysis, and on the techniques for
+troubleshooting analyses.
+
+\section{AST transformations}
+The opam package \sfile{clangml-transforms} allows to transform step by
+step the full blown \sfile{clang} C AST into the leaner and simpler AST
+that \memcad uses internally.
+This structure greatly simplifies the internal design of the abstract
+interpreter as it alleviates the need to handle many C features at that
+level.
+Those transformations are listed and explained hereafter, in the order
+in which they are applied to the \sfile{clang} AST, and prior to the
+analysis.
+\begin{enumerate}
+\item \texttt{RemoveCast}: \\
+  Removes implicit and explicit cast operations.
+\item \texttt{MoveFunCall}: \\
+  Expands the \sstmt{return} statements into assignments, by
+  creating a temporary variable for each function call, and before
+  the call sites.
+\item \texttt{NoContinueInFor}: \\
+  Filters out codes that use \sstmt{continue} statements (that are
+  currently unsupported).
+\item \texttt{RemoveCommaBinop}: \\
+  Transforms the expressions with coma operators into sequences of
+  statements.
+\item \texttt{BreakOpAssign}: \\
+  Decompose binary operators combined with assignment into expressions
+  with classical binary operators.
+\item \texttt{BreakMultiAssign}: \\
+  Decomposes multiple assignments into sequences of assignments.
+\item \texttt{SimplifyIf}: \\
+  Decomposes complex \sstmt{if} statements into an imbrication of
+  \sstmt{if} statements.
+\item \texttt{ForToWhile}: \\
+  Transforms \sstmt{for} loops into \sstmt{while} loops.
+\item \texttt{DoWhileToWhile}: \\
+  Transforms \sstmt{do while} loops into \sstmt{while} loops.
+\item \texttt{SwitchToIf}: \\
+  Transforms some \sstmt{switch} statements into sequences of \sstmt{if}
+  statements
+  (this transformation does not handle all \sstmt{switch} statements,
+  and will crash in too complex cases).
+\item \texttt{MoveAssign}: \\
+  Moves assignment statements outside of conditions.
+\item \texttt{ReplaceFunCall}: \\
+  Completes the decomposition of function calls performed by
+  transformation \texttt{MoveFunCall}.
+  \commentout{Maybe those two transforms can be combined into a single one.}
+\item \texttt{SimplifyDeclStmt}: \\
+  simplifies multiple declaration statements.
+\item \texttt{AssignCond}: \\
+  Transforms assignment involving conditional expressions using
+  conditional statements.
+\item \texttt{LiftConditionals}: \\
+  Transforms conditional operators into \sstmt{if} statements.
+\item \texttt{PostIncrDecr}: \\
+  Decomposes post incrementation (\verb#x++/x--#).
+\item \texttt{PreIncrDecr}: \\
+  Decomposes pre-incrementation (\verb#++x/--x#).
+\item \texttt{SplitInitialisers}: \\
+  Splits declaration with initializers into separate declarations
+  and assignments.
+\end{enumerate}
+
+
+\section{Preparing some C source code for analysis}
+In this section, we provide guidance how to carry out the analysis of
+real-world C programs with \memcad, based on our experience in doing
+so for several data structure libraries and programs manipulating
+complex structures:
+\begin{enumerate}
+\item \textbf{Compile the target program or the library.} \\
+  The \memcad analyzer uses the \sfile{clang} parsing stage, so it
+  is very unlikely that a program that cannot be parsed by that
+  compiler can be analyzed successfully.
+  We advise using the options \soption{-W} and \soption{-Wall} to
+  trigger most warnings.
+  Code raising warnings may challenge the AST transformation stages.
+\item \textbf{Set up a ``harness'' \sstmt{main} function (if necessary).} \\
+  As the \memcad analyzer implements a whole program analysis, it requires
+  an entry point as part of the analysis options.
+  Therefore, when trying to verify specific properties of a program
+  (\eg, that it satisfies some post-condition, when ran under a specific
+  pre-condition), these need be specified using the \memcad specific
+  commands.
+  Thus, in the case of a set of library functions, we advise to set
+  up a harness including a dummy main function, with pre-conditions
+  and post-conditions for the functions to verify.
+  In the case of a whole program analysis, no harness is necessary.
+\item \textbf{Launch the analysis.}
+  Basic options should include the file to analyze, the entry point,
+  and an indication of how the inductive predicates should be fixed
+  (either in an external file, or synthesized automatically).
+\end{enumerate}
+In case the analysis fails due to an error localized in the frontend
+and transformation stages, the best solution is to rewrite unsupported
+languages features, if possible.
+
+When the analysis fails due to an error raised during the analysis
+phase, the following actions may help troubleshooting the problem,
+and either finding a set of options that will allow the analysis to
+run properly, or make a more precise bug report:
+\begin{itemize}
+\item Analyzing the program with a stronger pre-condition, possibly
+  narrowing it to the verification of a single execution trace.
+  This technique alleviates the need for certain operations in the
+  analysis, but still make use of others, thus it helps localizing
+  where the failure stems from.
+\item Executing the compiled program and its test suite (if available),
+  and checking the correctness of the concrete outputs.
+\item Executing the program under valgrind\footnote{
+    \url{http://valgrind.org/}} to look for memory problems
+  and correct them if possible.
+\end{itemize}
+
+
+\section{Running MemCAD in the debugger}
+In this section, we provide instructions to run the \memcad
+analyzer under the OCaml debugger (\sexec{ocamldebug}).
+
+The two following options of the ``\sexec{analyze}'' executable
+allow to exclude the initial parsing phase, and run the analysis
+itself separately, and under a debugger:
+\begin{itemize}
+\item[\soption{-dump-parse}]: \\
+  Dumps the AST into a file, after the \sexec{clang} parsing and the
+  application of all the AST transformations;
+\item[\soption{-load-dump}]: \\
+  Loads an AST that was dumped by the \soption{-dump-parse} option.
+\end{itemize}
+
+To compile the bytecode-debug version of the analyzer (called
+\sexec{danalyze}), run the following bash commands (the export
+command is needed because of the apron library):
+\begin{verbatim}
+$ export LD_LIBRARY_PATH=`opam config var \
+    share`/apron/lib
+$ make danalyze
+\end{verbatim}
+
+Second, you need to dump out the AST of the C program to analyze.
+To do this, execute the following bash command:
+\begin{verbatim}
+$ ./danalyze -header bench/bigrt/for_gdsl.h \
+    -very-silent -nd-box -a -no-latex \
+    -dump-parse to_analyze.c
+\end{verbatim}
+This command silently creates the file 'to\_analyze.c.dump'.
+
+Finally, you need to run the bytecode-debug analyzer in ocamldebug
+and use the previously dumped AST.
+All these steps are necessary so that there are no more calls to
+\sexec{clangml} during the analysis
+(\sexec{ocamldebug} does not support it and would hang).
+
+\begin{verbatim}
+$ ocamldebug ./analyze.d.byte -header \
+    bench/bigrt/for_gdsl.h -very-silent \
+    -nd-box -a -no-latex -load-dump \
+    source_code_to_analyze.c
+\end{verbatim}
+
+This command will silently read the file 'to\_analyze.c.dump',
+instead of parsing the C file with clangml then applying all the
+clangml-transforms.
+You can then use any ocamldebug command\footnote{
+\url{http://caml.inria.fr/pub/docs/manual-ocaml/debugger.html}}.

@@ -1,0 +1,26 @@
+% Binary tree with head pointer
+
+node<2,0> :=
+| [0] -   emp
+      -   this = 0
+| [3 addr addr int]
+      -   this->0  |-> $0
+        * this->4  |-> $1
+        * this->8  |-> @p0
+        * this->12 |-> @p1
+        * this->16 |-> $2
+        * $0.node( this, @p1 | | )
+        * $1.node( this, @p1 | | )
+      -   this != 0
+        & alloc( this, 20 )
+.
+
+tree<0,0> :=
+| [3 addr int addr]
+      -   this->0 |-> $0
+        * this->4 |-> $1
+        * $0.node( $2, this | | )
+      -   this != 0
+        & alloc( this, 8 )
+        & $2 = 0
+.

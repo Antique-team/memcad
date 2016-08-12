@@ -1,0 +1,15 @@
+%----------------------------------
+% Singly-linked lists
+list36<0,0> :=
+| [0] -   emp
+      -   this = 0
+| [4 int addr int int]
+      -   this->0  |-> $0
+        * this->4  |-> $1
+        * this->8  |-> $2
+        * this->12 |-> $3
+        * $1.list36( )
+      -   this != 0
+        & alloc( this, 16 )
+.
+list : list36.

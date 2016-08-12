@@ -1,0 +1,34 @@
+dlls<1,0> :=
+| [0] -   emp
+      -   this = 0
+| [1 addr]
+      -   this->next |-> $0
+        * this->prev |-> @p0
+        * $0.dlls( this | | )
+      -   this != 0
+        & alloc( this, 8 )
+.
+sllls<0,1> :=
+| [0] -   emp
+      -   this = 0
+        & @i0 = 0
+| [3 addr int int]
+      -   this->next |-> $0
+        * this->data |-> $1
+        * $0.sllls( | $2 | )
+      -   this != 0
+        & @i0 = $2 + 1
+        & alloc( this, 8 )
+.
+bintree_s<0,0> :=
+| [0] -   emp
+      -   this = 0
+| [3] -   this->Data  |-> $0
+        * this->Left  |-> $1
+        * this->Right |-> $2
+        * $1.bintree_s( )
+        * $2.bintree_s( )
+      -   this != 0
+        & alloc( this, 12 )
+.
+

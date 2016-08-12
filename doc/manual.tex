@@ -1,0 +1,42 @@
+\documentclass[a4paper,10pt]{book}
+\input{preamble.tex}
+\begin{document}
+%--------------------------------------------------------------------
+% Title and table of contents
+%--------------------------------------------------------------------
+\title{MemCAD - user manual (v0.1)}
+\author{Xavier Rival, Francois Berenger, Jiangchao Liu and Huisong Li}
+\maketitle
+\tableofcontents
+\multibegin
+\raggedcolumns
+
+%--------------------------------------------------------------------
+% Foreword: audience, authors, licence,, installation
+%--------------------------------------------------------------------
+\input{chap-1-foreword.tex}
+
+%--------------------------------------------------------------------
+% Brief general description of the structure of the analyzer
+%--------------------------------------------------------------------
+\input{chap-2-memcad-intro.tex}
+
+%--------------------------------------------------------------------
+% Reference manual, with description of the options
+%--------------------------------------------------------------------
+\input{chap-3-refman.tex}
+
+\multiend
+
+\addcontentsline{toc}{chapter}{Commands index}
+\printindex{commands}{Commands index}
+\addcontentsline{toc}{chapter}{Options index}
+\printindex{options}{Options index}
+
+%--------------------------------------------------------------------
+% Appendix
+%--------------------------------------------------------------------
+\multibegin
+\input{chap-appendix.tex}
+\multiend
+\end{document}

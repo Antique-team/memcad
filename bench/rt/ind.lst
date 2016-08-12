@@ -1,0 +1,9 @@
+list<0,0> :=
+| [0] -   emp
+      -   this = 0
+| [2] -   this->Data |-> $0
+        * this->Next |-> $1
+        * $1.list( )
+      -   this != 0
+        & alloc( this, 8 )
+.

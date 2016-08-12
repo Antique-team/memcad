@@ -1,0 +1,32 @@
+Name: MemCAD
+Version: 1.0
+Authors: Xavier Rival et. al.
+License: GPL-3.0
+Synopsis: Static analyzer for shape analysis
+obuild-ver: 1
+
+Executable batch
+  oflags: -warn-error PU -bin-annot
+  src-dir: main, lib
+  main-is: batch.ml
+  build-deps: unix, parmap, str
+
+Executable analyze
+  oflags: -warn-error PU -bin-annot
+  src-dir: main, lib, c, sd, nd
+  main-is: main.ml
+  build-deps: apron.boxMPQ, apron.octMPQ, apron.polkaMPQ, clangml,
+              clangml-transforms, bdd, setr
+
+Executable jptest
+  oflags: -warn-error +26
+  src-dir: lib, c, sd, nd
+  main-is: jptest.ml
+  build-deps: apron.boxMPQ, apron.octMPQ, apron.polkaMPQ, clangml,
+              clangml-transforms, bdd, oUnit, qcheck
+
+Executable increase_arity
+  oflags: -warn-error +26
+  src-dir: bin
+  main-is: increase_arity.ml
+  build-deps: dolog, batteries

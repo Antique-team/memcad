@@ -1,0 +1,44 @@
+How to run MemCAD inside ocamldebug
+===================================
+
+author: francois.berenger@inria.fr
+version: 1.1
+date: Tue Mar 1 2016
+
+There are two specific options in the 'analyze' executable:
+
+-dump-parse
+dump AST of the analyzed file (after clang and all AST transformations)
+
+-load-dump
+load an AST dump.
+To be used in ocamldebug after a run that used the -dump-parse option.
+
+Example session:
+
+1) Compile the bytecode/debug version of the analyzer (called danalyze)
+-----------------------------------------------------------------------
+
+# the export command is needed because of Apron
+export LD_LIBRARY_PATH=`opam config var share`/apron/lib
+make danalyze
+
+2) dump out the AST of your C code
+----------------------------------
+
+./danalyze -header bench/bigrt/for_gdsl.h -very-silent -nd-box -a -no-latex \
+-dump-parse test.c
+
+This silently creates the file "test.c.dump".
+
+3) run the debug analyzer in ocamldebug from the previously dumped AST
+----------------------------------------------------------------------
+
+We do that so that there are no more calls to clangml, which would hang
+ocamldebug forever.
+
+ocamldebug ./analyze.d.byte -header bench/bigrt/for_gdsl.h -very-silent \
+-nd-box -a -no-latex -load-dump test.c
+
+This will silently read the file "test.c.dump", instead of parsing test.c with
+clangml then applying all the clangml-transforms.

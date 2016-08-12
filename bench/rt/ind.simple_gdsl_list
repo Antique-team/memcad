@@ -1,0 +1,32 @@
+%-------------------------
+% GDSL Doubly-linked lists
+% p0: previous element (of current one)
+% p1: last element of the list (tail)
+% GDSL list element description
+% this->0 succ field: pointer to next elt. in the list
+% this->4 prev field: pointer to prev elt. in the list
+% succ of the last elt. is itself
+% prev of the head elt is itself
+gdsl_node<2,0> :=
+% the tail of the list (last node)
+| [1 addr]
+% shape constraint
+      -   this->0 |-> $0
+        * this->4 |-> @p0
+% numerical constraint
+      -   this  = @p1
+        & $0    = this
+        & this != 0
+        & alloc( this, 8 )
+% any node except the last one
+| [1 addr]
+% shape constraint
+      -   this->0 |-> $0
+        * this->4 |-> @p0
+        * $0.gdsl_node( this, @p1 | | )
+% numerical constraint
+      -   this != @p1
+        & $0   != this
+        & this != 0
+        & alloc( this, 8 )
+.

@@ -1,0 +1,19 @@
+\begin{verbatim}
+void main() {
+  // allocate a tree
+  jsw_avltree_t* t = jsw_avlnew();
+  // insert one into it
+  int one = 1;
+  int insert_res = jsw_avlinsert(t, &one);
+  assert(insert_res == 1); // success ?
+  // find one
+  int* res = NULL;
+  res = jsw_avlfind(t, &one);
+  assert(*res == 1); // found ?
+  // remove one
+  int erase_res = jsw_avlerase(t, &one);
+  assert(erase_res == 1); // removed ?
+  res = jsw_avlfind(t, &one);
+  assert(res == NULL); // can't find anymore
+}
+\end{verbatim}

@@ -1,0 +1,1221 @@
+%--------------------------------------------------------------------
+% Reference manual, with description of the options
+%--------------------------------------------------------------------
+\chapter{Reference manual}
+\label{c:3:refman}
+
+The \memcad distribution features two executables:
+\begin{itemize}
+\item \sanalyze is the static analyzer, which can be parameterized
+  with a wide range of command line options;
+\item \sexec{batch} is the integrated automatic batch mode, that allows
+  to launch the analyzer on series of tests, and using options saved into
+  text files, for better ease of use.
+\end{itemize}
+We describe the use of \sanalyze in \sref{3:1:analyze} (command line
+options), \sref{3:2:commands} (\memcad meta-commands) and \sref{3:3:ind}
+(syntax of manually written inductive definitions) and the use of
+\sexec{batch} in \sref{3:4:batch}
+
+\section{Analyzer command-line options}
+\label{s:3:1:analyze}
+This section reviews the options of \sanalyze.
+There are three categories of options:
+(1) basic options,
+(2) advanced options, which are marked with \optadv, and may be
+used by advanced users, and
+(3) developper options, which are marked with \optdev, and are aimed
+at \memcad developers (for this reasons, some of these are not fully
+described in this manual, although we still list them all for the
+sake of completeness).
+
+Basic options to set input and output for simple usage are described
+in Section~\ref{s:opt:mode} and Section~\ref{s:opt:in}.
+
+\subsection{Analysis mode}
+\label{s:opt:mode}
+First, the \sanalyze executable can be used in three modes:
+\begin{itemize}
+\item[\doption{-analyze}, or for short \doption{-a}]: \\
+  To analyze a C program, using option \soption{-analyze} or, for
+  short \soption{-a} (this is the main purpose of this executable).
+\item[\doption{-infer-ind}]: \\
+  To extract inductive definitions from type definitions, using
+  option \soption{-infer-ind} (this is mainly useful to prepare an
+  analysis, or for debugging).
+\item[\doption{-help}]: \\
+  The classical display of a help message with a list of options
+  with option \soption{-help}.
+\end{itemize}
+If called without any of these three options, the \sanalyze
+executable will do nothing and will return immediately.
+
+\subsection{Input program}
+\label{s:opt:in}
+The following options set the mode 
+\begin{itemize}
+\item[\texttt{filename}]: \\
+  The name of the file to be analyzed should be passed on the command
+  line directly without option prefix (default string option).
+\item[\doption{-main} \texttt{fun}]: \\
+  This option sets the entry point of the program to be \texttt{fun};
+  this function shall be used as the starting point of the analysis
+  (which will then of course explore other functions called from
+  \texttt{fun}).
+\item[\doption{-header} \texttt{file.h}]: \\
+  This option uses the header file \texttt{file.h} during parsing.
+\end{itemize}
+To summarize, the general format of a command line to analyze a
+program is
+\begin{verbatim}
+analyze -a file.c -main fun
+\end{verbatim}
+The following options allow to fine-tune and troubleshoot parsing:
+\label{opt:parsing}
+\begin{itemize}
+\item[\doption{-clang-parser}] \optadv: \\
+  Uses the Clang C parser followed by a translation into the \memcad
+  internal abstract syntax tree (default settings).
+\item[\doption{-old-parser}] \optadv: \\
+  Uses the historic \memcad parser, which is not actively maintained
+  anymore.
+\item[\doption{-dump-parse}] \optadv: \\
+  Dumps out the abstract syntax tree of the input file, after clang and
+  transformations.
+\item[\doption{-load-dump}] \optadv: \\
+  Loads an abstract syntax tree dump (\eg, so as to replay an analysis
+  out of a dump, possibly on a different machine than the one used for
+  initial parsing)
+\item[\doption{-tlog} \texttt{LEVEL}] \optdev: \\
+  Sets the level of verbosity and optional coloring of the abstract
+  syntax tree transformation phase to \texttt{LEVEL}, which follows
+  the syntax below:
+  \[
+  \begin{array}{rcl}
+    \texttt{LEVEL} & ::= & color \; kind \\
+    color & ::= & \texttt{color:} \; | \; \\
+    kind  & ::= & \texttt{fatal} \; | \; \texttt{error} \; | \;
+    \texttt{warn} \; | \; \texttt{info} \; | \; \texttt{debug} \\
+  \end{array}
+  \]
+\end{itemize}
+
+\subsection{Output format}
+\label{s:opt:out}
+The \memcad analyzer produces textual output on the standard
+output and may be set to generate external files, to provide a better
+visualization of abstract memory states.
+The following options set the level of verbosity of the textual output:
+\begin{itemize}
+\item[\doption{-verbose}, or for short, \doption{-v}]: \\
+  This option causes \sanalyze to produce additional output
+  messages compared to normal execution (useful for debugging).
+\item[\doption{-silent}]: \\
+  This option reduces the amount of information logging performed
+  by \sanalyze, and is useful to analyze larger programs
+  (otherwise, textual output may become a hinderance).
+\item[\doption{-very-silent}]: \\
+  This option reduces the textual information to almost none, and
+  is useful to measure timings.
+\item[\doption{-set-on} \texttt{flag}] \optdev: \\
+  Activates an internal debugging flag.
+\item[\doption{-set-off} \texttt{flag}] \optdev: \\
+  Deactivates an internal debugging flag.
+\end{itemize}
+The following option switches on~/~off the logging of specific kinds
+of information:
+\begin{itemize}
+\item[\doption{-stats}]: \\
+  This option activates the logging of statistics by the abstract
+  interpreter, and may be useful to follow the progress of the analysis.
+\end{itemize}
+Furthermore, \memcad supports other non standard outputs for visualization
+and communication with other processes:
+\begin{itemize}
+\item[\doption{-dot-all}] \optadv: \\
+  Activates the export of dot format information at all control points,
+  allowing for the use of advanced visualization tools.
+\item[\doption{-latex}] \optdev: \\
+  Activates (under development, and very incomplete) support for LaTeX
+  outputs.
+\item[\doption{-pipe}] \optdev: \\
+  Communicates results through a pipe, for the the collection of regression
+  testing results by \sbatch (\sref{3:4:batch}).
+\end{itemize}
+
+\subsection{Timing}
+\label{s:opt:timing}
+The \memcad analyzet supports a number of timing options, to measure
+how long parts or all of the analysis take:
+\begin{itemize}
+\item[\doption{-no-timing}]: \\
+  This option disables timing completely.
+\item[\doption{-timing} \texttt{MOD}] \optadv: \\
+  This option adds timing to a specific module \texttt{MOD}
+  (that should be in the list \texttt{apron}, \texttt{base},
+  \texttt{flat}, \texttt{list}, \texttt{prod}, \texttt{sep},
+  \texttt{mexprs}, \texttt{env}, \texttt{value}, \texttt{valset})
+  and may help advanced users understand what part of the analysis
+  takes time when the analysis is slower than expected.
+\item[\doption{-stress-test} \texttt{N}]: \\
+  This option repeatedly launches the analysis \texttt{N} times
+  and allows to average analysis timing measures.
+\item[\doption{-no-analyze-prog-timer}] \optdev
+\end{itemize}
+
+\subsection{Memory abstract domain settings and parameterization}
+\label{s:opt:mem}
+The memory abstract domain of \memcad is highly flexible.
+By default, it uses a generic ``{\em shape}'' domain, that is
+parameterized by a set of inductive definitions, that can either
+be user-supplied, in a separate file, or inferred automatically
+by the analyzer before the analysis itself, and from the type
+definitions.
+The following options modify the way \memcad handles inductive
+definitions for the ``shape'' domain.
+\label{opt:ind}
+\begin{itemize}
+\item[\doption{-auto-ind}]: \\
+  Activates the automatic computation of inductive definitions
+  from the type definitions (as explained in \sref{2:1:informal}).
+\item[\doption{-use-ind} \texttt{file.ind}]: \\
+  Deactivates the automatic computation of inductive definitions
+  from the type definitions, and use the definitions provided in
+  file \texttt{file.ind} instead (the syntax to use in \texttt{.ind}
+  files is given in \sref{3:3:ind}).
+\item[\doption{-ind-analysis}]: \\
+  Turns on pre-analyses of inductive definitions, to infer properties
+  that can be taken advantage of during the analysis of the C program
+  itself.
+\item[\doption{-no-prev-fields}] \optdev
+\end{itemize}
+
+The default memory domain may be replaced with an alternate memory
+domain, or even a combination of several domains using:
+% TODO: add citations
+\label{opt:shaped}
+\begin{itemize}
+\item a ``{\em list}'' abstract domain that implements an instance of
+  the generic ``shape'' domain, that is specific to list like structures,
+  and supports sharing;
+\item a ``{\em flat}'' abstract domain that implements a very simple
+  abstract domain for structures with a statically known layout;
+\item a ``{\em separating product}'' abstract domain combination, that
+  applies two memory abstract domains to two separate memory regions
+  (which may be several instances of the ``shape'' domain, with different
+  inductive predicates);
+\item a ``{\em reduced product}'' abstract domain combination, that
+  expresses conjonctive properties.
+\end{itemize}
+The layout of the memory domain can be set using the option:
+\begin{itemize}
+\item[\doption{-shape-dom} \texttt{D}]: \\
+  Sets the structure of the memory domain to \texttt{D}, where
+  \texttt{D} is describd by the following grammar:
+\end{itemize}
+\[
+\begin{array}{rcll}
+  \texttt{D}
+  & ::=
+  & \texttt{[} \texttt{i}_0, \ldots, \texttt{i}_n \texttt{]}
+  & \text{ "shape", inductives } \texttt{i}_0, \ldots,
+  \texttt{i}_n
+  \\
+  & |
+  & \texttt{[ \#list ]}
+  & \text{ "list" domain}
+  \\
+  & |
+  & \texttt{[ \_ ]}
+  & \text{ "flat" domain}
+  \\
+  & |
+  & \texttt{D}_0 \; \texttt{*} \; \texttt{D}_1
+  & \text{ separating product of } \texttt{D}_0, \texttt{D}_1
+  \\
+  & |
+  & \texttt{D}_0 \; \verb#/\# \; \texttt{D}_1
+  & \text{ separating product of } \texttt{D}_0, \texttt{D}_1
+  \\
+\end{array}
+\]
+\vspace{0.5\baselineskip}
+
+The ``list'' and ``shape'' memory domains utilize a dynamic set of
+abstract dimensions, which depends heavily on the analysis flow.
+Thus, the abstract domain itself performs a garbage collection, which
+is by default incremental, with full garbage collections performed at
+specific points.
+The following option allows to tune the way this garbage collection
+is performed:
+\label{opt:internal}
+\begin{itemize}
+\item[\doption{-no-full-gc}] \optadv: \\
+  Deactivates full garbage collection.
+\end{itemize}
+
+Besides dynamic and flat structures, the \memcad analyzer also allows
+to reason about arrays, in several ways.
+A first way utilizes the ability of ``flat'', ``list'' and ``shape''
+domains to reason about contiguous segments with pointers at non constant
+offsets.
+A second way relies on an array abstract domain. % cite
+The following options allow to activate or deactivate this array abstract
+domain:
+\label{opt:arrayd}
+\begin{itemize}
+\item[\doption{-array-on}]: \\
+  Enables the array abstract domain.
+\item[\doption{-array-off}]: \\
+  Disables the array abstract domain.
+\end{itemize}
+
+When using a {\em combined} memory domain, several reduction modes are
+available, and can be set with the following advanced options: % cite paper
+\label{opt:reduct}
+\begin{itemize}
+\item[\doption{-red-disabled}]: \\
+  Disable reduction completely.
+\item[\doption{-red-manual}]: \\
+  Performs reduction only when required explicitely.
+\item[\doption{-red-min}]: \\
+  Performs a minimal amount of reduction. %% explain
+\item[\doption{-red-on-read}]: \\
+  Performs reduction whenever a cell is read.
+\item[\doption{-red-on-r-u}]: \\
+  Performs reduction whenever a cell is read or an unfolding is performed.
+\item[\doption{-red-max}]: \\
+  Performs as much reduction as possible
+\end{itemize}
+
+\subsection{Value abstract domain and set abstract domain}
+\label{s:opt:vsd}
+The \memcad abstract interpreter relies on abstractions for values and
+sets of values that can be parameterized independently.
+The abstraction of numeric values relies on the external library Apron
+(with some additional \memcad specific value predicates) and the
+abstraction of sets of values relies on the external library Setr.
+
+The following options allow to set the underlying numeric abstrct
+domain, and directly translate into the use of one of the basic
+Apron modules:
+\begin{itemize}
+\item[\doption{-nd-box}]: \\
+  This option sets the base numerical domain to be the ``box''
+  implementation of interval in Apron.
+\item[\doption{-nd-oct}]: \\
+  This option sets the base numerical domain to be the ``oct''
+  implementation of the octagon domain in Apron.
+\item[\doption{-nd-pol}]: \\
+  This option sets the base numerical domain to be the ``pol''
+  implementation of the convex polyhedra abstract domain in Apron.
+\end{itemize}
+The following options allow to tune the management of abstract dimensions
+in the value abstract domain:
+\begin{itemize}
+\item[\doption{-dynenv-yes}] \optadv: \\
+  This option lets the analysis fix {\em lazily} the dimensions of the
+  numeric domain, and allows it not to represent dimensions for which
+  no information is known (this makes the analysis lighter).
+\item[\doption{-dynenv-no}] \optadv: \\
+  This option forces the analysis to represent in the numerical domain
+  all dimensions defined in the memory domain.
+\end{itemize}
+The following options control the abstraction of {\em sub-memories},
+that is the abstraction of large contiguous regions using a sub-instance
+of a shape domain:
+\begin{itemize}
+\item[\doption{-add-submem}] \optadv: \\
+  This option enables sub-memory abstraction.
+\item[\doption{-submem-ind} \texttt{IND}] \optadv: \\
+  This option sets the inductive definition that the sub-memory abstraction 
+  may instantiate to \texttt{IND}.
+\end{itemize}
+The following options allow to activate or deactivate an implementation
+of the abstraction of sets of values (it is deactivated by default):
+\begin{itemize}
+\item[\doption{-setd-on}] \optadv: \\
+  Activates abstraction of sets of values using a domain based on BDDs.
+\item[\doption{-setd-lin}] \optadv: \\
+  Activates abstraction of sets of values using a domain based on linear
+  set equalities (which can express exclusively disjoint unions).
+\item[\doption{-setd-quicr}] \optadv: \\
+  Activates abstraction of sets of values using a domain based on QUICr.
+\item[\doption{-setd-off}] \optadv: \\
+  Deactivates abstraction of sets of values.
+\item[\doption{-dump-ops}] \optdev: \\
+  Dumps the sequence of operations performed inside the set abstraction,
+  for separate debugging and study of the behvior of the set abstract
+  domain.
+\end{itemize}
+
+\subsection{Disjunction abstraction}
+\label{s:opt:disjd}
+The \memcad analyzer often generates disjunctive properties when it
+materializes memory cells.
+\begin{itemize}
+\item[\doption{-disj-on}]: \\
+  This option activates support of disjunctive abstractions (this is the
+  default settings).
+\item[\doption{-disj-off}]: \\
+  This option deactivates the support of disjunctive abstractions, and is
+  not recommended in most cases (though it can be used to study where a
+  give analysis absolutely requires disjunctions).
+\end{itemize}
+
+\subsection{Iteration strategy and widening}
+\label{s:opt:iter}
+The \memcad analyzer offers numerous ways of tuning the iteration
+strategy and the way widening operates.
+
+The following options control the computation of loop invariants:
+\begin{itemize}
+\item[\doption{-unrolls} \texttt{N}]: \\
+  Sets the number of unroll iterations which are treated separately
+  from the least-fixpoint iteration to \texttt{N}.
+\item[\doption{-no-unroll-in} \texttt{N}]: \\
+  Disables unrolling for inner loops.
+\item[\doption{-j-iters} \texttt{N}]: \\
+  Sets the number of iterations where a regular join is used instead
+  of widening to \texttt{N} (these iterations follow the unroll
+  iterations).
+\item[\doption{-dw-iters} \texttt{N}] \optdev: \\
+  Uses a less coarse widening operator for \texttt{N} iterations, after
+  join iterations, and before regular widening iterations (this option
+  is experimental).
+\end{itemize}
+
+The options below activate {\em threshold widening} in the base
+numerical domain via the Apron interface:
+\begin{itemize}
+\item[\doption{-w-thr}]: \\
+  Activates threshold widening.
+\item[\doption{-w-no-thr}]: \\
+  Deactivates threshold widening.
+\item[\doption{-w-add-thr} \texttt{N}]: \\
+  Adds widening a threshold step \texttt{N}.
+\end{itemize}
+
+Finally, the following options are highly experimental, and used only
+by developpers at this time (thus not documented in this document):
+\begin{itemize}
+\item[\doption{-type-unfolds}] \optdev
+\item[\doption{-part-lfps}] \optdev
+\item[\doption{-no-part-lfps}] \optdev
+\item[\doption{-sel-widen}] \optdev
+\item[\doption{-no-sel-widen}] \optdev
+\item[\doption{-basic-widen}] \optdev
+\item[\doption{-no-basic-widen}] \optdev
+\item[\doption{-no-fast-iir}] \optdev
+\item[\doption{-unary-abs}] \optdev
+\item[\doption{-no-unary-abs}] \optdev
+\item[\doption{-rec-calls}] \optdev
+\end{itemize}
+
+
+\section{\memcad commands}
+\label{s:3:2:commands}
+The options listed in \sref{3:1:analyze} affect the behavior of the
+whole analysis, yet one may need to affect it only at a specific point,
+for instance in order to output the abstract states procued by the
+analyzer, and at a specific line.
+This is the purpose of \memcad {\em commands}:
+these commands take the form of C statements and are inserted in the
+program to analyze, and they convey orders to the analyzer, even though
+their concrete semantics is the same as that of an empty statement.
+In order to run code containing such commands, we recommend using C
+macros that evaluate to empty strings.
+
+Commands are used in order to:
+\begin{itemize}
+\item specify analysis assumptions such as abstract pre-conditions;
+\item specify analysis goals using extensions of C assertions;
+\item force the application of specific transfer functions.
+\end{itemize}
+\memcad command statements take the following form:
+\[
+\texttt{_memcad( "} C \texttt{" );}
+\]
+where \( C \) is a command, following a syntax described in the
+following of this section.
+In the next paragraphs, we group commands by the kind of analysis
+operations they control.
+
+\subsection{Special output}
+In addition to the text output, \memcad may also produce formatted
+output in separate files, at specific points:
+\begin{itemize}
+\item[\dcommand{output\_dot}]: \\
+  This command triggers the generation of a \texttt{.dot} file containing
+  a representation of the current abstract state(s) and that can be
+  further processed into {\em graphviz} and {\em PDF} formats for
+  easier viewing.
+  It may take as options a list of variables \( l \) and a formatting
+  option to be chosen among \texttt{CC} (it then includes {\em only}
+  the connected component corresponding to the variables in \( l \)),
+  \( \texttt{SUCC} \) (it then includes {\em only} the strongly connected
+  component of the shape graphs defined by the successors of the nodes
+  corresponding to the variables in \( l \)) and \texttt{CUTL} (it then
+  removes nodes corresponding to base values in the shape graphs).
+  Options \texttt{SUCC} and \texttt{CC} are incompatible.
+  The general syntax is thus:
+  \[
+  \scommand{output\_dot}( [ \texttt{v}_0, \ldots, \texttt{v}_n ]
+  [, \texttt{SUCC} | \texttt{CC} ] [, \texttt{CUTL} ] )
+  \]
+\end{itemize}
+
+\subsection{Structural assumptions and assertions}
+The following two commands allow to specify {\em structural assumptions},
+that is that certain assumptions on the memory structures hold, and are
+thus typically used in order to specify pre-conditions:
+\begin{itemize}
+\item[\dcommand{add\_inductive}]: \\
+  Assumes an inductive structural memory predicate holds.
+  The syntax of this command is:
+  \[
+  \scommand{add\_inductive}( \texttt{lv}, \texttt{iname} [, \texttt{ipars}] )
+  \]
+  where \texttt{lv} denotes the l-value at which the inductive predicate
+  is supposed to hold, \texttt{iname} is the name of the inductive
+  predicate in separation logic (either supplied as an external file
+  with option \soption{-use-ind}, or in the automatically generated
+  file) and \texttt{ipars} are the parameters of \texttt{iname}, if
+  any.
+  The \texttt{ipars} parameter is of the form \( [ \texttt{pptrs},
+  \texttt{iptrs}, \texttt{sptrs} ] \), where \texttt{pptrs},
+  \texttt{iptrs}, \texttt{sptrs} respectively denote the symbolic
+  variables corresponding to the pointer, integer and set variables.
+\item[\dcommand{add\_segment}]: \\
+  Assumes an inductive structural memory predicate holds.
+  The syntax of this command is:
+  \[
+  \begin{array}{l}
+    \scommand{add\_segment}( \texttt{lv0}, \texttt{iname0}
+    [, \texttt{ipars0}], \\
+    \qquad \qquad \texttt{lv1}, \texttt{iname1} [, \texttt{ipars1}] )
+  \end{array}
+  \]
+  where the \texttt{lv0}, \texttt{iname0}, \texttt{ipars0} describe the
+  head of the segment and \texttt{lv1}, \texttt{iname1}, \texttt{ipars1}
+  describe the tail of the segment, using the same format as in command
+  \scommand{add\_inductive}.
+\end{itemize}
+Conversely, the following two commands allow to verify structural
+properties, and are typically used in order to specify post-conditions;
+they follow a similar format:
+\begin{itemize}
+\item[\dcommand{check\_inductive}]: \\
+  Verifies that a structural assertion specified by an inductive predicate
+  holds, and reports a failure message in the analysis log when it does
+  not succeed to do so (this is the memory counterpart for a violated C
+  assertion).
+  The general syntax of this command is:
+  \[
+  \scommand{check\_inductive}( \texttt{lv}, \texttt{iname} [, \texttt{ipars}] )
+  \]
+\item[\dcommand{check\_segment}]: \\
+  Verifies that a structural assertion describing an inductive segment
+  holds, and reports a failure message in the analysis log when it does
+  not succeed to do so (this is the memory counterpart for a violated C
+  assertion).
+  The general syntax of this command is:
+  \[
+  \begin{array}{l}
+    \scommand{check\_segment}( \texttt{lv0}, \texttt{iname0}
+    [, \texttt{ipars0}], \\
+    \qquad \qquad \texttt{lv1}, \texttt{iname1} [, \texttt{ipars1}] )
+  \end{array}
+  \]
+\end{itemize}
+
+\subsection{Value assumptions and assertions}
+The following two commands allow to assume and verify numerical
+properties of the form \( \texttt{lv0} \mathrel{\odot} \texttt{e1} \)
+where \( \texttt{lv0} \) is an l-value, \( \odot \) is one of the C
+comparison operators \texttt{==}, \texttt{!=}, \texttt{<}, \texttt{<=},
+\texttt{>}, \texttt{>=}, and \texttt{e1} is either an l-value or an
+integer constant:
+\begin{itemize}
+\item[\dcommand{assume}]: \\
+  Assumes one or several numerical constraint(s).
+  The syntax is
+  \[
+  \scommand{assume}( p_0 [, p_1, \ldots, p_n ] );
+  \]
+  where \( p_0, p_1, \ldots, p_n \) are numerical properties.
+\item[\dcommand{assert}]: \\
+  Attempts to prove one or several numerical constraint(s)
+  (a failure is treated as a failed proof goal and reported in the
+  alarm trace).
+  The syntax is
+  \[
+  \scommand{assert}( p_0 [, p_1, \ldots, p_n ] );
+  \]
+  where \( p_0, p_1, \ldots, p_n \) are numerical properties.
+\end{itemize}
+
+\subsection{Set assumptions and assertions}
+The \memcad analyzer can also reason about set assertions, although
+the C language has no native set data structure.
+Properties such as the preservation of the set of values stored in a
+structure, or the preservation of the set of addresses that store a
+structure can be verified.
+To describe set properties, we need to introduce explicitely set
+variables:
+\begin{itemize}
+\item[\dcommand{decl\_setvars}]: \\
+  Introduces one or several universally quantified set variable(s).
+  The syntax of this command is:
+  \[
+  \scommand{decl\_setvars}( \texttt{V}_0 [, \texttt{V}_1, \ldots,
+  \texttt{V}_n ] )
+  \]
+  where \( \texttt{V}_0, \texttt{V}_1, \ldots, \texttt{V}_n \) are
+  set variables.
+\end{itemize}
+Most of the time, the specification of set properties is achieved
+through structural assumptions, but the user can also specify directly
+set properties to assume or verify.
+Set properties are described using the following grammar:
+\[
+\begin{array}{rcll}
+  \texttt{P}
+  & ::=
+  & \texttt{V}_0 \mathop{\texttt{\$sub}} \texttt{V}_1
+  & \text{ inclusion constraint}
+  \\
+  & |
+  & \texttt{x}_0 \mathop{\texttt{\$in}} \texttt{V}_1
+  & \text{ membership constraint}
+  \\
+  & |
+  & \texttt{V}_0 = \mathop{\texttt{\$empty}}
+  & \text{ inclusion emptiness}
+  \\
+  & |
+  & \texttt{V}_0 = \texttt{x}_1 \mathop{\texttt{\$uplus}} \texttt{V}_2
+  & \text{ equality } \texttt{V}_0 = \{ \texttt{x}_1 \} \uplus \texttt{V}_2
+  \\
+\end{array}
+\]
+The following two commands allow to assume and verify set properties:
+\begin{itemize}
+\item[\dcommand{set\_assume}]: \\
+  Assumes a set property.
+  The syntax of this command is:
+  \[
+  \scommand{set\_assume}( \texttt{P} )
+  \]
+\item[\dcommand{set\_check}]: \\
+  Attempts to verify a set property (a failure is treated as a failed
+  proof goal and reported in the alarm trace).
+  The syntax of this command is:
+  \[
+  \scommand{set\_check}( \texttt{P} )
+  \]
+\end{itemize}
+
+\subsection{Control of unfolding}
+Les commandes suivantes permettent de déclencher un dépliage d'un prédicat
+inductif:
+\begin{itemize}
+\item[\dcommand{unfold}]: \\
+  Forces the unfolding of an inductive predicate or segment predicate.
+  The syntax of this command is:
+  \[
+  \scommand{unfold}( \texttt{lv} )
+  \]
+  where \( \texttt{lv} \) is an l-value pointing to the structure
+  (inductive predicate or segment) to be unfolded.
+\item[\dcommand{unfold\_bseg}]: \\
+  Forces the {\em backward} unfolding of an inductive segment predicate
+  (backward unfolding operates from the tail of the segment).
+  The syntax of this command is:
+  \[
+  \scommand{unfold\_bseg}( \texttt{lv} )
+  \]
+  where \( \texttt{lv} \) is an l-value pointing to the structure
+  (inductive predicate or segment) to be unfolded.
+\end{itemize}
+
+\subsection{Control of the handling of disjunctions}
+\memcad also features a series of commands that allow to control the
+way the analysis handles disjunctions:
+\begin{itemize}
+\item[\dcommand{merge}] \optadv: \\
+  Forces the fusion of a union of abstract states into a single abstract
+  state, at the current point.
+  The syntax is \( \scommand{merge}( ) \).
+\item[\dcommand{sel\_merge}] \optdev: \\
+  Experimental variation of \( \scommand{merge} \).
+  The syntax is \( \scommand{merge}( ) \).
+\item[\dcommand{force\_live}] \optdev: \\
+  Provide a hint to static analysis algorithms (mainly join), by providing
+  a set of variables information about which should be preserved in priority.
+  The syntax is
+  \[
+  \scommand{force\_live}( \texttt{lv}_0 [, \texttt{lv}_1, \ldots,
+  \texttt{lv}_n ] )
+  \]
+  where \( \texttt{lv}_0, \texttt{lv}_1, \ldots, \texttt{lv}_n \) are
+  l-values.
+\item[\dcommand{check\_bottomness}]: \\
+  Checks whether the flow is \( \bot \) (if called with flag
+  \( \texttt{true} \)) or not \( \bot \) (if called with flag
+  \( \texttt{false} \)).
+  The syntax is:
+  \[
+  \scommand{check\_bottomness}( \texttt{flag} )
+  \]
+\item[\dcommand{kill\_flow}] \optdev: \\
+  Removes the current abstract flow, which is unsound in the analysis point
+  of view, but can be useful for debugging.
+  The syntax is \( \scommand{kill\_flow}( ) \).
+\end{itemize}
+
+
+\section{Syntax for inductive definition files}
+\label{s:3:3:ind}
+The \memcad analyzer can deal with inductive predicates.
+Inductive definitions can be inferred automatically by a (conservative)
+pre-analysis or specified in a separate file.
+Therefore, we now present the syntax for the specification of such
+predicates in separate files.
+
+Inductive definition specification files are basic text files, following
+a syntax that we describe in the rest of this section.
+Such a file consists of a list of statements, which are either
+inductive definitions, or hints that an inductive definition may
+appear for a given type:
+\[
+\begin{array}{rcll}
+  \grindfile
+  & ::=
+  & \grdecl \; \text{{\em list}}
+  & \text{ list of declarations}
+  \\
+  \grdecl
+  & ::=
+  & \grind
+  & \text{ inductive definition}
+  \\
+  & |
+  & \grtype : \grind .
+  & \text{ type-ind binding}
+  \\
+\end{array}
+\]
+
+The following example illustrates the definition of an inductive
+\texttt{elt}, which describes a list structure:
+\input{ind.txt}
+
+An inductive definition consists of a {\em header} defining the name
+\( iname \) of the definition as well as the number of pointers
+(\resp, integer) parameters \( n_p \) (\resp, \( n_i \)) and a list
+of {\em rules}, which describe all the possible ways to construct an
+instance of that inductive definition:
+%% TODO: add the number of set parameters
+\[
+\begin{array}{rcll}
+  \grind
+  & ::=
+  & iname \texttt{<} n_p, n_i \texttt{> := } \grbody
+  &
+  \\
+  \grbody
+  & ::=
+  &
+  & \text{ empty body}
+  \\
+  & |
+  & \texttt{ | } \grrule \; \grbody
+  & \text{ one rule + body}
+  \\
+\end{array}
+\]
+Typical inductive rules are of two sorts:
+(1) rules describing a null pointer, with an empty heap footprint
+(such as the first rule of \texttt{elt});
+(2) rules describing a non-null pointer, with a non empty heap footpring
+(such as the second rule of \texttt{elt}).
+
+A rule is made of three parts:
+\begin{enumerate}
+\item the description of the {\em new symbolic variables} used in the rule,
+  together with their type;
+\item the description of the {\em memory part} (using a separation logic
+  formula);
+\item the description of the {\em side predicates} associated with the rule
+  (numeric or set constraints, allocation zone declaration...).
+\end{enumerate}
+The syntax of a rule is:
+\[
+\begin{array}{rcll}
+  \grrule
+  & ::=
+  & \grsvars \texttt{ - } \grmem \texttt{ - } \grside
+  & \text{ inductive rule}
+  \\
+  \grsvars
+  & ::=
+  & \texttt{[} n \; \grst_0 \; \ldots \; \grst_{n - 1} \texttt{]}
+  & \text{ symbolic variables}
+  \\
+  \grst
+  & ::=
+  & \texttt{addr}
+  & \text{ address (pointer)}
+  \\
+  & |
+  & \texttt{int}
+  & \text{ integer}
+  \\
+  & |
+  & \texttt{raw}
+  & \text{ unspecified}
+  \\
+  & |
+  & \texttt{set}
+  & \text{ set}
+  \\
+\end{array}
+\]
+Note that the number of symbolic variable types should be equal to the
+number of symbolic variables used in the rule.
+In the context of a rule the \( i \)-th symbolic variable is denoted
+by \( \texttt{\$}i \), whereas the \( k \)-th pointer (\resp, integer,
+set) parameter is denoted by \( \texttt{@p}k \) (\resp, \( \texttt{@i}k \),
+\( \texttt{@s}k \)).
+
+The memory part \( \grmem \) is a separating conjunction of predicates,
+which denote either the empty memory region, a single cell defined by
+a points-to predicate, or another inductive predicate:
+\[
+\begin{array}{rcll}
+  \grmem
+  & ::=
+  & \texttt{emp}
+  & \text{ empty}
+  \\
+  & |
+  & \grmem \texttt{ * } \grmem
+  & \text{ sep. conj.}
+  \\
+  & |
+  & \grloc \texttt{.} \grfield \texttt{ -> } \texttt{\$}i
+  & \text{ points-to}
+  \\
+  & |
+  & \grloc \texttt{.} \texttt{indname} \texttt{(} \grpars \texttt{)}
+  & \text{ inductive}
+  \\
+  \grloc
+  & ::=
+  & \texttt{this}
+  & \text{ base addr.}
+  \\
+  & |
+  & \texttt{\$}i
+  & \text{ symb. var.}
+  \\
+  \grfield
+  & ::=
+  & f
+  & \text{ field name}
+  \\
+  & |
+  & o
+  & \text{ field offset}
+\end{array}
+\]
+The parameters of an inductive predicate are split into three lists of
+pointer, integer and set parameters:
+\[
+\begin{array}{rcl}
+  \grpars
+  & ::=
+  & \grptrpars \texttt{ | } \grintpars \texttt{ | } \grsetpars
+  \\
+  \grptrpars
+  & ::=
+  & (\texttt{this} \, | \, \texttt{\$}i \, | \, \texttt{@p}k) \textit{list}
+  \\
+  \grintpars
+  & ::=
+  & (\texttt{\$}i \, | \, \texttt{@i}k) \textit{list}
+  \\
+  \grsetpars
+  & ::=
+  & (\texttt{\$}i \, | \, \texttt{@s}k) \textit{list}
+  \\
+\end{array}
+\]
+In the other hand, the side predicates consists of a conjunction
+of predicates, that describe either allocation constraint, numeric
+predicates or set predicates:
+\[
+\begin{array}{rcll}
+  \grside
+  & ::=
+  & 
+  & \text{ (true)}
+  \\
+  & |
+  & \grpred
+  & \text{ predicate}
+  \\
+  & |
+  & \grpred \text{ \& } \grside
+  & \text{ conjunction}
+  \\
+  \grpred
+  & ::=
+  & \grcalloc
+  & \text{ allocation}
+  \\
+  & |
+  & \grcnum
+  & \text{ numerics}
+  \\
+  & |
+  & \grcset
+  & \text{ set}
+  \\
+\end{array}
+\]
+An allocation predicate specifies the number of bytes allocates from
+the base address of the inductive:
+\[
+\begin{array}{rcl}
+  \grcalloc
+  & ::=
+  & \texttt{alloc( this, } bytes \texttt{ )}
+  \\
+\end{array}
+\]
+Numeric constraints are linear equalities or dis-equalities:
+\[
+\begin{array}{rcl}
+  \grcnum
+  & ::=
+  & \grenum \texttt{ == } \grenum
+  \\
+  & |
+  & \grenum \texttt{ != } \grenum
+  \\
+  \grenum
+  & ::=
+  & n \qquad \text{ constant}
+  \\
+  & |
+  & \texttt{\$}i
+  \\
+  & |
+  & \texttt{this}
+  \\
+  & |
+  & \grenum \texttt{ + } \grenum
+  \\
+\end{array}
+\]
+Set constraints are membership constraints (\texttt{\#} denotes \( \in \))
+and linear set equalities (\texttt{+} denotes \( \uplus \)):
+\[
+\begin{array}{rcl}
+  \grcnum
+  & ::=
+  & \grloc \texttt{ \# } \greset
+  \\
+  & |
+  & \greset \texttt{ == \{ \}}
+  \\
+  & |
+  & \greset \texttt{ == } \greset
+  \\
+  \greset
+  & ::=
+  & \texttt{\$}i
+  \\
+  & |
+  & \texttt{@s}k
+  \\
+\end{array}
+\]
+
+
+\section{Batch executable}
+\label{s:3:4:batch}
+The \sbatch executable allows to run \sanalyze on one or several files
+using options written in a text file containing a list of {\em test
+  suite entries}.
+Each entry contains textual description of the parameters of the
+analysis, and may reuse the definition of another entry.
+This allows for easier maintenance of test cases together with their
+options, and for systematic regression testing.
+The two following subsections describe the options of \sbatch, and the
+format of the text file containing analyzer settings (two such files
+are provided in the source tree, and are called \sfile{rt.txt},
+\sfile{bigrt.txt}).
+
+\subsection{Options}
+The following options of \sbatch control the general way it is
+executed:
+\begin{itemize}
+\item[\soption{-in-file} \sfile{file.txt}]: \\
+  Sets the input file specifying test suite to \sfile{file.txt}.
+\item[\soption{-analyzer} \sfile{analyzer}] \optadv \\
+  Sets the analyzer executable to launch to \sfile{analyzer}.
+\item[\texttt{TESTNAME}]: \\
+  Runs test \texttt{TESTNAME}.
+\item[\soption{-all-test}]: \\
+  Runs all tests in the file.
+\item[\soption{-ncores} \texttt{N}]: \\
+  Schedules the tests to be performed over \texttt{N} cores.
+\item[\soption{-stress-test} \texttt{N}]: \\
+  Runs each test \texttt{N} times (to allow the computation of more
+  precise average runtimes).
+\item[\soption{-help}]: \\
+  Shows the list of options
+\end{itemize}
+The following options allow to override options given in the test
+suite description, \eg, to force silent execution of the analyses:
+\begin{itemize}
+\item[\soption{-silent}]: \\
+  Forces option \soption{-silent} be added, even when not present in
+  the test suite entries.
+\item[\soption{-very-silent}]: \\
+  Forces option \soption{-very-silent} be added, even when not present in
+  the test suite entries.
+\item[\soption{-no-silent}]: \\
+  Forces option \soption{-silent} be dropped, even when present in
+  the test suite entries.
+\item[\soption{-no-very-silent}]:
+  Forces option \soption{-very-silent} be dropped, even when present in
+  the test suite entries.
+\item[\soption{-no-timing}]: \\
+  Forces option \soption{-timing} be dropped, even when present in
+  the test suite entries.
+\end{itemize}
+Finally, these developper options allow to run only specific categories
+of tests:
+\begin{itemize}
+\item[\soption{-pure-regtest}] \optdev
+\item[\soption{-pure-expe}] \optdev
+\item[\soption{-pure-cat} \texttt{CAT}] \optdev
+\end{itemize}
+
+\subsection{Syntax of the test suite file}
+The test suite file consists of a list of entries of the form below:
+\input{entry.txt}
+The first line gives the name of the test, between brackets.
+The other lines are all of the form \verb#key = value#, where
+\verb#key# is a field name, and \verb#value# is the value assigned
+to that field.
+Almost all field names specify options that will be passed to
+\sanalyze, whereas a few specific fields describe the way batch
+testing is supposed to be performed:
+\begin{itemize}
+\item[\sfield{file}]: \\
+  Defines name of the file to analyze.
+\item[\sfield{asserts\_total}]: \\
+  Defines the number of assertions that the analysis should encounter.
+\item[\sfield{asserts\_proved}]: \\
+  Defines the number of assertions that a previous correct run of the
+  analysis verified; it allows to check differences in analysis behavior.
+\item[\sfield{timeout}]: \\
+  Defines a timeout in seconds.
+\item[\sfield{category}] \optdev: \\
+  Defines in which category or categories the test belongs to.
+\end{itemize}
+
+\begin{figure*}
+  \begin{center}
+    \begin{tabular}{|l|l|l|}
+      \hline
+      Name
+      & Expected value
+      & Definition
+      \\ \hline \hline
+      \sfield{array}
+      & \valonoff
+      & controls options \soption{-array-on}~/~\soption{-array-off}
+      (\sref{opt:mem})
+      \\ \hline
+      \sfield{auto\_ind}
+      & \valonoff
+      & controls option \soption{-auto-ind} (\sref{opt:mem})
+      \\ \hline
+      \sfield{no\_prev\_fields} \optdev
+      & \valonoff
+      & controls option \soption{-no-prev-fields} (\sref{opt:mem})
+      \\ \hline
+      \sfield{asserts\_proved}
+      & \valint
+      & number of assertions proved
+      \\ \hline
+      \sfield{asserts\_total}
+      & \valint
+      & total number of assertions
+      \\ \hline
+      \sfield{category}
+      & \valstrlist
+      & list categories the test entry belongs to
+      \\ \hline
+      \sfield{excluded} \optdev
+      & \valyesno
+      & developer, undocumented
+      \\ \hline
+      \sfield{dirweak}
+      & \valint
+      & controls option \soption{-dw-iters} (\sref{opt:iter})
+      \\ \hline
+      \sfield{disj}
+      & \valonoff
+      & controls options \soption{-disj-on} and \soption{-disj-off}
+      (\sref{opt:disjd})
+      \\ \hline
+      \sfield{domain}
+      & \texttt{[ box | oct | pol ]}
+      & controls option \soption{-nd-box}, \soption{-nd-oct}, \soption{-nd-pol}
+      (\sref{opt:vsd})
+      \\ \hline
+      \sfield{domstruct}
+      & \valstr
+      & controls option \soption{-shape-dom} (\sref{opt:mem})
+      \\ \hline
+      \sfield{dump\_ops}
+      & \valonoff
+      & controls option \soption{-dump-ops} (\sref{opt:vsd})
+      \\ \hline
+      \sfield{dynenv}
+      & \valonoff
+      & controls options \soption{-dynenv-yes} and \soption{-dynenv-no}
+      (\sref{opt:vsd})
+      \\ \hline
+      \sfield{set\_on}
+      & \valstr
+      & controls option \soption{-set-on} (\sref{opt:out})
+      \\ \hline
+      \sfield{set\_off}
+      & \valstr
+      & controls option \soption{-set-off} (\sref{opt:out})
+      \\ \hline
+      \sfield{fast\_iir} \optdev
+      & \valonoff
+      & controls option \soption{-no-fast-iir} (\sref{opt:iter})
+      \\ \hline
+      \sfield{file}
+      & \valstr (filepath)
+      & specifies the file to analyze (\sref{opt:in})
+      \\ \hline
+      \sfield{header}
+      & \valstr (filepath)
+      & controls option \soption{-header} (\sref{opt:in})
+      \\ \hline
+      \sfield{indfile}
+      & \valstr (filepath)
+      & controls option \soption{-use-ind} (\sref{opt:mem})
+      \\ \hline
+      \sfield{indpars}
+      & \valonoff
+      & controls option \soption{-ind-pars} (\sref{opt:mem})
+      \\ \hline
+      \sfield{issue} \optdev
+      & \valstr
+      & uninterpreted comment
+      \\ \hline
+      \sfield{join\_iters}
+      & \valint
+      & controls option \soption{-j-iters} (\sref{opt:iter})
+      \\ \hline
+      \sfield{main\_fun}
+      & \valstr
+      & controls option \soption{-main-fun} (\sref{opt:in})
+      \\ \hline
+      \sfield{old\_parser}
+      & \valonoff
+      & controls option \soption{-old-parser} (\sref{opt:in})
+      \\ \hline
+      \sfield{old\_widen} \optdev
+      & \valonoff
+      & controls options \soption{-old-widen} and
+      \soption{-no-old-widen} (\sref{opt:iter})
+      \\ \hline
+      \sfield{part\_lfps} \optdev
+      & \valonoff
+      & controls options \soption{-part-lfps} and
+      \soption{-no-part-lfps} (\sref{opt:iter})
+      \\ \hline
+      \sfield{rec\_calls} \optdev
+      & \valonoff
+      & controls option \soption{-rec-calls} (\sref{opt:iter})
+      \\ \hline
+      \sfield{sel\_widen} \optdev
+      & \valonoff
+      & controls options \soption{-sel-widen} and
+      \soption{-no-sel-widen} (\sref{opt:iter})
+      \\ \hline
+      \sfield{setdom}
+      & \texttt{[ none | bdd }
+      & controls option \soption{-setd-on}, \soption{-setd-lin},
+      \soption{-setd-quicr},
+      \\
+      & \texttt{ \qquad | lin | quicr ]}
+      & \qquad \soption{-setd-off} (\sref{opt:vsd})
+      \\ \hline
+      \sfield{silent}
+      & \valonoff
+      & controls option \soption{-silent} (\sref{opt:out})
+      \\ \hline
+      \sfield{submem}
+      & \valonoff
+      & controls option \soption{-add-submem} (\sref{opt:mem})
+      \\ \hline
+      \sfield{submem\_ind}
+      & \valstr
+      & controls option \soption{-submem-ind} (\sref{opt:mem})
+      \\ \hline
+      \sfield{thr\_widen}
+      & \valonoff
+      & controls options \soption{-w-thr} and \soption{-w-no-thr}
+      (\sref{opt:iter})
+      \\ \hline
+      \sfield{thr\_w\_add}
+      & \valint
+      & controls option \soption{-w-add-thr} (\sref{opt:iter})
+      \\ \hline
+      \sfield{timeout}
+      & \valint
+      & sets a timeout in seconds
+      \\ \hline
+      \sfield{timing}
+      & \valstr
+      & controls option \soption{-timing} (\sref{opt:timing})
+      \\ \hline
+      \sfield{unary\_abs}
+      & \valonoff
+      & controls options \soption{-unary-abs} and \soption{-unary-abs}
+      (\sref{opt:iter})
+      \\ \hline
+      \sfield{unrolls}
+      & \valint
+      & controls option \soption{-unrolls} (\sref{opt:iter})
+      \\ \hline
+      \sfield{type\_unfolds} \optdev
+      & \valint
+      & controls option \soption{-type-unfolds} (\sref{opt:iter})
+      \\ \hline
+      \sfield{very\_silent}
+      & \valonoff
+      & controls option \soption{-very-silent} (\sref{opt:out})
+      \\ \hline
+      \sfield{red\_mode}
+      & \valstr
+      & controls options related to reduction (\sref{opt:mem})
+      \\ \hline
+    \end{tabular}
+  \end{center}
+  \caption{Keys of the test suite entries}
+\end{figure*}

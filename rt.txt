@@ -1,0 +1,6896 @@
+%  1-99     c-micro and atomic     small C tests (noth memory specific)
+%  1mn      c-next-                idem
+%  2mn      mc-com-                MemCAD commands
+%  5mn      list-                  singly linked lists
+%  6mn      llen-                  lists with length parameters
+%  7mn      dll-                   doubly linked lists
+%  75n      lpcst-                 lists of integers with constant par
+%  8mn      tree-                  binary trees
+% 11mn      tree-p-                binary trees with parent pointers
+% 12mn      tree-h-                binary trees with head pointers
+% 13mn      tree-b-                binary trees with both parent&head pointers
+% 15mn      arith-                 arithmetic expressions
+% 20mn      hdll                   product abstractions
+% 30mn      array-                 examples with arrays
+% 31mn      submem-                examples with sub-memory
+% 32mn      aplas-...-             APLAS 2012 examples with sub-memory
+% 40mn      prod-cart-             examples for reduced product of domains
+% 41mn      prod-cart-             examples for separating product of domains
+% 42mn      shape-less-            flat domain
+% 50mn      vmcai13-               VMCAI 2013 examples
+% 70mn      minix-mem-             Minix examples
+% 80mn      set-                   Set examples
+% 81mn      lset- ?                List set examples
+% 1001      remove ?
+% 1002      remove ?
+
+% issue with typing over equality (verify frontend)
+% [1]
+% file            = "bench/rt/atomic-01.c"
+% asserts_total   = 1
+% asserts_proved  = 1
+% timeout         = 5
+
+% parsing of floating point numbers not implemented
+% [2]
+% file            = "bench/rt/atomic-02.c"
+% asserts_total   = 1
+% asserts_proved  = 1
+% timeout         = 5
+
+[0]
+file            = "bench/rt/c-micro-00.c"
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1]
+file            = "bench/rt/c-micro-01.c"
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+% nested aggregates, not supported for now (issue: address of field)
+% [12]
+% file            = "bench/rt/c-micro-02.c"
+% silent          = on
+% asserts_total   = 1
+% asserts_proved  = 1
+% timeout         = 5
+
+[3]
+file            = "bench/rt/c-micro-03.c"
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[4]
+file            = "bench/rt/c-micro-04.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+% two loops, no assertion for now (issue: auto addition of thresholds)
+% [5]
+% file            = "bench/rt/c-micro-05.c"
+% silent          = on
+% asserts_total   = 1
+% asserts_proved  = 1
+% timeout         = 5
+
+[6]
+file            = "bench/rt/c-micro-06.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[7]
+file            = "bench/rt/c-micro-07.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+disj = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[8]
+file            = "bench/rt/c-micro-08.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[9]
+file            = "bench/rt/c-micro-09.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[10]
+file            = "bench/rt/c-micro-10.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[11]
+file            = "bench/rt/c-micro-11.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[12]
+file            = "bench/rt/c-micro-12.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[13]
+file            = "bench/rt/c-micro-13.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[14]
+file            = "bench/rt/c-micro-14.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[15]
+file            = "bench/rt/c-micro-15.c"
+disj            = off
+domain          = box
+silent          = on
+unrolls         = 2
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[16]
+file            = "bench/rt/c-micro-16.c"
+disj            = off
+domain          = box
+silent          = on
+unrolls         = 2
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[17]
+file            = "bench/rt/c-micro-17.c"
+disj            = off
+domain          = box
+silent          = on
+unrolls         = 2
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[18]
+file            = "bench/rt/c-micro-18.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[19]
+file            = "bench/rt/c-micro-19.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[20]
+file            = "bench/rt/c-micro-20.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[22]
+file            = "bench/rt/c-micro-22.c"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[23]
+file            = "bench/rt/c-micro-23.c"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+category        = valid
+
+[24]
+file            = "bench/rt/c-micro-24.c"
+disj            = on
+domain          = box
+silent          = off
+unary_abs       = off
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[25]
+file            = "bench/rt/c-micro-25.c"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+category        = valid
+
+[26]
+file            = "bench/rt/c-micro-26.c"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[27]
+file            = "bench/rt/c-micro-27.c"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+category        = valid
+
+%-----------------------------------------------------
+% C-frontend transformations
+
+[28]
+file            = "bench/rt/c-micro-28.c"
+disj            = off
+domain          = box
+silent          = off
+unary_abs       = off
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[29]
+file            = "bench/rt/c-micro-29.c"
+disj            = off
+domain          = box
+silent          = off
+unary_abs       = off
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[30]
+file            = "bench/rt/c-micro-30.c"
+disj            = off
+domain          = box
+silent          = off
+unary_abs       = off
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+category        = valid
+
+[31]
+file            = "bench/rt/c-micro-31.c"
+asserts_proved  = 1
+asserts_total   = 1
+category        = valid
+
+[32]
+file            = "bench/rt/c-micro-32.c"
+asserts_proved  = 1
+asserts_total   = 1
+category        = valid
+
+[33]
+file            = "bench/rt/c-micro-33.c"
+asserts_proved  = 1
+asserts_total   = 1
+category        = valid
+
+[34]
+file            = "bench/rt/c-micro-34.c"
+asserts_proved  = 6
+asserts_total   = 6
+category        = valid
+
+[35]
+file            = "bench/rt/c-micro-35.c"
+category        = valid
+asserts_proved  = 3
+asserts_total   = 3
+
+[36]
+file            = "bench/rt/c-micro-36.c"
+category        = valid
+asserts_proved  = 2
+asserts_total   = 2
+
+[37]
+file            = "bench/rt/c-micro-37.c"
+category        = valid
+asserts_proved  = 4
+asserts_total   = 4
+
+[38]
+file            = "bench/rt/c-micro-38.c"
+category        = valid
+asserts_proved  = 0
+asserts_total   = 0
+
+[39]
+file            = "bench/rt/c-micro-39.c"
+category        = valid
+asserts_proved  = 3
+asserts_total   = 3
+
+[40]
+file            = "bench/rt/c-micro-40.c"
+category        = valid
+asserts_proved  = 10
+asserts_total   = 10
+
+[41]
+file            = "bench/rt/c-micro-41.c"
+category        = valid
+asserts_proved  = 1
+asserts_total   = 1
+
+[42]
+file            = "bench/rt/c-micro-42.c"
+category        = valid
+asserts_proved  = 2
+asserts_total   = 2
+
+[43]
+file            = "bench/rt/c-micro-43.c"
+category        = valid
+asserts_proved  = 2
+asserts_total   = 2
+
+[44]
+file            = "bench/rt/c-micro-44.c"
+category        = valid
+asserts_proved  = 7
+asserts_total   = 7
+
+[45]
+file            = "bench/rt/c-micro-45.c"
+category        = valid
+asserts_proved  = 7
+asserts_total   = 7
+
+[46]
+file            = "bench/rt/c-micro-46.c"
+category        = valid
+asserts_proved  = 7
+asserts_total   = 7
+
+[47]
+file            = "bench/rt/c-micro-47.c"
+category        = valid
+asserts_proved  = 1
+asserts_total   = 1
+
+[48]
+file           = "bench/rt/c-micro-48.c"
+header         = "memcad.h"
+silent         = on
+asserts_total  = 2
+asserts_proved = 2
+timeout        = 5
+category       = valid
+
+[49]
+file           = "bench/rt/c-micro-49.c"
+header         = "memcad.h"
+silent         = on
+asserts_total  = 1
+asserts_proved = 1
+timeout        = 5
+category       = valid
+
+[50]
+file           = "bench/rt/c-micro-50.c"
+header         = "memcad.h"
+silent         = on
+asserts_total  = 3
+asserts_proved = 3
+timeout        = 5
+category       = valid
+
+[51]
+file            = "bench/rt/c-micro-51.c"
+category        = valid
+asserts_proved  = 4
+asserts_total   = 4
+
+[52]
+file            = "bench/rt/c-micro-52.c"
+category        = valid
+asserts_proved  = 1
+asserts_total   = 1
+
+[55]
+file            = "bench/rt/c-micro-55.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[56]
+file            = "bench/rt/c-micro-56.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+unrolls         = 1
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[57]
+file            = "bench/rt/c-micro-57.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+unrolls         = 1
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[58]
+file            = "bench/rt/c-micro-58.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+unrolls         = 0
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 5
+category        = exp
+
+[60]
+file            = "bench/rt/c-micro-60.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = off
+rec_calls       = on
+unrolls         = 0
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 5
+category        = exp
+
+[100]
+file            = "bench/rt/next-00.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[101]
+file            = "bench/rt/next-01.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[102]
+file            = "bench/rt/next-02.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[103]
+file            = "bench/rt/next-03.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[104]
+file            = "bench/rt/next-04.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+category        = valid
+
+[105]
+file            = "bench/rt/next-05.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+category        = valid
+
+[106]
+file            = "bench/rt/next-06.c"
+disj            = off
+domain          = pol
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[107]
+file            = "bench/rt/next-07.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[108]
+file            = "bench/rt/next-08.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+category        = valid
+
+% for now, does not work; fix it sometimes soon
+% [109]
+% file            = "bench/rt/next-09.c"
+% disj            = off
+% domain          = box
+% silent          = on
+% asserts_total   = 3
+% asserts_proved  = 3
+% timeout         = 5
+
+[110]
+file            = "bench/rt/next-10.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[111]
+file            = "bench/rt/next-11.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[112]
+file            = "bench/rt/next-12.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[113]
+file            = "bench/rt/next-13.c"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[114]
+file            = "bench/rt/next-14.c"
+disj            = off
+domain          = pol
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[115]
+file            = "bench/rt/next-15.c"
+disj            = off
+domain          = pol
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[116]
+file            = "bench/rt/next-16.c"
+disj            = off
+domain          = pol
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[117]
+file            = "bench/rt/next-17.c"
+disj            = off
+domain          = pol
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[118]
+file            = "bench/rt/next-18.c"
+disj            = off
+domain          = pol
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+
+%-----------------------------------------------------
+% Examples on lists
+
+[500a]
+file            = "bench/rt/list-00.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+% Currently, does not work, as it requires unary abstraction as well
+[500b]
+file            = "bench/rt/list-00.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domstruct       = "[ #list ]"
+domain          = box
+%dynenv          = off
+unary_abs       = off
+silent          = off
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = explist
+
+[100500]
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+unary_abs       = off
+silent          = on
+timeout         = 1
+
+[100501]
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+unary_abs       = off
+silent          = on
+timeout         = 1
+disj            = off
+
+[501a]#<[100501]>
+file            = "bench/rt/list-01.c"
+asserts_total   = 1
+asserts_proved  = 1
+category        = valid
+
+[501b]#<[501a]>
+domstruct       = "[ #list ]"
+
+[501c]#<[501b]>
+setdom          = on
+category        = expset
+
+[502a]#<[100501]>
+file            = "bench/rt/list-02.c"
+disj            = off
+asserts_total   = 1
+asserts_proved  = 1
+category        = valid
+
+[502b]#<[502a]>
+domstruct       = "[ #list ]"
+
+[502c]#<[502b]>
+setdom          = on
+category        = expset
+
+[503a]
+file            = "bench/rt/list-03.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+unary_abs       = on
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 1
+category        = valid
+
+[503b]#<[503a]>
+domstruct       = "[ #list ]"
+
+[503c]#<[503b]>
+setdom          = on
+category        = expset
+
+% the || test duplicates graphs that are equal
+% => we should figure this out, and reduce the graphs
+[504a]
+file            = "bench/rt/list-04.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on % Needed to analyze the condition...
+domain          = box
+silent          = on
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+category        = valid
+
+[504b]#<[504a]>
+domstruct       = "[ #list ]"
+
+[504c]#<[504b]>
+setdom          = on
+category        = expset
+
+[505a]
+file            = "bench/rt/list-05.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 1
+category        = valid
+
+[505b]#<[505a]>
+domstruct       = "[ #list ]"
+
+[505c]#<[505b]>
+setdom          = on
+category        = expset
+
+[506a]
+file            = "bench/rt/list-06.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[506b]#<[506a]>
+domstruct       = "[ #list ]"
+category        = explist
+
+[506c]#<[506b]>
+setdom          = on
+category        = expset
+
+[507a]
+file            = "bench/rt/list-07.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[507b]#<[507a]>
+domstruct       = "[ #list ]"
+
+[507c]#<[507b]>
+setdom          = on
+category        = expset
+
+[508a]
+file            = "bench/rt/list-08.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[508b]#<[508a]>
+domstruct       = "[ #list ]"
+
+[508c]#<[508b]>
+setdom          = on
+category        = expset
+
+[508d]
+file            = "bench/rt/list-08.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+dirweak         = 1
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[509a]
+file            = "bench/rt/list-09.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[509b]#<[509a]>
+domstruct       = "[ #list ]"
+
+[509c]#<[509b]>
+setdom          = on
+category        = expset
+
+[510a]
+file            = "bench/rt/list-10.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+unary_abs       = off
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[510b]#<[510a]>
+domstruct       = "[ #list ]"
+
+[510c]#<[510b]>
+setdom          = on
+category        = expset
+
+[511a]
+file            = "bench/rt/list-11.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+unary_abs       = off
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[511b]#<[511a]>
+domstruct       = "[ #list ]"
+
+[511c]#<[511b]>
+setdom          = on
+category        = expset
+
+[512a]
+file            = "bench/rt/list-12.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[512b]#<[512a]>
+domstruct       = "[ #list ]"
+category        = explist
+
+[512c]#<[512b]>
+setdom          = on
+category        = expset
+
+[513a]
+file            = "bench/rt/list-13.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[513b]#<[513a]>
+domstruct       = "[ #list ]"
+
+[513c]#<[513b]>
+setdom          = on
+category        = expset
+
+[514a]
+file            = "bench/rt/list-14.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[514b]#<[514a]>
+domstruct       = "[ #list ]"
+
+[514c]#<[514b]>
+setdom          = on
+category        = expset
+
+[515a]
+file            = "bench/rt/list-15.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[515b]#<[515a]>
+domstruct       = "[ #list ]"
+
+[515c]#<[515b]>
+setdom          = on
+category        = expset
+
+[516a]
+file            = "bench/rt/list-16.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[516b]#<[516a]>
+domstruct       = "[ #list ]"
+
+[516c]#<[516b]>
+setdom          = on
+category        = expset
+
+[517a]
+file            = "bench/rt/list-17.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[517b]#<[517a]>
+domstruct       = "[ #list ]"
+
+[517c]#<[517b]>
+setdom          = on
+category        = expset
+
+[518a]
+file            = "bench/rt/list-18.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[518b]#<[518a]>
+domstruct       = "[ #list ]"
+category        = explist
+
+[518c]#<[518b]>
+setdom          = on
+category        = expset
+
+[519a]
+file            = "bench/rt/list-19.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[519b]#<[519a]>
+domstruct       = "[ #list ]"
+category        = explist
+
+[519c]#<[519b]>
+setdom          = on
+category        = expset
+
+[520a]
+file            = "bench/rt/list-20.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[520b]#<[520a]>
+domstruct       = "[ #list ]"
+
+[520c]#<[520b]>
+setdom          = on
+category        = expset
+
+[521a]
+file            = "bench/rt/list-21.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = off
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+category        = valid
+
+[521b]#<[521a]>
+domstruct       = "[ #list ]"
+category        = explist
+
+[521c]#<[521b]>
+setdom          = on
+category        = expset
+
+[522a]
+file            = "bench/rt/list-22.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+category        = valid
+
+[522b]#<[522a]>
+domstruct       = "[ #list ]"
+
+[522c]#<[522b]>
+setdom          = on
+category        = expset
+
+% segments end guessing not working unless some variable is
+% specified live
+[523a]
+file            = "bench/rt/list-23.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[523b]#<[523a]>
+domstruct       = "[ #list ]"
+category        = explist
+
+[523c]#<[523b]>
+setdom          = on
+category        = expset
+
+[524a]
+file            = "bench/rt/list-24.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+category        = valid
+
+[524b]#<[524a]>
+domstruct       = "[ #list ]"
+category        = explist
+
+[524c]#<[524b]>
+setdom          = on
+category        = expset
+
+[525a]
+file            = "bench/rt/list-25.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+category        = valid
+
+[525b]#<[525a]>
+domstruct       = "[ #list ]"
+
+[525c]#<[525b]>
+setdom          = on
+category        = expset
+
+[526a]
+file            = "bench/rt/list-26.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[526b]#<[526a]>
+domstruct       = "[ #list ]"
+category        = explist
+
+[526c]#<[526b]>
+setdom          = on
+category        = expset
+
+[527a]
+file            = "bench/rt/list-27.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+category        = valid
+
+[527b]#<[527a]>
+domstruct       = "[ #list ]"
+
+[527c]#<[527b]>
+setdom          = on
+category        = expset
+
+[528a]
+file            = "bench/rt/list-28.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+category        = valid
+
+[528b]#<[528a]>
+domstruct       = "[ #list ]"
+
+[528c]#<[528b]>
+setdom          = on
+category        = expset
+
+[529a]
+file            = "bench/rt/list-29.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[529b]#<[529a]>
+domstruct       = "[ #list ]"
+
+[529c]#<[529b]>
+setdom          = on
+category        = expset
+
+[530a]
+file            = "bench/rt/list-30.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+% unrolls         = 2
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = exp
+
+[530b]#<[530a]>
+domstruct       = "[ #list ]"
+category        = explist
+
+[530c]#<[530b]>
+setdom          = on
+category        = expset
+
+[531b]
+file            = "bench/rt/list-31.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+unary_abs       = off
+silent          = off
+timeout         = 5
+setdom          = on
+asserts_total   = 2
+asserts_proved  = 2
+domstruct       = "[ #list ]"
+disj            = off
+category        = expset
+
+[532a]
+file            = "bench/rt/list-32.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+unary_abs       = off
+silent          = off
+timeout         = 5
+setdom          = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[ #list ]"
+disj            = off
+category        = expset
+
+[533a]
+file            = "bench/rt/list-33.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+unary_abs       = off
+silent          = on
+timeout         = 5
+setdom          = on
+asserts_total   = 1
+asserts_proved  = 1
+disj            = on
+category        = valid
+
+[533b]#<[533a]>
+domstruct       = "[ #list ]"
+category        = valid
+
+[534a]
+file            = "bench/rt/list-34.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+unary_abs       = off
+silent          = on
+timeout         = 5
+setdom          = on
+asserts_total   = 1
+asserts_proved  = 1
+%domstruct       = "[ #list ]"
+disj            = on
+category        = valid
+
+[534b]#<[534a]>
+domstruct       = "[ #list ]"
+category        = valid
+
+[535b]
+file            = "bench/rt/list-35.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+domstruct       = "[ #list ]"
+silent          = on
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 5
+category        = valid
+
+[536a]#<[100501]>
+%indfile         = "bench/rt/ind.list-36"
+auto_ind        = on
+file            = "bench/rt/list-36.c"
+asserts_total   = 1
+asserts_proved  = 1
+category        = valid
+
+[536b]#<[536a]>
+domstruct       = "[ #list ]"
+
+[537]
+file            = "bench/rt/list-min-max.c"
+indfile         = "bench/rt/ind.all"
+disj            = on
+sel_widen       = on
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+unrolls         = 2
+timeout         = 5
+category        = valid
+
+[538]
+file            = "bench/rt/list-search-min-rec.c"
+indfile         = "bench/rt/ind.all"
+disj            = on
+sel_widen       = on
+silent          = off
+asserts_total   = 1
+asserts_proved  = 1
+unrolls         = 1
+timeout         = 5
+rec_calls       = on
+category        = exp
+timing          = "env"
+timing          = "encode"
+
+[538a]
+file            = "bench/rt/list-search-min-rec-noarg.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+disj            = on
+sel_widen       = on
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+unrolls         = 1
+timeout         = 5
+rec_calls       = on
+category        = valid, selwiden
+timing          = "env"
+timing          = "encode"
+
+[539]
+file            = "bench/rt/list-search-min-max-rec.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+disj            = on
+sel_widen       = on
+silent          = off
+asserts_total   = 1
+asserts_proved  = 1
+rec_calls       = on
+unrolls         = 1
+timeout         = 5
+category        = exp
+timing          = "env"
+timing          = "encode"
+
+[539a]
+file            = "bench/rt/list-search-min-max-rec-noarg.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+disj            = on
+sel_widen       = on
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+unrolls         = 1
+rec_calls       = on
+timeout         = 10
+category        = valid, selwiden
+timing          = "env"
+timing          = "encode"
+
+[540]
+file            = "bench/rt/tree-search-ele-rec.c"
+indfile         = "bench/rt/ind.all"
+disj            = on
+sel_widen       = on
+silent          = off
+asserts_total   = 1
+asserts_proved  = 1
+unrolls         = 1
+rec_calls       = on
+timeout         = 5
+category        = exp
+timing          = "env"
+timing          = "encode"
+
+[540a]
+file            = "bench/rt/tree-search-ele-rec-noarg.c"
+indfile         = "bench/rt/ind.all"
+disj            = on
+unary_abs       = off
+sel_widen       = on
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+unrolls         = 1
+rec_calls       = on
+timeout         = 5
+category        = valid, selwiden
+timing          = "env"
+timing          = "encode"
+
+%-----------------------------------------------------
+% Examples of inductives with parameters, list of length(...)
+
+[600]
+file            = "bench/rt/llen-00.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+disj            = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[601]
+file            = "bench/rt/llen-01.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+disj            = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1000]
+file            = "bench/rt/llen-02.c"
+indfile         = "bench/rt/ind.all"
+indpars         = on
+unary_abs       = off
+disj            = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+excluded        = yes
+
+[603]
+file            = "bench/rt/llen-03.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+domain          = pol
+disj            = off
+fast_iir        = off % fails if fast ind-ind rule enhabled
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+
+%-----------------------------------------------------
+% Examples of inductives with parameters, sorted
+
+%[1102]
+%file            = "bench/rt/lsort-02.c"
+%%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+%indpars         = on
+%unary_abs       = off
+%disj            = off
+%silent          = on
+%asserts_total   = 1
+%asserts_proved  = 1
+%timeout         = 5
+
+
+%-----------------------------------------------------
+% List of integer values all equal to a constant
+
+[650]
+file            = "bench/rt/lcst-00.c"
+indfile         = "bench/rt/ind.all"
+% no auto_ind: const param in the inductive
+indpars         = on
+unary_abs       = off
+disj            = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[651]
+file            = "bench/rt/lcst-01.c"
+indfile         = "bench/rt/ind.all"
+% no auto_ind: const param in the inductive
+unary_abs       = off
+disj            = on
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[652]
+file            = "bench/rt/lcst-02.c"
+indfile         = "bench/rt/ind.all"
+% no auto_ind: const param in the inductive
+unary_abs       = off
+disj            = off
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[653]
+file            = "bench/rt/lcst-03.c"
+indfile         = "bench/rt/ind.all"
+% no auto_ind: const param in the inductive
+unary_abs       = off
+disj            = off
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[1654]
+file            = "bench/rt/lcst-04.c"
+indfile         = "bench/rt/ind.all"
+% no auto_ind: const param in the inductive
+indpars         = on
+unary_abs       = off
+disj            = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+excluded        = yes
+
+[1655]
+file            = "bench/rt/lcst-05.c"
+indfile         = "bench/rt/ind.all"
+% no auto_ind: const param in the inductive
+unary_abs       = off
+domain          = box
+disj            = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+excluded        = yes
+
+
+%-----------------------------------------------------
+% Examples of inductives with parameters, doubly linked lists
+
+[100700]
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+unary_abs       = off
+disj            = on
+silent          = on
+timeout         = 5
+
+[100701]#<[100700]>
+disj            = off
+
+[700]#<[100700]>
+file            = "bench/rt/dll-00.c"
+indfile         = "bench/rt/ind.all"
+asserts_total   = 1
+asserts_proved  = 1
+category        = valid
+
+[701]#<[100700]>
+file            = "bench/rt/dll-01.c"
+indfile         = "bench/rt/ind.all"
+asserts_total   = 1
+asserts_proved  = 1
+category        = valid
+
+[702]#<[100700]>
+file            = "bench/rt/dll-02.c"
+indfile         = "bench/rt/ind.all"
+asserts_total   = 1
+
+asserts_proved  = 1
+category        = valid
+
+[703]#<[100701]>
+file            = "bench/rt/dll-03.c"
+indfile         = "bench/rt/ind.all"
+asserts_total   = 1
+asserts_proved  = 1
+category        = valid
+
+[704]#<[100701]>
+file            = "bench/rt/dll-04.c"
+indfile         = "bench/rt/ind.all"
+asserts_total   = 1
+asserts_proved  = 1
+category        = valid
+
+[705]#<[100701]>
+file            = "bench/rt/dll-05.c"
+indfile         = "bench/rt/ind.all"
+asserts_total   = 1
+asserts_proved  = 1
+category        = valid
+
+[706]#<[100700]>
+file            = "bench/rt/dll-06.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = on
+unrolls         = 1
+asserts_total   = 1
+asserts_proved  = 1
+category        = valid
+
+[707]
+file            = "bench/rt/dll-07.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+disj            = off
+silent          = off
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+excluded        = yes
+
+[708]#<[100701]>
+file            = "bench/rt/dll-08.c"
+indfile         = "bench/rt/ind.all"
+asserts_total   = 2
+asserts_proved  = 2
+category        = valid
+
+[709]
+file            = "bench/rt/dll-09.c"
+indfile         = "bench/rt/ind.idllo"
+unary_abs       = off
+disj            = off
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[710]
+file            = "bench/rt/dll-10.c"
+indfile         = "bench/rt/ind.idllo"
+unary_abs       = off
+disj            = on
+% unrolls = 1 % fails with unroll
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+% To investigate:
+%  - fails if we turn on unrolls
+% Issue that there is an inductive edge i.dll(p) with constraint i=0;
+% this edge is equivalent to i.dll(q) for all q
+% It should probably be unfolded
+%  but doing so will cause other tests to break!
+%  see Gr_emp_ind in dom_shape
+[711]
+file            = "bench/rt/dll-11.c"
+indfile         = "bench/rt/ind.idllo"
+unary_abs       = off
+disj            = on
+% unrolls = 1
+silent          = off
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = wait
+
+[712]
+file            = "bench/rt/dll-12.c"
+indfile         = "bench/rt/ind.idllo"
+unary_abs       = off
+disj            = on
+silent          = on
+% unrolls = 1
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[713]
+file            = "bench/rt/dll-13.c"
+indfile         = "bench/rt/ind.idllo"
+unary_abs       = off
+disj            = on
+silent          = on
+% unrolls = 1
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+category        = valid
+
+[714]
+file            = "bench/rt/dll-14.c"
+indfile         = "bench/rt/ind.idllo"
+unary_abs       = off
+disj            = on
+silent          = on
+% unrolls = 1
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+category        = valid
+
+% Needs some heuristic to trigger node relocation before join
+% - 716 does this with some handwritten code
+% - 717 achieves this using unfold_bseg command
+% => basically, this examples needs to find how to suggest we should
+%    do an unfold bseg
+[715]
+file            = "bench/rt/dll-15.c"
+indfile         = "bench/rt/ind.idllo"
+unary_abs       = off
+disj            = on
+silent          = off
+% unrolls = 1
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = wait
+
+[716]
+file            = "bench/rt/dll-16.c"
+indfile         = "bench/rt/ind.idllo"
+unary_abs       = off
+disj            = on
+silent          = on
+% unrolls = 1
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[717]
+file            = "bench/rt/dll-17.c"
+indfile         = "bench/rt/ind.idllo"
+unary_abs       = off
+disj            = on
+silent          = on
+% unrolls = 1
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+% This case is not perfectly satisfactory
+% => there is a force_live command that need be removed if possible
+[718a]
+file            = "bench/rt/dll-18.c"
+indfile         = "bench/rt/ind.idllo"
+unary_abs       = off
+disj            = on
+silent          = on
+% unrolls = 1
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+% [718b]
+% file            = "bench/rt/dll-18.c"
+% indfile         = "bench/rt/ind.idllo"
+% unary_abs       = off
+% disj            = on
+% silent          = off
+% unrolls = 1
+% asserts_total   = 1
+% asserts_proved  = 1
+% timeout         = 5
+% category        = wait
+
+[719]
+file            = "bench/rt/dll-19.c"
+indfile         = "bench/rt/ind.all"
+set_on          = "pp_nodeinfos"
+set_on          = "debug_back_index"
+domain          = pol
+unary_abs       = on
+disj            = on
+unrolls         = 1
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+
+%-----------------------------------------------------
+% List of integer values all equal to a constant
+
+[750]
+file            = "bench/rt/lpcst-00.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+indpars         = on
+unary_abs       = off
+disj            = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[751]
+file            = "bench/rt/lpcst-01.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind --> cell_read fails
+%      the ind. lo_wpcst from ind.all calls ind. lo_pcst
+%auto_ind        = on
+indpars         = on
+unary_abs       = off
+disj            = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[752a]
+file            = "bench/rt/lpcst-02.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind --> cell_read fails
+%auto_ind        = on
+indpars         = on
+unary_abs       = off
+disj            = on
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[752b]
+file            = "bench/rt/lpcst-02.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind --> cell_read fails
+%auto_ind        = on
+indpars         = on
+unary_abs       = off
+disj            = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[753]
+file            = "bench/rt/lpcst-03.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind --> cell_read fails
+%auto_ind        = on
+indpars         = on
+unary_abs       = off
+disj            = off
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[754]
+file            = "bench/rt/lpcst-04.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind --> cell_read fails
+%auto_ind        = on
+indpars         = on
+unary_abs       = off
+disj            = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[755]
+file            = "bench/rt/lpcst-05.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind --> cell_read fails
+%auto_ind        = on
+indpars         = on
+unary_abs       = off
+disj            = off
+silent          = on
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 5
+category        = valid
+
+[756]
+file            = "bench/rt/lpcst-06.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind --> cell_read fails
+%auto_ind        = on
+indpars         = on
+unary_abs       = off
+disj            = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[757]
+file            = "bench/rt/lpcst-07.c"
+indfile         = "bench/rt/ind.all"
+%auto_ind        = on
+indpars         = on
+unary_abs       = off
+disj            = off
+silent          = on
+% FBR: the domstruct param is a problem for auto_ind
+domstruct       = "[lo_pcst,lo_wpcst]"
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[758a]
+file            = "bench/rt/lpcst-08.c"
+indfile         = "bench/rt/ind.all"
+indpars         = on
+unary_abs       = off
+disj            = off
+silent          = on
+% FBR: the domstruct param is a problem for auto_ind
+domstruct       = "[lo_pcst,lo_wpcst]"
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+excluded        = yes
+
+[758b]
+file            = "bench/rt/lpcst-08.c"
+indfile         = "bench/rt/ind.all"
+%auto_ind        = on
+indpars         = on
+unary_abs       = off
+disj            = on
+silent          = on
+% FBR: the domstruct param is a problem for auto_ind
+domstruct       = "[lo_pcst,lo_wpcst]"
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+
+%-----------------------------------------------------
+% Binary trees
+
+[810]
+file            = "bench/rt/tree-10.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[811]
+file            = "bench/rt/tree-11.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[812]
+file            = "bench/rt/tree-12.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[813]
+file            = "bench/rt/tree-13.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[814]
+file            = "bench/rt/tree-14.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[815]
+file            = "bench/rt/tree-15.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[816]
+file            = "bench/rt/tree-16.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[817]
+file            = "bench/rt/tree-17.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[818]
+file            = "bench/rt/tree-18.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[819]
+file            = "bench/rt/tree-19.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[820]
+file            = "bench/rt/tree-20.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[821]
+file            = "bench/rt/tree-21.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[821e]
+file            = "bench/rt/tree-21.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+main_fun        = "main_e"
+disj            = on
+domain          = box
+silent          = off
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[822]
+file            = "bench/rt/tree-22.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[823]
+file            = "bench/rt/tree-23.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+% for selection merge
+[823e]
+file            = "bench/rt/tree-23.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+main_fun        = "main_e"
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+
+%-----------------------------------------------------
+% Binary trees with parent pointers
+
+% FBR: there is a parameter (the parent pointers) no need
+%      to try auto_ind in there
+
+[1110]
+file            = "bench/rt/tree-p-10.c"
+indfile         = "bench/rt/ind.bintree-p"
+disj            = off
+domain          = box
+silent          = on
+unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1111]
+file            = "bench/rt/tree-p-11.c"
+indfile         = "bench/rt/ind.bintree-p"
+disj            = off
+domain          = box
+silent          = on
+% unrolls         = 1 % also ok with unrolls
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1112]
+file            = "bench/rt/tree-p-12.c"
+indfile         = "bench/rt/ind.bintree-p"
+unary_abs       = off
+disj            = on
+domain          = box
+silent          = on
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1113]
+file            = "bench/rt/tree-p-13.c"
+indfile         = "bench/rt/ind.bintree-p"
+disj            = on
+domain          = box
+silent          = on
+% unrolls         = 1 % also ok with unrolls
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+% To investigate: fails if unroll
+[1114]
+file            = "bench/rt/tree-p-14.c"
+indfile         = "bench/rt/ind.bintree-p"
+disj            = on
+domain          = box
+silent          = on
+% unrolls         = 1
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+% To investigate: fails if unroll
+[1115]
+file            = "bench/rt/tree-p-15.c"
+indfile         = "bench/rt/ind.bintree-p"
+disj            = on
+domain          = box
+silent          = on
+% unrolls         = 1
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+% This example required the fast ind-ind inclusion rule:
+%   if x==null and i has an empty rule with null pointer,
+%      then x.i(a) <= y.i(b) can be discharged without
+%      looking at the parameters (provided no constraints
+%      on the parameters)
+[1116]
+file            = "bench/rt/tree-p-16.c"
+indfile         = "bench/rt/ind.bintree-p"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1117]
+file            = "bench/rt/tree-p-17.c"
+indfile         = "bench/rt/ind.bintree-p"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+% crashes with unary_abs on
+[1118]
+file            = "bench/rt/tree-p-18.c"
+indfile         = "bench/rt/ind.bintree-p"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1119]
+file            = "bench/rt/tree-p-19.c"
+indfile         = "bench/rt/ind.bintree-p"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1120]
+file            = "bench/rt/tree-p-20.c"
+indfile         = "bench/rt/ind.bintree-p"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off % unary abstraction crashes
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1121]
+file            = "bench/rt/tree-p-21.c"
+indfile         = "bench/rt/ind.bintree-p"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off % unary abstraction crashes
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1122]
+file            = "bench/rt/tree-p-22.c"
+indfile         = "bench/rt/ind.bintree-p"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off % unary abstraction crashes
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1123]
+file            = "bench/rt/tree-p-23.c"
+indfile         = "bench/rt/ind.bintree-p"
+disj            = on
+domain          = box
+silent          = on
+basic_widen     = on
+unary_abs       = off % unary abstraction crashes
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+%--------------------------------------------------------
+% for selection merge
+
+[1123e]
+file            = "bench/rt/tree-p-23.c"
+indfile         = "bench/rt/ind.bintree-p"
+main_fun        = "main_e"
+disj            = on
+domain          = box
+silent          = off
+unary_abs       = off % unary abstraction crashes
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+
+%-----------------------------------------------------
+% Binary trees with head pointers
+
+% FBR: parameter here also, no need to try auto_ind
+
+[1210]
+file            = "bench/rt/tree-h-10.c"
+indfile         = "bench/rt/ind.bintree-h"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[1211]
+file            = "bench/rt/tree-h-11.c"
+indfile         = "bench/rt/ind.bintree-h"
+disj            = off
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[1212]
+file            = "bench/rt/tree-h-12.c"
+indfile         = "bench/rt/ind.bintree-h"
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[1213]
+file            = "bench/rt/tree-h-13.c"
+indfile         = "bench/rt/ind.bintree-h"
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[1214]
+file            = "bench/rt/tree-h-14.c"
+indfile         = "bench/rt/ind.bintree-h"
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[1215]
+file            = "bench/rt/tree-h-15.c"
+indfile         = "bench/rt/ind.bintree-h"
+disj            = on
+domain          = box
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[1216]
+file            = "bench/rt/tree-h-16.c"
+indfile         = "bench/rt/ind.bintree-h"
+disj            = on
+domain          = box
+unary_abs       = off
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[1217]
+file            = "bench/rt/tree-h-17.c"
+indfile         = "bench/rt/ind.bintree-h"
+disj            = on
+domain          = box
+unary_abs       = off
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+% To investigate: fails in unrolls mode
+[1218]
+file            = "bench/rt/tree-h-18.c"
+indfile         = "bench/rt/ind.bintree-h"
+disj            = on
+domain          = box
+unary_abs       = off
+silent          = on
+% unrolls         = 1
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+% To investigate: fails in unrolls mode
+[1219]
+file            = "bench/rt/tree-h-19.c"
+indfile         = "bench/rt/ind.bintree-h"
+disj            = on
+domain          = box
+unary_abs       = off
+silent          = on
+% unrolls         = 1
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[1220]
+file            = "bench/rt/tree-h-20.c"
+indfile         = "bench/rt/ind.bintree-h"
+disj            = on
+domain          = box
+unary_abs       = off
+silent          = on
+% unrolls         = 1
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1221]
+file            = "bench/rt/tree-h-21.c"
+indfile         = "bench/rt/ind.bintree-h"
+disj            = on
+domain          = box
+unary_abs       = off
+silent          = on
+% unrolls         = 1 % join fails to gather parameters at iter 0
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[1222]
+file            = "bench/rt/tree-h-22.c"
+indfile         = "bench/rt/ind.bintree-h"
+disj            = on
+domain          = box
+unary_abs       = off
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+% To investigate: fails in unrolls mode
+[1223]
+file            = "bench/rt/tree-h-23.c"
+indfile         = "bench/rt/ind.bintree-h"
+disj            = on
+domain          = box
+unary_abs       = off
+silent          = on
+% unrolls         = 1 % join fails to gather parameters at iter 0
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+%------------------------------------------------------
+% test for selection merge
+
+[1223e]
+file            = "bench/rt/tree-h-23.c"
+indfile         = "bench/rt/ind.bintree-h"
+main_fun        = "main_e"
+disj            = on
+domain          = box
+unary_abs       = off
+silent          = on
+% unrolls         = 1 % join fails to gather parameters at iter 0
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+
+%-----------------------------------------------------
+% Binary trees with parent pointers and head pointers
+
+% FBR: no need to try auto_ind in there
+
+[1310]
+file            = "bench/rt/tree-b-10.c"
+indfile         = "bench/rt/ind.bintree-b"
+disj            = off
+domain          = box
+unary_abs       = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1311]
+file            = "bench/rt/tree-b-11.c"
+indfile         = "bench/rt/ind.bintree-b"
+disj            = off
+domain          = box
+unary_abs       = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1312]
+file            = "bench/rt/tree-b-12.c"
+indfile         = "bench/rt/ind.bintree-b"
+disj            = on
+domain          = box
+unary_abs       = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1313]
+file            = "bench/rt/tree-b-13.c"
+indfile         = "bench/rt/ind.bintree-b"
+disj            = on
+domain          = box
+unary_abs       = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1314]
+file            = "bench/rt/tree-b-14.c"
+indfile         = "bench/rt/ind.bintree-b"
+disj            = on
+domain          = box
+unary_abs       = off
+silent          = on
+% unrolls         = 1
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1315]
+file            = "bench/rt/tree-b-15.c"
+indfile         = "bench/rt/ind.bintree-b"
+disj            = on
+domain          = box
+unary_abs       = off
+silent          = on
+% unrolls         = 1
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1316]
+file            = "bench/rt/tree-b-16.c"
+indfile         = "bench/rt/ind.bintree-b"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1317]
+file            = "bench/rt/tree-b-17.c"
+indfile         = "bench/rt/ind.bintree-b"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1318]
+file            = "bench/rt/tree-b-18.c"
+indfile         = "bench/rt/ind.bintree-b"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1319]
+file            = "bench/rt/tree-b-19.c"
+indfile         = "bench/rt/ind.bintree-b"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1320]
+file            = "bench/rt/tree-b-20.c"
+indfile         = "bench/rt/ind.bintree-b"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off % unary abstraction crashes
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1321]
+file            = "bench/rt/tree-b-21.c"
+indfile         = "bench/rt/ind.bintree-b"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off % unary abstraction crashes
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1322]
+file            = "bench/rt/tree-b-22.c"
+indfile         = "bench/rt/ind.bintree-b"
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off % unary abstraction crashes
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[1323]
+file            = "bench/rt/tree-b-23.c"
+indfile         = "bench/rt/ind.bintree-b"
+disj            = on
+domain          = box
+silent          = on
+basic_widen     = on
+unary_abs       = off % unary abstraction crashes
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+%-------------------------------------------------------
+% for selection merge
+
+[1323e]
+file            = "bench/rt/tree-b-23.c"
+indfile         = "bench/rt/ind.bintree-b"
+main_fun        = "main_e"
+disj            = on
+domain          = box
+silent          = off
+unary_abs       = off % unary abstraction crashes
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+%-----------------------------------------------------
+% Arithmetic trees
+
+[1500]
+file            = "bench/rt/arith-00.c"
+indfile         = "bench/rt/ind.arith"
+% FBR: auto_ind --> cell_read fails
+%auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off % unary abstraction crashes
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[1501]
+file            = "bench/rt/arith-01.c"
+indfile         = "bench/rt/ind.arith"
+% FBR: auto_ind --> cell_read fails
+%auto_ind        = on
+disj            = on
+domain          = box
+silent          = on
+unary_abs       = off % unary abstraction crashes
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[1502]
+file            = "bench/rt/arith-02.c"
+indfile         = "bench/rt/ind.arith"
+% FBR: auto_ind --> cell_read fails
+%auto_ind        = on
+disj            = on
+domain          = box
+silent          = off
+unary_abs       = off % unary abstraction crashes
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = wait
+
+[1503a]
+file            = "bench/rt/arith-03.c"
+indfile         = "bench/rt/ind.arith"
+% FBR: auto_ind --> cell_read fails
+%auto_ind        = on
+disj            = on
+domain          = box
+silent          = off
+unary_abs       = off % unary abstraction crashes
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = wait
+
+[1503b]
+file            = "bench/rt/arith-03.c"
+indfile         = "bench/rt/ind.arith"
+% FBR: auto_ind --> cell_read fails
+%auto_ind        = on
+disj            = on
+domain          = box
+silent          = off
+unary_abs       = off % unary abstraction crashes
+unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = wait
+
+[1504a]
+file            = "bench/rt/arith-04.c"
+indfile         = "bench/rt/ind.arith"
+% FBR: auto_ind --> cell_read fails
+%auto_ind        = on
+disj            = on
+domain          = box
+silent          = off
+unary_abs       = off % unary abstraction crashes
+% unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = wait
+
+[1504b]
+file            = "bench/rt/arith-04.c"
+indfile         = "bench/rt/ind.arith"
+% FBR: auto_ind --> cell_read fails
+%auto_ind        = on
+disj            = on
+domain          = box
+silent          = off
+unary_abs       = off % unary abstraction crashes
+unrolls         = 1 % unrolling needed for the parameter inferrence
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = wait
+
+
+%-----------------------------------------------------
+% Examples of use of memcad commands
+
+[200a]
+file            = "bench/rt/mc-com-00.c"
+indfile         = "bench/rt/ind.all"
+disj            = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[200b]
+file            = "bench/rt/mc-com-00.c"
+indfile         = "bench/rt/ind.all"
+disj            = on
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[201]
+file            = "bench/rt/mc-com-01.c"
+indfile         = "bench/rt/ind.all"
+disj            = on
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[202]
+file            = "bench/rt/mc-com-02.c"
+indfile         = "bench/rt/ind.all"
+disj            = on
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[203]
+file            = "bench/rt/mc-com-03.c"
+%indfile         = "bench/rt/ind.lsto"
+auto_ind        = on
+disj            = off
+unary_abs       = on
+silent          = off
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 1
+category        = valid
+
+[207]
+file            = "bench/rt/mc-com-07.c"
+header          = "memcad.h"
+asserts_total   = 8
+asserts_proved  = 8
+unary_abs       = off
+silent          = on
+very_silent     = on
+disj            = on
+category        = valid
+
+[208]
+file            = "bench/rt/mc-com-08.c"
+header          = "memcad.h"
+asserts_total   = 9
+asserts_proved  = 9
+unary_abs       = off
+silent          = on
+very_silent     = on
+disj            = on
+category        = valid
+
+
+%-----------------------------------------------------
+% Examples of product abstractions
+
+[2000]
+file            = "bench/rt/hdll-00.c"
+indfile         = "bench/rt/antoine.ind"
+unary_abs       = off
+disj            = on
+silent          = on
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 5
+category        = valid
+
+[2001]
+file            = "bench/rt/hdll-01.c"
+indfile         = "bench/rt/antoine.ind"
+unary_abs       = off
+disj            = on
+silent          = on
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 5
+category        = valid
+
+% TODO: at some point, move this test somewhere else
+[2002]
+file            = "bench/rt/vmcai13-list-14.c"
+indfile         = "bench/rt/ind.idllo"
+unary_abs       = off
+disj            = on
+silent          = on
+unrolls         = 1
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 5
+category        = valid
+
+% Examples of product analyses
+% [1500b]
+% file            = "bench/rt/list-00.c"
+% indfile         = "bench/rt/ind.all"
+% disj            = off
+% domstruct       = "[slllo] ^ ([bintree_o] ^ [dllo])"
+% domain          = box
+% silent          = on
+% asserts_total   = 2
+% asserts_proved  = 2
+% timeout         = 5
+
+%-----------------------------------------------------
+% Examples of programs with arrays
+
+[3000]
+file            = "bench/rt/array-00.c"
+unary_abs       = off
+disj            = off
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[3001]
+file            = "bench/rt/array-01.c"
+unary_abs       = off
+disj            = off
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[3002]
+file            = "bench/rt/array-02.c"
+unary_abs       = off
+disj            = on
+unrolls         = 3
+silent          = on
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+category        = valid
+
+[3003]
+file            = "bench/rt/array-03.c"
+unary_abs       = off
+disj            = on
+unrolls         = 3
+silent          = on
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+category        = valid
+
+[3004]
+file            = "bench/rt/array-04.c"
+unary_abs       = off
+disj            = on
+unrolls         = 1
+silent          = on
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 5
+category        = valid
+
+[3005]
+file            = "bench/rt/array-05.c"
+unary_abs       = off
+disj            = on
+unrolls         = 2
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[3006a]
+file            = "bench/rt/array-06.c"
+unary_abs       = off
+disj            = on
+unrolls         = 0
+silent          = on
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 5
+category        = valid
+
+[3006b]
+file            = "bench/rt/array-06.c"
+unary_abs       = off
+disj            = on
+unrolls         = 1
+silent          = on
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 5
+category        = valid
+
+[3007]
+file            = "bench/rt/array-07.c"
+unary_abs       = off
+disj            = on
+unrolls         = 2
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[3008]
+file            = "bench/rt/array-08.c"
+unary_abs       = off
+silent          = on
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 5
+category        = valid
+
+[3010]
+file            = "bench/rt/array-10.c"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+domstruct       = "[ _ ]"
+array           = on
+%category        = exparray
+
+[3011]
+file            = "bench/rt/array-11.c"
+disj            = off
+unary_abs       = off
+very_silent     = off
+silent          = off
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+domstruct       = "[ _ ]"
+array           = on
+%category        = exparray
+
+[3012]
+file            = "bench/rt/array-12.c"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+domstruct       = "[ _ ]"
+array           = on
+%category        = exparray
+
+[3013]
+file            = "bench/rt/array-13.c"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = pol
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+domstruct       = "[ _ ]"
+array           = on
+%category        = exparray
+
+[3014]
+file            = "bench/rt/array-14.c"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = pol
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+%category        = valid
+domstruct       = "[ _ ]"
+array           = on
+category        = exparray
+
+[3016]
+file            = "bench/rt/vmcai15-minix-exit.c"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = oct
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 6000
+%category        = valid
+domstruct       = "[ _ ]"
+array           = on
+category        = exparray
+
+[3018]
+file            = "bench/rt/vmcai15-minix-fork.c"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = oct
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 6000
+%category        = valid
+domstruct       = "[ _ ]"
+array           = on
+category        = exparray
+
+[3019]
+file            = "bench/rt/vmcai15-minix-init.c"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = oct
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 6000
+%category        = valid
+domstruct       = "[ _ ]"
+array           = on
+category        = exparray
+
+[3020]
+file            = "bench/rt/vmcai15-taskcreate.c"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = oct
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 6000
+%category        = valid
+domstruct       = "[ _ ]"
+array           = on
+category        = exparray
+
+[3021]
+file            = "bench/rt/vmcai15-tasksched.c"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = oct
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 6000
+%category        = valid
+domstruct       = "[ _ ]"
+array           = on
+category        = exparray
+
+[3022]
+file            = "bench/rt/vmcai15-taskstop.c"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = oct
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 6000
+%category        = valid
+domstruct       = "[ _ ]"
+array           = on
+category        = exparray
+
+[3023]
+file            = "bench/rt/vmcai15-taskstart.c"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = oct
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 6000
+%category        = valid
+domstruct       = "[ _ ]"
+array           = on
+category        = exparray
+
+[3024]
+file            = "bench/rt/vmcai15-taskinit.c"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = oct
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 6000
+%category        = valid
+domstruct       = "[ _ ]"
+array           = on
+category        = exparray
+
+[3025]
+file            = "bench/rt/vmcai15-array-01.c"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = oct
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 6000
+%category        = valid
+domstruct       = "[ _ ]"
+array           = on
+category        = exparray
+
+[3026]
+file            = "bench/rt/vmcai15-array-02.c"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = oct
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 6000
+%category        = valid
+domstruct       = "[ _ ]"
+array           = on
+category        = exparray
+
+[3027]
+file            = "bench/rt/arraypred-hole.c"
+disj            = off
+unary_abs       = off
+very_silent     = off
+silent          = on
+domain          = pol
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 6000
+%category        = valid
+domstruct       = "[ _ ]"
+array           = on
+category        = arraypred
+
+[3028]
+file            = "bench/rt/array_materialize.c"
+disj            = off
+unary_abs       = off
+very_silent     = off
+silent          = on
+domain          = pol
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 6000
+%category        = valid
+domstruct       = "[ _ ]"
+array           = on
+category        = arraypred
+
+[3029]
+file            = "bench/bigrt/arrcont/static_list/staticList01.c"
+disj            = off
+unary_abs       = off
+very_silent     = off
+silent          = on
+domain          = pol
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 6000
+%category        = valid
+domstruct       = "[ _ ]"
+array           = on
+category        = arraypred
+
+% Issue: the data field is not assigned in the loop
+%        which creates issues to fold the sub-memory
+[3100]
+file            = "bench/rt/submem-00.c"
+indfile         = "bench/rt/ind.list"
+unary_abs       = off
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+silent          = off
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 5
+
+[3101]
+file            = "bench/rt/submem-01.c"
+indfile         = "bench/rt/ind.list"
+% FBR: ind_adge_add doesn't like that auto_ind changed the ind. name
+%auto_ind        = on
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+submem_ind      = list
+silent          = off
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[3102]
+file            = "bench/rt/submem-02.c"
+%indfile         = "bench/rt/ind.zlist"
+auto_ind        = on
+unary_abs       = off
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+silent          = on
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 5
+category        = valid
+
+[3103]
+file            = "bench/rt/submem-03.c"
+%indfile         = "bench/rt/ind.zlist"
+auto_ind        = on
+unary_abs       = off
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[3104]
+file            = "bench/rt/submem-04.c"
+%indfile         = "bench/rt/ind.zlist"
+auto_ind        = on
+unary_abs       = off
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+silent          = off
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+% Issue: delegation of [.] = k->next where k points in the sub-memory
+[3105]
+file            = "bench/rt/submem-05.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+unary_abs       = off
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+silent          = off
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+category        = valid
+
+[3106]
+file            = "bench/rt/submem-06.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+unary_abs       = off
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+silent          = off
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+% main := sub
+[3107]
+file            = "bench/rt/submem-07.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+unary_abs       = off
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+% sub := main
+[3108]
+file            = "bench/rt/submem-08.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+unary_abs       = off
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+% sub := const
+[3109]
+file            = "bench/rt/submem-09.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+unary_abs       = off
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+% sub := sub
+[3110]
+file            = "bench/rt/submem-10.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+unary_abs       = off
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[3111]
+file            = "bench/rt/submem-11.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+unary_abs       = off
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+silent          = on
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+category        = valid
+
+[3112]
+file            = "bench/rt/submem-12.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+unary_abs       = off
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[3113]
+file            = "bench/rt/submem-13.c"
+indfile         = "bench/rt/ind.list"
+% FBR: auto_ind is not compatible with old_parser = on
+auto_ind        = off
+unary_abs       = off
+old_parser = on
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+silent          = off
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+category        = valid
+
+[3114]
+file            = "bench/rt/submem-14.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+unary_abs       = off
+old_parser = on
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+silent          = off
+asserts_total   = 5
+asserts_proved  = 5
+timeout         = 5
+category        = exp
+
+[3115]
+file            = "bench/rt/submem-15.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind --> cell_resolve fails
+%auto_ind        = on
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+submem_ind      = list
+silent          = off
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+% Issue: the sub-memory array is part of a structure
+%        the structure brings some issue with the stride computation
+%        as alignments should be shifted by 4...
+[3130]
+file            = "bench/rt/submem-30.c"
+indfile         = "bench/rt/ind.list"
+% FBR: auto_ind triggers todo ind-infer: other type in do_field
+%auto_ind        = on
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+submem_ind      = list
+silent          = off
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+
+
+%-----------------------------------------------------
+% Examples considered for the SAS benchmarks and more
+% Versions 32xx use free pools
+% Versions 33xx use malloc
+
+[3200]          % Head insertion, fp
+file            = "bench/rt/aplas-fpool-00.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+silent          = on
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+submem_ind      = list
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = exp
+excluded        = yes
+
+[3300]          % Head insertion, malloc
+file            = "bench/rt/aplas-malloc-00.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+silent          = on
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 1
+domain          = pol
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[3201]          % Tail insertion, fp
+file            = "bench/rt/aplas-fpool-01.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind --> cell_resolve fails
+%auto_ind        = on
+silent          = on
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+submem_ind      = list
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[3301]          % Tail insertion, malloc
+file            = "bench/rt/aplas-malloc-01.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+silent          = on
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 1
+domain          = pol
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[3202]          % Tail insertion then traversal, fp
+file            = "bench/rt/aplas-fpool-02.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind --> cell_resolve fails
+%auto_ind        = on
+silent          = on
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+submem_ind      = list
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[3302]          % Tail insertion then traversal, malloc
+file            = "bench/rt/aplas-malloc-02.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind --> cell_resolve fails
+%auto_ind        = on
+silent          = on
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 1
+domain          = pol
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+% Join fails to compute a precise result and discards large graph regions;
+% This is due to a case where two subgraphs should be weakened to inductives
+% and which fails to be treated (pt-seg)
+% => actually both fragments should be weakened to inductives;
+% => that may happen with very different patterns
+% => unary_abs may help
+[3303]          % Random insertion, malloc
+file            = "bench/rt/aplas-malloc-03.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+silent          = on
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 0
+domain          = pol
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[3204]          % Running example, fp
+file            = "bench/rt/aplas-fpool-04.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind --> cell_read fails
+%auto_ind        = on
+silent          = on
+unary_abs       = off
+dirweak         = 0
+basic_widen     = on
+disj            = on
+unrolls         = 0
+domain          = pol
+submem          = on
+submem_ind      = list
+asserts_total   = 7
+asserts_proved  = 7
+timeout         = 5
+category        = valid
+
+[3304]          % Running example, malloc
+file            = "bench/rt/aplas-malloc-04.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+silent          = on
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 0
+domain          = pol
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+category        = valid
+
+[3205]          % Running example with reset loop, fp
+file            = "bench/rt/aplas-fpool-05.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+silent          = off
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 0
+domain          = pol
+submem          = on
+submem_ind      = list
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = exp
+
+[3305]          % Running example with reset loop, malloc
+file            = "bench/rt/aplas-malloc-05.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+silent          = on
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 0
+domain          = pol
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+category        = valid
+
+[3206]          % Dropping a cell at random, fp
+file            = "bench/rt/aplas-fpool-06.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+silent          = off
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 0
+domain          = pol
+submem          = on
+submem_ind      = list
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = exp
+
+[3306]          % Dropping a cell at random, malloc
+file            = "bench/rt/aplas-malloc-06.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+silent          = off
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 0
+domain          = pol
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = exp % issue suspected in unfold depth
+
+[3207]          % Flipping the content of two cells, fp
+file            = "bench/rt/aplas-fpool-07.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+silent          = off
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 0
+domain          = pol
+submem          = on
+submem_ind      = list
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 5
+category        = exp
+
+[3307]          % Flipping the content of two cells, malloc
+file            = "bench/rt/aplas-malloc-07.c"
+indfile         = "bench/rt/ind.all"
+silent          = on
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 0
+domain          = pol
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 5
+category        = valid
+
+
+%-----------------------------------------------------
+% Attempt at a VMCAI'13 example
+
+% FBR: ind. def. vmcai13 has parameters
+
+[5000a]
+file            = "bench/rt/vmcai13-00.c"
+indfile         = "bench/rt/ind.vmcai13"
+main_fun        = "main_a"
+silent          = off
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 0
+domain          = box
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[5000b]
+file            = "bench/rt/vmcai13-00.c"
+indfile         = "bench/rt/ind.vmcai13"
+main_fun        = "main_b"
+silent          = off
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 0
+domain          = box
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = exp
+excluded        = yes % will not work due to recursion
+
+[5000c]
+file            = "bench/rt/vmcai13-00.c"
+indfile         = "bench/rt/ind.vmcai13"
+main_fun        = "main_c"
+silent          = off
+unary_abs       = off
+dirweak         = 0
+disj            = on
+part_lfps       = on
+unrolls         = 0
+domain          = box
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = exp
+excluded        = yes % for now, vmcai13-ex-02 subsumes it
+
+% Made from vmcai13-ex-00
+% - de-duplicates some function calls (for readability)
+% - removes un-necessary code
+% - moreves field iterators in object tree
+[5001c]
+file            = "bench/rt/vmcai13-01.c"
+indfile         = "bench/rt/ind.vmcai13"
+main_fun        = "main_c"
+silent          = off
+set_off         = "pp_nodeinfos"
+% set_off         = "pp_debug_guard"
+set_off         = "pp_debug_dommem_eval"
+set_off         = "pp_status_decl"
+set_off         = "pp_display_num_env"
+set_on          = "stats"
+unary_abs       = off
+dirweak         = 0
+disj            = on
+part_lfps       = on
+unrolls         = 0
+domain          = box
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 8
+category        = exp
+excluded        = yes % for now, vmcai13-ex-02 subsumes it
+
+% Made from vmcai13-ex-01
+% - adds variables ptr and ptra in order to capture it->pointer as live
+%   => should be fixeable, with a more powerful liveness analysis
+% - adds breaks in order to keep out-going disjuncts out of the widening
+%   at the loop head
+%   => can be simulated with alternate widening strategy
+[5002a]
+file            = "bench/rt/vmcai13-02.c"
+indfile         = "bench/rt/ind.vmcai13"
+main_fun        = "main_a"
+silent          = off
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 0
+domain          = box
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 8
+category        = valid
+
+[5002c]
+file            = "bench/rt/vmcai13-02.c"
+indfile         = "bench/rt/ind.vmcai13"
+main_fun        = "main_c"
+set_off         = "pp_nodeinfos"
+% set_off         = "pp_debug_guard"
+set_off         = "pp_debug_dommem_eval"
+set_off         = "pp_status_decl"
+set_off         = "pp_display_num_env"
+set_on          = "stats"
+basic_widen     = on
+unary_abs       = off
+dirweak         = 0
+disj            = on
+part_lfps       = on
+unrolls         = 0
+domain          = box
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 8
+silent          = off % on
+very_silent     = off %on
+category        = valid
+
+[5002d]
+file            = "bench/rt/vmcai13-02.c"
+indfile         = "bench/rt/ind.vmcai13"
+main_fun        = "main_d"
+silent          = on
+set_off         = "pp_nodeinfos"
+% set_off         = "pp_debug_guard"
+set_off         = "pp_debug_dommem_eval"
+set_off         = "pp_status_decl"
+set_off         = "pp_display_num_env"
+set_on          = "stats"
+basic_widen     = on
+unary_abs       = off
+dirweak         = 0
+disj            = on
+part_lfps       = on
+unrolls         = 0
+domain          = box
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 8
+silent          = off % on
+very_silent     = off %on
+category        = valid
+
+
+%-----------------------------------------------------
+% Examples that still needs be treated
+
+% [1001]
+% file            = "bench/rt/todo-01.c"
+% indfile         = "bench/rt/ind.all"
+% silent          = off
+% asserts_total   = 1
+% asserts_proved  = 1
+% timeout         = 5
+
+% [1002]
+% file            = "bench/rt/todo-02.c"
+% indfile         = "bench/rt/ind.all"
+% unary_abs       = off
+% domain          = pol
+% disj            = off
+% silent          = off
+% asserts_total   = 1
+% asserts_proved  = 1
+% timeout         = 5
+
+
+%-----------------------------------------------------
+% Product of domains: benchmark (Antoine)
+
+% FBR: ind. defs. used by prod-cart-*.c have parameters
+
+[4000a]
+file            = "bench/rt/prod-cart-00.c"
+indfile         = "bench/rt/ind.idll"
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+red_mode        = disabled
+category        = expprod
+domstruct       = "[ ill, dll ]"
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+
+[4000b]
+file            = "bench/rt/prod-cart-00.c"
+indfile         = "bench/rt/ind.idll"
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+red_mode        = disabled
+category        = expprod
+domstruct       = "[ ill ] ^ [ dll ]"
+timing          = "value"
+timing          = "base"
+timing          = "prod"
+timing          = "mexprs"
+timing          = "env"
+
+[4001a]
+file            = "bench/rt/prod-cart-01.c"
+indfile         = "bench/rt/ind.idll"
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+red_mode        = disabled
+category        = expprod
+domstruct       = "[ ill, dll ]"
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+
+[4001b]
+file            = "bench/rt/prod-cart-01.c"
+indfile         = "bench/rt/ind.idll"
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+red_mode        = disabled
+category        = expprod
+domstruct       = "[ ill ] ^ [ dll ]"
+timing          = "value"
+timing          = "base"
+timing          = "prod"
+timing          = "mexprs"
+timing          = "env"
+
+[4002a]
+file            = "bench/rt/prod-cart-02.c"
+indfile         = "bench/rt/ind.idll"
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+red_mode        = disabled
+category        = expprod
+domstruct       = "[ ill, dll ]"
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+
+[4002b]
+file            = "bench/rt/prod-cart-02.c"
+indfile         = "bench/rt/ind.idll"
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+red_mode        = disabled
+category        = expprod
+domstruct       = "[ ill ] ^ [ dll ]"
+timing          = "value"
+timing          = "base"
+timing          = "prod"
+timing          = "mexprs"
+timing          = "env"
+
+[4003]
+file            = "bench/rt/prod-cart-03.c"
+indfile         = "bench/rt/ind.idll"
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+red_mode        = disabled
+category        = expprod
+domstruct       = "[ ill ] ^ [ dll ]"
+timing          = "value"
+timing          = "base"
+timing          = "prod"
+timing          = "mexprs"
+timing          = "env"
+
+[4004]
+file            = "bench/rt/prod-cart-04.c"
+indfile         = "bench/rt/ind.idll"
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+red_mode        = disabled
+category        = expprod
+domstruct       = "[ ill ] ^ [ dll ]"
+timing          = "value"
+timing          = "base"
+timing          = "prod"
+timing          = "mexprs"
+timing          = "env"
+
+[4005]
+file            = "bench/rt/prod-cart-05.c"
+indfile         = "bench/rt/ind.idll"
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+red_mode        = disabled
+category        = expprod
+domstruct       = "[ ill ] ^ [ dll ]"
+timing          = "value"
+timing          = "base"
+timing          = "prod"
+timing          = "mexprs"
+timing          = "env"
+
+[4100a]
+file            = "bench/rt/prod-sep-00.c"
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 6
+asserts_proved  = 6
+timeout         = 5
+red_mode        = disabled
+category        = valid
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+
+[4100b]
+file            = "bench/rt/prod-sep-00.c"
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 6
+asserts_proved  = 6
+timeout         = 5
+domstruct       = "[ _ ] * [ ]"
+red_mode        = disabled
+category        = expsep
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+
+[4101a]
+file            = "bench/rt/prod-sep-01.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+very_silent     = on
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+red_mode        = disabled
+category        = valid
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+domstruct       = "[ list ]"
+
+[4101b]
+file            = "bench/rt/prod-sep-01.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+very_silent     = on
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 5
+domstruct       = "[ _ ] * [ list ]"
+red_mode        = disabled
+category        = expsep
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+
+[4101d]#<[4101b]>
+domstruct       = "[ _ ] * [ #list ]"
+very_silent     = off
+
+[4102a]
+file            = "bench/rt/prod-sep-02.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+very_silent     = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+red_mode        = disabled
+category        = valid
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+domstruct       = "[ list ]"
+
+[4102b]
+file            = "bench/rt/prod-sep-02.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+very_silent     = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ _ ] * [ list ]"
+red_mode        = disabled
+category        = expsep
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+
+[4103a]
+file            = "bench/rt/prod-sep-03.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+very_silent     = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+red_mode        = disabled
+category        = valid
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+domstruct       = "[ list ]"
+
+[4103b]
+file            = "bench/rt/prod-sep-03.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+very_silent     = off
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ _ ] * [ list ]"
+red_mode        = disabled
+category        = expsep
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+
+[4104a]
+file            = "bench/rt/prod-sep-04.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+very_silent     = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+red_mode        = disabled
+category        = valid
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+domstruct       = "[ list ]"
+
+[4104b]
+file            = "bench/rt/prod-sep-04.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+very_silent     = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ _ ] * [ list ]"
+red_mode        = disabled
+category        = expsep
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+
+[4105a]
+file            = "bench/rt/prod-sep-05.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 5
+asserts_proved  = 5
+timeout         = 5
+red_mode        = disabled
+category        = valid
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+domstruct       = "[ list ]"
+
+[4105b]
+file            = "bench/rt/prod-sep-05.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 5
+asserts_proved  = 5
+timeout         = 5
+domstruct       = "[ _ ] * [ list ]"
+red_mode        = disabled
+category        = expsep
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+
+[4106a]
+file            = "bench/rt/prod-sep-06.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+red_mode        = disabled
+category        = valid
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+domstruct       = "[ list ]"
+
+[4106b]
+file            = "bench/rt/prod-sep-06.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ _ ] * [ list ]"
+red_mode        = disabled
+category        = expsep
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+
+[4107a]
+file            = "bench/rt/prod-sep-07.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 7
+asserts_proved  = 7
+timeout         = 5
+red_mode        = disabled
+category        = valid
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+%very_silent     = on
+domstruct       = "[ list ]"
+
+[4107b]
+file            = "bench/rt/prod-sep-07.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 7
+asserts_proved  = 7
+timeout         = 5
+domstruct       = "[ _ ] * [ list ]"
+red_mode        = disabled
+category        = expsep
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+%very_silent     = on
+
+[4108a]
+file            = "bench/rt/prod-sep-08.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 7
+asserts_proved  = 7
+timeout         = 5
+red_mode        = disabled
+category        = valid
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+%very_silent     = on
+domstruct       = "[ list ]"
+
+[4108b]
+file            = "bench/rt/prod-sep-08.c"
+%indfile         = "bench/rt/ind.list"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 7
+asserts_proved  = 7
+timeout         = 5
+domstruct       = "[ _ ] * [ list ]"
+red_mode        = disabled
+category        = expsep
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+%very_silent     = on
+
+[4110a]
+file            = "bench/rt/prod-sep-10.c"
+%indfile         = "bench/rt/ind.tree"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ tree ]"
+red_mode        = disabled
+category        = valid
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+
+[4110b]
+file            = "bench/rt/prod-sep-10.c"
+%indfile         = "bench/rt/ind.tree"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ _ ] * [ tree ]"
+red_mode        = disabled
+category        = expsep
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+
+[4111a]
+file            = "bench/rt/prod-sep-11.c"
+%indfile         = "bench/rt/ind.tree"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ tree ]"
+red_mode        = disabled
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+category        = valid
+
+[4111b]
+file            = "bench/rt/prod-sep-11.c"
+%indfile         = "bench/rt/ind.tree"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ _ ] * [ tree ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+category        = expsep
+
+[4112a]
+file            = "bench/rt/prod-sep-12.c"
+%indfile         = "bench/rt/ind.tree"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ tree ]"
+red_mode        = disabled
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+category        = valid
+
+[4112b]
+file            = "bench/rt/prod-sep-12.c"
+%indfile         = "bench/rt/ind.tree"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ _ ] * [ tree ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+category        = expsep
+
+[4113a]
+file            = "bench/rt/prod-sep-13.c"
+%indfile         = "bench/rt/ind.tree"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ tree ]"
+red_mode        = disabled
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+category        = valid
+
+[4113b]
+file            = "bench/rt/prod-sep-13.c"
+%indfile         = "bench/rt/ind.tree"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ _ ] * [ tree ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+category        = expsep
+
+[4114a]
+file            = "bench/rt/prod-sep-14.c"
+%indfile         = "bench/rt/ind.tree"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ tree ]"
+red_mode        = disabled
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+category        = valid
+
+[4114b]
+file            = "bench/rt/prod-sep-14.c"
+%indfile         = "bench/rt/ind.tree"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ _ ] * [ tree ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+category        = expsep
+
+[4115a]
+file            = "bench/rt/prod-sep-15.c"
+%indfile         = "bench/rt/ind.tree"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 5
+asserts_proved  = 5
+timeout         = 5
+domstruct       = "[ tree ]"
+red_mode        = disabled
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = valid
+
+[4115b]
+file            = "bench/rt/prod-sep-15.c"
+%indfile         = "bench/rt/ind.tree"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 5
+asserts_proved  = 5
+timeout         = 5
+domstruct       = "[ _ ] * [ tree ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = expsep
+
+[4116a]
+file            = "bench/rt/prod-sep-16.c"
+%indfile         = "bench/rt/ind.tree"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 5
+asserts_proved  = 5
+timeout         = 5
+domstruct       = "[ tree ]"
+red_mode        = disabled
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = valid
+
+[4116b]
+file            = "bench/rt/prod-sep-16.c"
+%indfile         = "bench/rt/ind.tree"
+auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 5
+asserts_proved  = 5
+timeout         = 5
+domstruct       = "[ _ ] * [ tree ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = expsep
+
+[4120a]
+file            = "bench/rt/prod-sep-20.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+%auto_ind        = on
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ list,bintree_o ]"
+red_mode        = disabled
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = valid
+
+[4120b]
+file            = "bench/rt/prod-sep-20.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ _ ] * [ list,bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = expsep
+
+[4120c]
+file            = "bench/rt/prod-sep-20.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ list ] * [ bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = expsep
+
+[4120d]
+file            = "bench/rt/prod-sep-20.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ _ ] * [ list ] * [ bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = expsep
+
+[4121a]
+file            = "bench/rt/prod-sep-21.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ list,bintree_o ]"
+red_mode        = disabled
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = valid
+
+[4121b]
+file            = "bench/rt/prod-sep-21.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ _ ] * [ list,bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = expsep
+
+[4121c]
+file            = "bench/rt/prod-sep-21.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ list ] * [ bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = expsep
+
+[4121d]
+file            = "bench/rt/prod-sep-21.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ _ ] * [ list ] * [ bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = expsep
+
+[4122a]
+file            = "bench/rt/prod-sep-22.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ list,bintree_o ]"
+red_mode        = disabled
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = valid
+
+[4122b]
+file            = "bench/rt/prod-sep-22.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ _ ] * [ list,bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = expsep
+
+[4122c]
+file            = "bench/rt/prod-sep-22.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ list ] * [ bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = expsep
+
+[4122d]
+file            = "bench/rt/prod-sep-22.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ _ ] * [ list ] * [ bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = expsep
+
+[4123a]
+file            = "bench/rt/prod-sep-23.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 8
+asserts_proved  = 8
+timeout         = 5
+domstruct       = "[ list,bintree_o ]"
+red_mode        = disabled
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = valid
+
+[4123b]
+file            = "bench/rt/prod-sep-23.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 8
+asserts_proved  = 8
+timeout         = 5
+domstruct       = "[ _ ] * [ list,bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = expsep
+
+[4123c]
+file            = "bench/rt/prod-sep-23.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 8
+asserts_proved  = 8
+timeout         = 5
+domstruct       = "[ list ] * [ bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = expsep
+
+[4123d]
+file            = "bench/rt/prod-sep-23.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 8
+asserts_proved  = 8
+timeout         = 5
+domstruct       = "[ _ ] * [ list ] * [ bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = expsep
+
+[4124a]
+file            = "bench/rt/prod-sep-24.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 12
+asserts_proved  = 12
+timeout         = 5
+domstruct       = "[ list,bintree_o ]"
+red_mode        = disabled
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = off
+category        = valid
+
+[4124b]
+file            = "bench/rt/prod-sep-24.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 12
+asserts_proved  = 12
+timeout         = 5
+domstruct       = "[ _ ] * [ list,bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = expsep
+
+[4124c]
+file            = "bench/rt/prod-sep-24.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 12
+asserts_proved  = 12
+timeout         = 5
+domstruct       = "[ list ] * [ bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = expsep
+
+[4124d]
+file            = "bench/rt/prod-sep-24.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 12
+asserts_proved  = 12
+timeout         = 5
+domstruct       = "[ _ ] * [ list ] * [ bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+very_silent     = on
+category        = expsep
+
+[4125a]
+file            = "bench/rt/prod-sep-25.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 10
+domstruct       = "[ list,bintree_o ]"
+red_mode        = disabled
+timing          = "value"
+timing          = "base"
+timing          = "mexprs"
+timing          = "env"
+category        = valid
+
+[4125b]
+file            = "bench/rt/prod-sep-25.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = on
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+domstruct       = "[ _ ] * [ list,bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+category        = expsep
+
+[4125c]
+file            = "bench/rt/prod-sep-25.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+domstruct       = "[ list ] * [ bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+category        = expsep
+
+[4125d]
+file            = "bench/rt/prod-sep-25.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+disj            = on
+unary_abs       = off
+%silent          = on
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+domstruct       = "[ _ ] * [ list ] * [ bintree_o ]"
+red_mode        = disabled
+category        = exp
+timing          = "value"
+timing          = "base"
+timing          = "flat"
+timing          = "sep"
+timing          = "mexprs"
+timing          = "env"
+category        = expsep
+
+%-----------------------------------------------------
+% Flat domain
+
+[4200]
+file            = "bench/rt/shape-less-00.c"
+indfile         = "bench/rt/ind.list"
+disj            = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ _ ]"
+category        = valid
+
+[4201]
+file            = "bench/rt/shape-less-01.c"
+indfile         = "bench/rt/ind.list"
+disj            = off
+silent          = on
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ _ ]"
+category        = valid
+
+[4202a]
+file            = "bench/rt/shape-less-02.c"
+indfile         = "bench/rt/ind.list"
+disj            = off
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[4202b]
+file            = "bench/rt/shape-less-02.c"
+indfile         = "bench/rt/ind.list"
+disj            = off
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ _ ]"
+category        = valid
+
+[4203a]
+file            = "bench/rt/shape-less-03.c"
+indfile         = "bench/rt/ind.list"
+disj            = off
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[4203b]
+file            = "bench/rt/shape-less-03.c"
+indfile         = "bench/rt/ind.list"
+disj            = off
+silent          = on
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ _ ]"
+category        = valid
+
+[4204a]
+file            = "bench/rt/shape-less-04.c"
+indfile         = "bench/rt/ind.list"
+disj            = off
+silent          = on
+thr_widen       = on
+thr_w_add       = 9999
+thr_w_add       = 10000
+thr_w_add       = 10001
+asserts_total   = 9
+asserts_proved  = 9
+timeout         = 5
+category        = valid
+
+[4204b]
+file            = "bench/rt/shape-less-04.c"
+indfile         = "bench/rt/ind.list"
+disj            = off
+silent          = off
+domain          = pol
+thr_widen       = on
+thr_w_add       = 9999
+thr_w_add       = 10000
+thr_w_add       = 10001
+asserts_total   = 9
+asserts_proved  = 9
+timeout         = 5
+domstruct       = "[ _ ]"
+category        = valid
+
+[4205]
+file            = "bench/rt/shape-less-05.c"
+indfile         = "bench/rt/ind.list"
+disj            = off
+silent          = off
+domain          = pol
+thr_widen       = on
+thr_w_add       = 9999
+thr_w_add       = 10000
+thr_w_add       = 10001
+asserts_total   = 9
+asserts_proved  = 9
+timeout         = 5
+domstruct       = "[ _ ]"
+category        = valid
+
+[4206]
+file            = "bench/rt/shape-less-06.c"
+indfile         = "bench/rt/ind.list"
+disj            = off
+silent          = off
+domain          = pol
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ _ ]"
+category        = valid
+
+[4207]
+file            = "bench/rt/shape-less-07.c"
+indfile         = "bench/rt/ind.list"
+disj            = off
+silent          = off
+domain          = pol
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ _ ]"
+category        = valid
+
+[4208]
+file            = "bench/rt/shape-less-08.c"
+indfile         = "bench/rt/ind.list"
+disj            = off
+silent          = off
+domain          = pol
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ _ ]"
+category        = valid
+
+[4209]
+file            = "bench/rt/shape-less-09.c"
+indfile         = "bench/rt/ind.list"
+disj            = off
+silent          = off
+domain          = pol
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ _ ]"
+category        = valid
+
+[4210a]
+file            = "bench/rt/shape-less-10.c"
+disj            = off
+silent          = off
+domain          = pol
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+category        = valid
+
+[4210b]
+file            = "bench/rt/shape-less-10.c"
+disj            = off
+silent          = off
+domain          = pol
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+domstruct       = "[ _ ]"
+category        = valid
+
+[4211a]
+file            = "bench/rt/shape-less-11.c"
+disj            = off
+silent          = off
+domain          = pol
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+category        = valid
+
+[4211b]
+file            = "bench/rt/shape-less-11.c"
+disj            = off
+silent          = off
+domain          = pol
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+domstruct       = "[ _ ]"
+category        = valid
+
+[4212a]
+file            = "bench/rt/shape-less-12.c"
+disj            = off
+silent          = on
+domain          = pol
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+red_mode        = disabled
+category        = valid
+
+[4212b]
+file            = "bench/rt/shape-less-12.c"
+disj            = off
+silent          = on
+domain          = pol
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+domstruct       = "[ _ ]"
+category        = valid
+
+[4213a]
+file            = "bench/rt/shape-less-13.c"
+disj            = off
+silent          = on
+domain          = pol
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+category        = valid
+
+[4213b]
+file            = "bench/rt/shape-less-13.c"
+disj            = off
+silent          = on
+domain          = pol
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+domstruct       = "[ _ ]"
+red_mode        = disabled
+category        = valid
+
+[4214a]
+file            = "bench/rt/shape-less-14.c"
+disj            = off
+silent          = on
+domain          = pol
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+timing          = "base"
+timing          = "apron"
+category        = valid
+
+[4214b]
+file            = "bench/rt/shape-less-14.c"
+disj            = off
+silent          = on
+domain          = pol
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+domstruct       = "[ _ ]"
+timing          = "flat"
+timing          = "apron"
+category        = valid
+
+[4215a]
+file            = "bench/rt/shape-less-15.c"
+disj            = off
+silent          = on
+domain          = pol
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+category        = valid
+
+[4215b]
+file            = "bench/rt/shape-less-15.c"
+disj            = off
+silent          = on
+domain          = pol
+asserts_total   = 4
+asserts_proved  = 4
+timeout         = 5
+domstruct       = "[ _ ]"
+category        = valid
+
+[4216a]
+file            = "bench/rt/shape-less-16.c"
+disj            = off
+silent          = on
+domain          = box
+asserts_total   = 4
+asserts_proved  = 4
+timing          = "base"
+timing          = "apron"
+timing          = "value"
+timing          = "env"
+timeout         = 5
+category        = valid
+
+[4216b]
+file            = "bench/rt/shape-less-16.c"
+disj            = off
+silent          = on
+domain          = box
+asserts_total   = 4
+asserts_proved  = 4
+timing          = "flat"
+timing          = "apron"
+timing          = "value"
+timing          = "env"
+timeout         = 5
+domstruct       = "[ _ ]"
+category        = valid
+
+[4217a]
+file            = "bench/rt/shape-less-17.c"
+disj            = off
+silent          = off
+domain          = pol
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[4217b]
+file            = "bench/rt/shape-less-17.c"
+disj            = off
+silent          = off
+domain          = pol
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ _ ]"
+category        = valid
+
+[4218a]
+file            = "bench/rt/shape-less-18.c"
+disj            = off
+silent          = off
+domain          = pol
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+category        = valid
+
+[4218b]
+file            = "bench/rt/shape-less-18.c"
+disj            = off
+silent          = off
+domain          = pol
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+domstruct       = "[ _ ]"
+category        = exp
+
+%-----------------------------------------------------
+% Minix examples
+
+[7000]
+file            = "bench/rt/minix-mem-00.c"
+unary_abs       = off
+dirweak         = 0
+disj            = on
+unrolls         = 1
+domain          = pol
+submem          = on
+submem_ind      = list
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = minix % not very important for now
+
+%-----------------------------------------------------
+% Set examples
+
+[8000]
+file            = "bench/rt/set-00.c"
+unary_abs       = off
+disj            = off
+timeout         = 5
+domstruct       = "[ #list ]"
+
+[8000a]#<[8000]>
+category        = valid,validset
+setdom          = on
+
+[8000b]#<[8000]>
+setdom          = lin
+category        = hack,valid,validset
+
+[8001]
+file            = "bench/rt/set-01.c"
+unary_abs       = off
+disj            = on
+timeout         = 5
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[ #list ]"
+
+[8001a]#<[8001]>
+category        = todobdd % valid,validset
+setdom          = on
+
+[8001b]#<[8001]>
+setdom          = lin
+category        = hack, valid
+
+[8002]
+file            = "bench/rt/set-02.c"
+unary_abs       = off
+disj            = off
+timeout         = 5
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[ #list ]"
+
+[8002a]#<[8002]>
+category        = todobdd % valid,validset
+setdom          = on
+
+[8002b]#<[8002]>
+setdom          = lin
+category        = todohack %, hack
+
+[8003]
+file            = "bench/rt/set-03.c"
+unary_abs       = off
+disj            = off
+timeout         = 5
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[ #list ]"
+
+[8003a]#<[8003]>
+category        = todobdd % valid,validset
+setdom          = on
+
+[8003b]#<[8003]>
+setdom          = lin
+category        = todohack %, hack
+
+[8004]
+file            = "bench/rt/set-04.c"
+unary_abs       = off
+disj            = off
+timeout         = 5
+asserts_total   = 0
+asserts_proved  = 0
+domstruct       = "[ #list ]"
+
+[8004a]#<[8004]>
+category        = todobdd % valid,validset
+setdom          = on
+
+[8004b]#<[8004]>
+setdom          = lin
+category        = valid,hack
+
+[8005]
+file            = "bench/rt/set-05.c"
+unary_abs       = off
+disj            = off
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ #list ]"
+
+[8005a]#<[8005]>
+category        = todobdd % valid,validset
+setdom          = on
+
+[8005b]#<[8005]>
+setdom          = lin
+category        = todohack, hack
+
+[8006]
+file            = "bench/rt/set-06.c"
+unary_abs       = off
+disj            = off
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+domstruct       = "[ #list ]"
+
+[8006a]#<[8006]>
+category        = todobdd % valid,validset
+setdom          = on
+
+[8006b]#<[8006]>
+setdom          = lin
+category        = todohack %, hack
+
+[8007]
+file            = "bench/rt/set-07.c"
+indfile         = "bench/rt/ind.all"
+% FBR: auto_ind incompatible with domstruct
+%auto_ind        = on
+unary_abs       = off
+silent          = off
+timeout         = 5
+disj            = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[ #list ]"
+
+[8007a]#<[8007]>
+category        = todobdd % valid,validset
+setdom          = on
+
+[8007b]#<[8007]>
+setdom          = lin
+category        = valid, hack
+
+[8007c]#<[8007a]>
+disj            = off
+category        = todobdd % valid,validset
+
+[8008]
+file            = "bench/rt/set-08.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 5
+disj            = on
+asserts_total   = 2
+asserts_proved  = 2
+domstruct       = "[ #list ]"
+
+[8008a]#<[8008]>
+category        = valid,validset
+setdom          = on
+
+[8008b]#<[8008]>
+setdom          = lin
+category        = valid,hack
+
+[8008c]#<[8008a]>
+disj            = off
+category        = todobdd % valid,validset
+
+[8009]
+file            = "bench/rt/set-09.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 5
+disj            = on
+asserts_total   = 2
+asserts_proved  = 2
+domstruct       = "[ #list ]"
+
+[8009a]#<[8009]>
+category        = valid,validset
+setdom          = on
+
+[8009b]#<[8009]>
+setdom          = lin
+category        = valid,hack
+
+[8009c]#<[8009a]>
+disj            = off
+category        = expset
+
+[8010]
+file            = "bench/rt/set-10.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 5
+disj            = on
+asserts_total   = 1 % 2 % XR: reduction shape -> set needed
+asserts_proved  = 1 % 2 % XR: reduction shape -> set needed
+domstruct       = "[ #list ]"
+
+[8010a]#<[8010]>
+category        = todobdd % valid,validset
+setdom          = on
+
+[8010b]#<[8010]>
+setdom          = lin
+category        = valid, hack
+
+[8010c]#<[8010a]>
+disj            = off
+category        = expset
+
+[8011]
+file            = "bench/rt/set-11.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 5
+disj            = on
+asserts_total   = 1 % 2 % XR: reduction shape -> set needed
+asserts_proved  = 1 % 2 % XR: reduction shape -> set needed
+domstruct       = "[ #list ]"
+
+[8011a]#<[8011]>
+category        = todobdd % valid,validset
+setdom          = on
+
+[8011b]#<[8011]>
+setdom          = lin
+category        = valid, hack
+
+[8011c]#<[8011a]>
+disj            = off
+category        = todobdd % valid,validset
+
+[8012]
+file            = "bench/rt/set-12.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 5
+disj            = on
+asserts_total   = 2
+asserts_proved  = 2
+domstruct       = "[ #list ]"
+
+[8012a]#<[8012]>
+category        = todobdd % valid,validset
+setdom          = on
+
+[8012b]#<[8012]>
+setdom          = lin
+category        = valid, hack
+
+[8012c]#<[8012a]>
+disj            = off
+category        = todobdd % valid,validset
+
+% FBR: graph ind. defs. have parameters
+
+[8021]
+file            = "bench/rt/graph-01.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 5
+disj            = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[ #list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+
+[8021a]#<[8021]>
+category        = todobdd % valid,validset
+setdom          = on
+
+[8021b]#<[8021]>
+setdom          = lin
+category        = valid,hack
+
+[8021c]#<[8021a]>
+disj            = off
+category        = todobdd % valid,validset
+
+[8022]
+file            = "bench/rt/graph-02.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+timeout         = 10
+disj            = on
+asserts_total   = 1 % 2 % XR: reduction shape -> set needed
+asserts_proved  = 1 % 2 % XR: reduction shape -> set needed
+domstruct       = "[ #list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+
+[8022a]#<[8022]>
+silent          = off
+category        = todobdd % valid,validset, sas15
+setdom          = on
+
+[8022b]#<[8022]>
+%silent          = on
+setdom          = lin
+category        = valid,hack,sas
+
+[8022d]#<[8022b]>
+very_silent     = on
+category        = sastest
+
+[8022e]#<[8022a]>
+very_silent     = on
+category        = sastest
+
+[8022c]#<[8022a]>
+silent          = off
+disj            = off
+category        = todobdd % valid,validset
+
+[8023]
+file            = "bench/rt/graph-03.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 5
+disj            = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[ #list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+
+[8023a]#<[8023]>
+category        = todobdd % valid,validset
+setdom          = on
+
+[8023b]#<[8023]>
+setdom          = lin
+category        = valid, hack, broken
+
+[8024]
+file            = "bench/rt/graph-04.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 5
+disj            = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[ #list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+
+[8024a]#<[8024]>
+category        = todobdd % valid,validset
+setdom          = on
+
+[8024b]#<[8024]>
+setdom          = lin
+category        = valid, hack
+
+[8024c]#<[8024a]>
+disj            = off
+category        = todobdd % valid,validset
+
+[8025]
+file            = "bench/rt/graph-05.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 1
+disj            = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[ #list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+
+[8025a]#<[8025]>
+category        = todobdd % valid,validset
+setdom          = on
+
+[8025b]#<[8025]>
+setdom          = lin
+%silent          = on
+category        = valid, hack, sas
+
+[8025d]#<[8025b]>
+very_silent     = on
+category        = sastest
+
+[8025e]#<[8025a]>
+very_silent     = on
+category        = sastest
+
+[8025c]#<[8025a]>
+disj            = off
+category        = todobdd % valid,validset
+
+[8026]
+file            = "bench/rt/graph-06.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 5
+disj            = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[ #list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+
+[8026a]#<[8026]>
+category        = todobdd % valid,validset
+setdom          = on
+
+[8026b]#<[8026]>
+setdom          = lin
+% category        = valid, hack, broken
+
+[8026c]#<[8026a]>
+disj            = off
+category        = todobdd % valid,validset
+
+[8027]
+file            = "bench/rt/graph-07.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 5
+disj            = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[ #list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+
+[8027a]#<[8027]>
+category        = todobdd % valid,validset
+setdom          = on
+
+[8027b]#<[8027]>
+setdom          = lin
+category        = exp
+
+[8027c]#<[8027a]>
+disj            = off
+category        = todobdd % valid,validset
+
+[8028]
+file            = "bench/rt/graph-08.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 10
+disj            = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[#list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+
+[8028a]#<[8028]>
+category        = todobdd % valid,validset
+setdom          = on
+
+[8028b]#<[8028]>
+setdom          = lin
+basic_widen     = on
+category        = valid, hack, broken
+
+[8029]
+file            = "bench/rt/graph-09.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 10
+disj            = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[#list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+
+[8029a]#<[8029]>
+category        = todobdd % valid,validset, sas15
+setdom          = on
+
+[8029b]#<[8029]>
+setdom          = lin
+category        = valid, hack, sas
+
+[8029d]#<[8029b]>
+very_silent     = on
+category        = sastest
+
+[8029e]#<[8029a]>
+very_silent     = on
+category        = sastest
+
+[8030]
+file            = "bench/rt/graph-10.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 10
+disj            = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[#list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+
+[8030a]#<[8030]>
+setdom          = on
+category        = todobdd % valid,validset
+
+[8030b]#<[8030]>
+setdom          = lin
+category        = valid, hack, sas, broken
+
+[8030d]#<[8030b]>
+very_silent     = on
+category        = sastest
+
+[8030e]#<[8030a]>
+very_silent     = on
+category        = sastest
+
+[8031]
+file            = "bench/rt/graph-11.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 5
+disj            = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[#list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+
+[8031a]#<[8031]>
+category        = todobdd % valid,validset, sas15
+setdom          = on
+
+[8031b]#<[8031]>
+setdom          = lin
+category        = valid,hack,sas
+
+[8031d]#<[8031b]>
+very_silent     = on
+category        = sastest
+
+[8031e]#<[8031a]>
+very_silent     = on
+category        = sastest
+
+[8032]
+file            = "bench/rt/graph-12.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 10
+disj            = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[#list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+
+[8032a]#<[8032]>
+category        = todobdd % expset
+setdom          = on
+
+[8032b]#<[8032]>
+setdom          = lin
+category        = exp
+
+[8033]
+file            = "bench/rt/graph-13.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 5
+disj            = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[#list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+
+[8033a]#<[8033]>
+category        = todobdd % valid,validset, sas15
+setdom          = on
+
+[8033b]#<[8033]>
+setdom          = lin
+category        = valid,hack,sas
+
+[8033d]#<[8033b]>
+category        = sastest
+very_silent     = on
+
+[8033e]#<[8033a]>
+category        = sastest
+very_silent     = on
+
+[8034]
+file            = "bench/rt/graph-14.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 10
+disj            = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[#list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+
+[8034a]#<[8034]>
+category        = todobdd % valid,validset,sas15
+setdom          = on
+
+[8034b]#<[8034]>
+setdom          = lin
+category        = valid,hack,sas
+
+[8034d]#<[8034b]>
+category        = sastest
+very_silent     = on
+
+[8034e]#<[8034a]>
+category        = sastest
+very_silent     = on
+
+[8035]
+file            = "bench/rt/graph-15.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 10
+disj            = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[#list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+
+[8035a]#<[8035]>
+category        = todobdd % valid,validset,sas15
+setdom          = on
+
+[8035b]#<[8035]>
+setdom          = lin
+category        = valid, hack, sas, broken
+
+[8035d]#<[8035b]>
+category        = sastest
+very_silent     = on
+
+[8035e]#<[8035a]>
+category        = sastest
+very_silent     = on
+
+[8036]
+file            = "bench/rt/graph-16.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 10
+disj            = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[#list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+
+[8036a]#<[8036]>
+category        = todobdd % valid,validset,sas15
+setdom          = on
+
+[8036b]#<[8036]>
+setdom          = lin
+basic_widen     = on
+category        = valid, hack, sas, broken
+
+[8036d]#<[8036b]>
+category        = sastest
+very_silent     = on
+
+[8036e]#<[8036a]>
+category        = sastest
+very_silent     = on
+
+[8037]
+file            = "bench/rt/graph-17.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 10
+disj            = on
+setdom          = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[#list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+
+[8037a]#<[8037]>
+setdom          = on
+category        = expset, todobdd
+
+[8037b]#<[8037]>
+setdom          = lin
+category        = hack, sas, broken
+
+% bug test case from HSL
+% graph built from empty
+% FBR: "ERROR in list_utils: NF in pt_edge_retrieve"
+[8038]
+file            = "bench/rt/graph-18.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 10
+disj            = on
+setdom          = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[#list ]"
+timing          = "value"
+timing          = "valset"
+timing          = "list"
+timing          = "mexprs"
+timing          = "env"
+setdom          = lin
+category        = expset
+
+[8100a]
+file            = "bench/rt/lset-ex-01.c"
+indfile         = "bench/rt/ind.all"
+unary_abs       = off
+silent          = off
+timeout         = 5
+disj            = on
+setdom          = on
+asserts_total   = 1
+asserts_proved  = 1
+domstruct       = "[ #list ]"
+category        = expset
+
+[8100b]#<[8100a]>
+disj            = off
+category        = expset
+
+% FBR: for XAR, I cannot correct it
+% cf. e-mail "[memcad] bug: typing error" in memcad mailing list
+[9002]
+file            = "bench/rt/typing_error.c"
+header          = "for_gdsl.h"
+asserts_total   = 0
+asserts_proved  = 0
+unary_abs       = off
+silent          = off
+category        = expset
+
+[9004]
+file            = "bench/rt/ignore_result.c"
+asserts_total   = 4
+asserts_proved  = 4
+unary_abs       = off
+silent          = off
+disj            = on
+category        = valid
+
+% simple tests with an array that fail
+% for JLIU
+% FBR: failing: ERROR in add_array: array cell as lval but not stored
+[9009]
+file            = "bench/rt/array_as_pointer.c"
+header          = "for_gdsl.h"
+asserts_total   = 2
+asserts_proved  = 0
+unary_abs       = off
+silent          = off
+disj            = on
+array           = on
+category        = expset
+
+% incorrect number of asserts
+% no inductive def. (if necessary)
+% for JLIU
+% FBR: failing in ERROR in c-utils: pointers as arrays are not handled, int * *
+[9010]
+file            = "bench/rt/gdsl_heap.c"
+header          = "for_gdsl.h"
+asserts_total   = 12
+asserts_proved  = 12
+unary_abs       = off
+silent          = off
+disj            = on
+category        = expset
+
+% incorrect number of asserts
+% for XAR
+% FBR: failing in TODO in dom_mem_exprs: tr_expr: 1 == 1
+[9011]
+file            = "bench/rt/unhandled_return.c"
+header          = "for_gdsl.h"
+asserts_total   = 1
+asserts_proved  = 1
+unary_abs       = off
+silent          = off
+disj            = on
+category        = expset
+
+% incorrect number of asserts
+% very simple test case
+% for JLIU
+% FBR: failing in cell_resolve fails
+[9017]
+file            = "bench/rt/resolve_failed.c"
+header          = "for_gdsl.h"
+asserts_total   = 1
+asserts_proved  = 1
+unary_abs       = off
+silent          = off
+disj            = on
+category        = expset
+
+[9018]
+file            = "bench/rt/sll-bubblesort.c"
+header          = "bench/rt/c-codes/for_gdsl.h"
+asserts_total   = 1
+asserts_proved  = 1
+unary_abs       = off
+silent          = off
+disj            = on
+category        = exp
+
+%[9019]
+%file            = "bench/rt/c-codes/incoming/memcad/cpy.c"
+%header          = "bench/rt/c-codes/for_gdsl.h"
+%asserts_total   = 1
+%asserts_proved  = 1
+%unary_abs       = off
+%silent          = off
+%disj            = on
+%category        = exp
+
+[9020]
+file            = "bench/rt/test-0.c"
+asserts_total   = 0
+asserts_proved  = 0
+unary_abs       = off
+silent          = off
+disj            = on
+category        = expset
+
+[9021]
+file            = "bench/rt/test-1.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+asserts_total   = 2
+asserts_proved  = 2
+unary_abs       = off
+sel_widen       = on
+silent          = off
+disj            = on
+category        = expset
+
+[9022]
+file            = "bench/rt/unfold_type.c"
+header          = "memcad.h"
+asserts_total   = 1
+asserts_proved  = 1
+unary_abs       = off
+silent          = off
+disj            = on
+category        = valid
+timeout         = 3
+type_unfolds    = 2
+
+[9023]
+file            = "bench/rt/struct_pointers_table_inside_struct.c"
+header          = "memcad.h"
+asserts_total   = 1
+asserts_proved  = 1
+unary_abs       = off
+silent          = off
+disj            = on
+category        = valid
+timeout         = 3
+type_unfolds    = 2
+
+[9024]
+file            = "bench/rt/assign_cond.c"
+header          = "memcad.h"
+asserts_total   = 9
+asserts_proved  = 9
+unary_abs       = off
+silent          = off
+disj            = on
+category        = valid
+timeout         = 3

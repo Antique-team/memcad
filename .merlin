@@ -1,0 +1,10 @@
+# where are .ml and .mli files
+S c
+S lib
+S main
+S nd
+S sd
+# where are .cmi and .cmt files
+B dist/build/analyze
+B dist/build/batch
+PKG apron bdd clangml clangml-transforms bytes deriving gmp batteries dolog parmap

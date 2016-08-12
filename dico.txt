@@ -1,0 +1,28 @@
+Dictionnary of test names
+mc_assume                           mc-com-07           207 (9038)
+--i.c                               c-micro-32          32
+break.c                             c-micro-35          35 (9012)
+break_multi_assign.c                c-micro-36          36 (9010)
+break_op_assign.c                   c-micro-37          37 (9011)
+call_expr.c                
+continue.c                          c-micro-50          50 (-)
+do_while_to_while.c                 c-micro-43          43 (9008)
+enums.c                             c-micro-51          51 (9014)
+file_scope_inits.c                  c-micro-47          47 (9000)
+for_to_while.c                      c-micro-44          44 (9008)
+fun_pointers.c             
+fun_ret_types.c                     c-micro-48          48 (11000)
+i++.c                               c-micro-33
+local_fun_fwd_decl.c                c-micro-49          49 (11002)
+move_assign_before_test.c           c-micro-42          42 (9007)
+no_typedef_struct.c                 c-micro-34
+null_stmt.c                         c-micro-38          38 (9004)
+pre_post_incr.c                     c-micro-39          39 (9004)
+replace_fun_call_b_tmp_var.c        c-micro-40          40 (9005)
+rm_comma_binop.c                    c-micro-46          46 (9013)
+sizeof.c                            c-micro-52          52 (9015)
+switch_to_if.c                      c-micro-45          45 (9009)
+unary_not.c                         c-micro-41          41 (9006)
+union.c                             c-micro-53          53 ()
+pointer_as_array                    c-micro-54          54 ()
+mc_assume.c                         mc-com-08           208 (9018)

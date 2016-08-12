@@ -1,0 +1,11 @@
+ll<0,1> :=
+| [0] -   emp
+      -   this = 0
+        & @i0 = 0
+| [3] -   this->Data |-> $0
+        * this->Next |-> $1
+        * $1.list( | $2 | )
+      -   this != 0
+        & @i0 = $2 + 1
+        & alloc( this, 8 )
+.

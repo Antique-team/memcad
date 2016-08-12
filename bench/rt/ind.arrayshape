@@ -1,0 +1,56 @@
+
+%----------------------------------
+% Singly-linked lists in arrays
+ilist<0,1> :=
+| [0] -   emp
+      -   this = 255
+        & @i0 = 255
+| [1 int]
+      -   this->0 |-> $0
+        * $0.alist( | @i0 | )
+      -   this != 255 
+        & @i0 != 255   
+        & alloc( this, 4 )
+.
+
+%----------------------------------
+% A tail node 
+itail<0,0> :=
+| [0] -   emp
+      -   this = 255
+| [1 int]
+      -   this->0 |-> $0
+      -   this != 255
+        & $0 = 255  
+        & alloc( this, 4 )
+.
+
+
+
+%----------------------------------
+% Singly-linked lists in arrays linked by pointers
+plist<0,0> :=
+| [0] -   emp
+      -   this = 0
+| [1 prt]
+      -   this->0 |-> $0
+        * $0->plist( | | )
+      -   this != 0 
+        & alloc( this, 4 )
+.
+
+
+
+ilist<0,3> :=
+| [0] -   emp
+      -   this = 0
+        & 
+| [2 int]
+      -   this->0 |-> $0        
+        * this->0 |-> $1   
+        * $1.plist( |$1,@i1 | )
+      -   this != 0 
+        & alloc( this, 4 )
+.
+
+
