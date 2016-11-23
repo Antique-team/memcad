@@ -26,7 +26,6 @@ depends: [
   "conf-graphviz"
   "obuild" {build}
   "ounit"
-  "parmap"
   "qtest"
   "setr"
 ]

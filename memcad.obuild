@@ -9,7 +9,7 @@ Executable batch
   oflags: -warn-error PU -bin-annot
   src-dir: main, lib
   main-is: batch.ml
-  build-deps: unix, parmap, str
+  build-deps: unix, str
 
 Executable analyze
   oflags: -warn-error PU -bin-annot

@@ -634,48 +634,15 @@ let batch () =
       | TC_valid, TC_valid | TC_exp, TC_exp -> true
       | TC_other s0, TC_other s1 -> String.compare s0 s1 = 0
       | _, _ -> false in
-    (* the parallel prtp run does simple things: no timeout handling
-     * and only coarse printing of results *)
-    if !ncores > 1 then (* don't invoke Parmap in vain *)
-      let commands_to_exec =
-        RevMap.fold
-          (fun (_i, rev) t acc ->
-            let cats = List.filter (eq_category category) t.sp_category in
-            if cats != [ ] then
-              let div_stress_test, aopts, out_filename =
-                prepare_test !stress_test rev t in
-              let cmd =
-                Printf.sprintf "(%s %s 2>&1) > %s"
-                  !analyzer (unwind_options aopts) out_filename in
-              cmd :: acc
-            else
-              acc
-          ) tests [] in
-      let exit_codes =
-        Parmap.parmap ~ncores:!ncores
-          (fun cmd -> cmd, Unix.system cmd)
-          (Parmap.L commands_to_exec) in
-      let passed, total =
-        List.fold_left
-          (fun (pass, tot) (cmd, x) ->
-            match x with
-            | Unix.WEXITED 0 -> (pass + 1, tot + 1)
-            | _ ->
-                Log.info "failed: %s" cmd;
-                (pass, tot + 1)
-          ) (0, 0) exit_codes in
-      Log.info "tests: %d passed: %d failed: %d"
-        total passed (total - passed);
-      (0., RevMap.empty) (* dummy result of a parallel run *)
-    else (* sequential prtp run *)
-      RevMap.fold
-        (fun i t (accd, accr) ->
-          let cats = List.filter (eq_category category) t.sp_category in
-          if cats != [ ] then
-            let d, r = run_test !analyzer !stress_test i t in
-            accd +. d, RevMap.add i r accr
-          else accd, accr
-        ) tests (0., RevMap.empty) in
+    (* prtp run *)
+    RevMap.fold
+      (fun i t (accd, accr) ->
+        let cats = List.filter (eq_category category) t.sp_category in
+        if cats != [ ] then
+          let d, r = run_test !analyzer !stress_test i t in
+          accd +. d, RevMap.add i r accr
+        else accd, accr
+      ) tests (0., RevMap.empty) in
   if !test_ids = [ ] then
     (* general run: all tests in a category *)
     begin
