@@ -61,7 +61,7 @@ let cell_reset  () =
 module Make_Val_Array = functor (Dv: DOM_VALUE)  ->
   (struct
     module Op = Make_Maya( Dv )
-    module A = Array_Node( Op )
+    module A = Array_node.Array_Node( Op )
     type t =
         { (* The main numeric element  *)
           t_main:   Op.t;
