@@ -1,4 +1,4 @@
 # MemCAD
 
-A static analyzer doing shape analyzis.
+A static analyzer doing shape analysis.
 
