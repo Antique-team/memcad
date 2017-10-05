@@ -11,6 +11,8 @@ hdll k ;
 hdll p ;
 void main( ){
   x = malloc( 4 );
+  if( x == 0 )
+    exit( 0 );
   *x = 42;
   k = null;
   l = p;

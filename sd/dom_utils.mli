@@ -49,6 +49,7 @@ val svenv_is_empty: svenv_mod -> bool
 val svenv_2stri: string -> svenv_mod -> string
 (* removal of an SV *)
 val svenv_rem: int -> svenv_mod -> svenv_mod
+val svenv_add: int -> ntyp -> svenv_mod -> svenv_mod
 val svenv_join: svenv_mod -> svenv_mod -> svenv_mod
 (* Mapping function used in dom_mem_low_prod/sep *)
 val svenv_map: (int -> int) -> svenv_mod -> svenv_mod

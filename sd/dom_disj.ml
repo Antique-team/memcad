@@ -38,8 +38,19 @@ module Log =
 (** Functor lifting an environment domain into a disjunctive domain *)
 module Dom_disj = functor (D: DOM_ENV) -> functor (GE: GRAPH_ENCODE) ->
   (struct
+    let module_name = "dom_disj"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s -> %s\n%s%s"
+        module_name D.module_name
+        module_name GE.module_name
+        (D.config_2str ())
+        (GE.config_2str ())
+
     (* For now, we simply use lists... *)
     type t = D.t abs_hist_fun
+
+    (* Disjunction size *)
+    let disj_size (x: t): int = List.length x
 
     (** Utilities *)
     let map_flatten (f: D.t -> D.t list) (x: t): t =
@@ -89,6 +100,20 @@ module Dom_disj = functor (D: DOM_ENV) -> functor (GE: GRAPH_ENCODE) ->
     let ext_output (o: output_format) (base: string) (x: t): unit =
       List.iteri
         (fun i (_, u) -> D.ext_output o (Printf.sprintf "%s-D%d" base i) u) x
+    let output_graph_counter = ref 0
+    (* dot output the graph for debugging inside this layer/domain *)
+    let output_graph (live_vars: var list) (x: t): unit =
+      let save_then_incr iref =
+        let res = !iref in
+        incr iref;
+        res in
+      let vars = List.map (fun v -> v.v_name) live_vars in
+      List.iteri
+        (fun i (_, u) ->
+          D.ext_output (Out_dot (vars, ["SUCC"]))
+            (Printf.sprintf "d_disj_D%d_%d"
+               i (save_then_incr output_graph_counter)) u
+        ) x
     (* Garbage collection *)
     let gc (x: t): t = map D.gc x
 
@@ -258,6 +283,9 @@ module Dom_disj = functor (D: DOM_ENV) -> functor (GE: GRAPH_ENCODE) ->
       ahf_sanity_check "join,out" r;
       r
 
+    (*  encoded graphs *)
+    type encoded  = GE.encoded_graph option * (abs_hist * D.t)
+
     (* Widening will fold lists of disjuncts if there are several;
      * - in the sel-widen mode, disjuntions in the right will be
      *  - partitioned into groups accoring to disjunction in the left
@@ -272,28 +300,74 @@ module Dom_disj = functor (D: DOM_ENV) -> functor (GE: GRAPH_ENCODE) ->
         match ho with
         | None -> []
         | Some ho -> VarSet.fold (fun ele acc -> ele::acc) ho.hbe_live [] in
+      (* Fusion of a number of disjuncts into only one, while keeping the
+       * most general token *)
+      let merge_encoded_disjuncts (x: encoded list): encoded list =
+        let r =
+          match x with
+          | [ ] -> [ ]
+          | y :: z ->
+              let fusion (u0_g, (a0,u0)) (u1_g, (a1,u1)) =
+                let r_a = ah_unify a0 a1 in
+                try
+                  let u0_g, u1_g = BatOption.get u0_g, BatOption.get u1_g in
+                  let r_g = GE.widen u0_g u1_g in
+                  let r_u =
+                    D.join ho lo (u0, ext_graph (Some u0_g) (Some r_g))
+                      (u1, ext_graph (Some u1_g) (Some r_g)) in
+                  let r_g = D.encode (-1) hint_encode r_u in
+                  (Some r_g, (r_a, r_u))
+                with
+                | Invalid_argument _ ->
+                    let r_u =
+                      D.join ho lo (u0, ext_graph None None)
+                        (u1, ext_graph None None) in
+                    (None, (r_a, r_u)) in
+              [ List.fold_left fusion y z ] in
+        r in
       (* function to widen, with one disjunct in the left *)
-      let widen_1n ((ah, u0): abs_hist * D.t) (rr: t): t =
+      let widen_1n (u0_g, (ah, u0): encoded) (rr: encoded list): t =
+        let ext u = u, ext_graph None None in
+        let f u0_g ur_g =
+          try
+            let u0_g, ur_g = BatOption.get u0_g, BatOption.get ur_g in
+            let r_g = GE.widen u0_g ur_g in
+            ext_graph (Some u0_g) (Some r_g), ext_graph (Some ur_g) (Some r_g)
+          with
+          | Invalid_argument _ -> ext_graph None None, ext_graph None None in
         match rr with
-        | [ ] -> [ ah, u0 ]
-        | [ (ahr, u0r) ] ->
-            let u_w = D.widen ho lo u0 u0r in
+        | [ ] -> [ah, u0 ]
+        | [(ur_g, (ahr, u0r))] ->
+            let l_ele, r_ele =
+              if !Flags.guided_widen then f u0_g ur_g
+              else ext_graph None None, ext_graph None None in
+            let u_w = D.widen ho lo (u0, l_ele) (u0r, r_ele) in
             [ ah, u_w ]
-        | (ahr, u0r) :: lrr ->
+        | (ur_g, (ahr, u0r)) :: lrr ->
+            let u0 =
+              if !Flags.do_unary_abstraction then
+                let hro = Option.map (fun h -> { hue_live = h.hbe_live }) ho in
+                D.local_abstract hro u0
+              else u0 in
             if !Flags.sel_widen then
-              match merge_disjuncts ((ah, D.widen ho lo u0 u0r) :: lrr) with
-              | [ _, u_j ] ->
-                  let u_w = D.widen ho lo u0 u_j in
+              let l_ele, r_ele =
+                if !Flags.guided_widen then f u0_g ur_g
+                else ext_graph None None, ext_graph None None in
+              let res =  D.widen ho lo (u0, l_ele) (u0r, r_ele) in
+              let r_g =
+                if !Flags.guided_widen then Some (D.encode (-1) hint_encode res)
+                else None in
+              match merge_encoded_disjuncts ((r_g, (ah, res))::lrr) with
+              | [ur_g, (_, u_j) ] ->
+                  let l_ele, r_ele =
+                    if !Flags.guided_widen then f u0_g ur_g
+                    else ext_graph None None, ext_graph None None in
+                  let u_w = D.widen ho lo (u0, l_ele) (u_j, r_ele) in
                   [ ah, u_w ]
               | _ -> Log.fatal_exn "merge_disjuncts"
             else
-              let u0 =
-                if !Flags.do_unary_abstraction then
-                  let hro =
-                    Option.map (fun h -> { hue_live = h.hbe_live }) ho in
-                  D.local_abstract hro u0
-                else u0 in
-              match merge_disjuncts (map (D.widen ho lo u0) rr) with
+              match merge_disjuncts (List.map (fun (_, (ah,t)) ->
+                ah, D.widen ho lo (ext u0) (ext t)) rr) with
               | [ _, u ] -> [ ah, u ]
               | _ -> Log.fatal_exn "merge_disjuncts" in
       (* pre-widening sanity checks *)
@@ -326,7 +400,7 @@ module Dom_disj = functor (D: DOM_ENV) -> functor (GE: GRAPH_ENCODE) ->
               let ft = gen_list_2str "" fu "\n" in
               if !Flags.flag_debug_disj then
                 Log.force "left:\n%s\nright:\n%s" (ft xl) (ft xr);
-              let _, xr_encode = 
+              let _, xr_encode =
                 List.fold_left
                   (fun (disj_num, acc) (a, e) ->
                     let g = D.encode disj_num hint_encode e in
@@ -349,10 +423,10 @@ module Dom_disj = functor (D: DOM_ENV) -> functor (GE: GRAPH_ENCODE) ->
                                * path information (not sure) *)
                               ah_is_prefix ahl ahr in
                           if b then
-                            (ahr, ur) :: accr, rem
+                            (Some ur_g, (ahr, ur)) :: accr, rem
                           else accr, (ur_g, (ahr, ur)) :: rem
                         ) ([], []) rem in
-                    disj_num + 1, (ahl, ul, nur) :: acc, rem
+                    disj_num + 1, (Some ul_g, ahl, ul, nur) :: acc, rem
                   ) (0, [ ], xr_encode) (List.rev xl) in
               if l_remain != [ ] then
                 begin
@@ -366,22 +440,23 @@ module Dom_disj = functor (D: DOM_ENV) -> functor (GE: GRAPH_ENCODE) ->
                 begin
                   Log.force "pre-processed";
                   List.iter
-                    (fun (ahl, _, ur) ->
+                    (fun (_, ahl, _, ur) ->
                       Log.force "%s -> [%d]" (abs_hist_2str ahl)
                         (List.length ur)
                     ) l_pairings;
                 end;
               let l_pairings, l_empty =
                 List.fold
-                  (fun (l_nem, l_em) (ah, ul, ur) ->
+                  (fun (l_nem, l_em) (ul_g, ah, ul, ur) ->
                      if ur = [] then l_nem, (ah, ul)::l_em
-                     else (ah, ul, ur)::l_nem, l_em
+                     else (ul_g, ah, ul, ur)::l_nem, l_em
                   ) ([], []) l_pairings in
               let res =
                 List.flatten
                   (List.map
-                     (fun (ah, ul, ur) -> widen_1n (ah, ul) ur) l_pairings) in
-              let res = 
+                     (fun (ul_g, ah, ul, ur) -> widen_1n (ul_g, (ah, ul)) ur)
+                     l_pairings) in
+              let res =
                 (* HS: I am not sure it can guarantee termination *)
                 List.fold_left (fun acc (_, ele) -> ele::acc) res l_remain in
               if l_empty <> [] && !Flags.sel_widen then
@@ -391,7 +466,9 @@ module Dom_disj = functor (D: DOM_ENV) -> functor (GE: GRAPH_ENCODE) ->
         else
           match merge_disjuncts xl with
           | [ ] -> xr, None
-          | [ ah, xl0 ] -> (widen_1n (ah, xl0) xr), None
+          | [ ah, xl0 ] ->
+              widen_1n (None, (ah, xl0)) (List.map (fun ele -> None, ele) xr),
+              None
           | _ :: _ :: _ -> Log.fatal_exn "merge_disjunct output is wrong" in
       ahf_sanity_check "widen,out" res_0;
       if !Flags.sel_widen then
@@ -476,20 +553,23 @@ module Dom_disj = functor (D: DOM_ENV) -> functor (GE: GRAPH_ENCODE) ->
       ahf_sanity_check "unfold,out" r;
       r
 
-    (** set domain **)
-    (* management of set vars*)
+    (** Unary domain operations *)
+    (* Allocation *)
+    let do_allocate (l: var tlval) (s: var texpr) (u: D.t): D.t list =
+      let lzero =
+        D.assign l (Ecst (Cint 0), Tint (Flags.abi_ptr_size, Tsigned)) u in
+      let lnzero = D.memory (MO_alloc (l, s)) u in
+      lzero @ lnzero
+
     (* operand types and constructors for add/rem/assume/check *)
-    let unary_op (op: Opd3.unary_operand) (x: t) =
+    let unary_op (op: unary_op) (x: t) =
       match op with
-      | Opd3.Add_var v -> map (D.unary_op (Opd2.Add_var v)) x
-      | Opd3.Add_setvar sv -> map (D.unary_op (Opd2.Add_setvar sv)) x
-      | Opd3.Add_return_var _ -> Log.fatal_exn "add Return_var"
-      | Opd3.Add_no_return_var -> Log.fatal_exn "add No_return_var"
-      | Opd3.Remove_var v -> map (D.unary_op (Opd2.Remove_var v)) x
-      | Opd3.Remove_setvar sv -> map (D.unary_op (Opd2.Remove_setvar sv)) x
-      | Opd3.Memory (Allocate (lv, ex)) ->
-          map_flatten (D.memory (Allocate (lv, ex))) x
-      | Opd3.Memory (Deallocate lv) -> map_flatten (D.memory (Deallocate lv)) x
+      | UO_env eop -> map (D.unary_op eop) x
+      | UO_ret _   -> Log.fatal_exn "return_var"
+      | UO_mem (MO_alloc (l, s) as mop) ->
+          if !flag_malloc_never_null then map_flatten (D.memory mop) x
+          else map_flatten (do_allocate l s) x
+      | UO_mem (MO_dealloc _ as mop) -> map_flatten (D.memory mop) x
 
     (* set expr assume *)
     let assume (op: state_log_form): t -> t = map (D.assume op)
@@ -499,6 +579,7 @@ module Dom_disj = functor (D: DOM_ENV) -> functor (GE: GRAPH_ENCODE) ->
     (** Statistics *)
     (* For now, simply a number of disjuncts *)
     let get_stats (x: t): int = List.length x
+
   end: DOM_DISJ)
 
 module Dom_disj_timing =
@@ -506,6 +587,9 @@ module Dom_disj_timing =
     (struct
       module T = Timer.Timer_Mod( struct let name = "Dom_disj" end )
       type t = D.t
+      let module_name = "dom_disj_timing"
+      let config_2str = T.app1 "config_2str" D.config_2str
+      let disj_size = T.app1 "disj_size" D.disj_size
       let bot = D.bot
       let is_bot = T.app1 "is_bot" D.is_bot
       let top = T.app1 "top" D.top

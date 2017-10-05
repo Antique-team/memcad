@@ -38,6 +38,14 @@ module Dom_prod_dic =
   (struct
     (** Module name *)
     let module_name = Printf.sprintf "(%s X %s)" D1.module_name D2.module_name
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s -> %s\n%s -> %s\n%s%s%s"
+        module_name DIC.module_name
+        module_name D1.module_name
+        module_name D2.module_name
+        (DIC.config_2str ())
+        (D1.config_2str ())
+        (D2.config_2str ())
 
     (** Type of abstract values *)
     type t =
@@ -61,6 +69,9 @@ module Dom_prod_dic =
     (** Fixing sets of keys *)
     let sve_sync_bot_up (x: t): t * svenv_mod =
       { x with t_envmod = svenv_empty }, x.t_envmod
+    let sanity_sv (_: IntSet.t) (x: t): bool =
+      Log.todo "sanity_sv: unimp";
+      true
 
     (** Lattice elements *)
     (* Bottom element *)
@@ -746,7 +757,7 @@ module Dom_prod_dic =
         ) [] res1
 
     let check (op: meml_log_form) (x: t): bool =
-      match op with 
+      match op with
       | SL_set _ -> Log.todo_exn "check Setprop"
       | SL_array -> Log.todo_exn "check Array"
       | SL_seg _ -> Log.todo_exn "check Segment"
@@ -786,8 +797,6 @@ module Dom_prod_dic =
             | _                -> do_eq ()
         end
 
-    let array_assume (x: t): t =
-      Log.fatal_exn "array_assume in prod"
   end: DOM_MEM_LOW)
 
 (** The product functor instanciated with the chosen DIC module *)

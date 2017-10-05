@@ -29,6 +29,11 @@ module Log =
 module DBuild = functor
   ( M: DOM_VALUE ) ->
   (struct
+    let module_name = "dom_no_set"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s"
+        module_name M.module_name (M.config_2str ())
+
     (** Type of abstract values *)
     type t = M.t
 
@@ -156,8 +161,24 @@ module DBuild = functor
     let unfold: int -> nid -> unfold_dir -> t -> (int IntMap.t * t) list =
       M.unfold
     (* Check predicates on array *)
-    let assume (op: Opd0.assume_operand): t -> t = 
+    let assume (op: vassume_op): t -> t = 
       M.assume op
-    let check (op: Opd0.check_operand): t -> bool =
+    let check (op: vcheck_op): t -> bool =
       M.check op
+
+    (** Summarzing dimensions related operations *)
+    (* Expand the constraints on one dimension to another *)
+    let expand: int -> int -> t -> t = M.expand
+    (* Upper bound of the constraits of two dimensions *)
+    let compact: int -> int -> t -> t = M.compact
+
+    (** Conjunction *)
+    let meet: t -> t -> t = M.meet
+
+    (* Forget the information about an SV *)
+    let sv_forget: int -> t -> t = M.sv_forget
+    (* Export of range information *)
+    let sv_bound: int -> t -> interval = M.bound_variable
+    (* Extract all SVs that are equal to a given SV *)
+    let get_eq_class: int -> t -> IntSet.t = M.get_eq_class
   end: DOM_VALSET)

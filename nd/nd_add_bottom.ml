@@ -20,6 +20,10 @@ module Log =
 (** Functor adding a bottom element to a numerical domain *)
 module Add_bottom = functor (D: DOM_NUM_NB) ->
   (struct
+    let module_name = "nd_add_bot"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s"
+        module_name D.module_name (D.config_2str ())
     type t =
       | Bot
       | Nb of D.t
@@ -32,7 +36,7 @@ module Add_bottom = functor (D: DOM_NUM_NB) ->
     (* Bottom element *)
     let bot = Bot
     let is_bot: t -> bool = function
-      | Bot -> true
+      | Bot  -> true
       | Nb t -> D.is_bot t
     (* Top element *)
     let top = Nb D.top
@@ -87,14 +91,16 @@ module Add_bottom = functor (D: DOM_NUM_NB) ->
     let expand (id: int) (nid: int): t -> t = lift (D.expand id nid)
     (* Upper bound of the constraits of two dimensions *)
     let compact (lid: int) (rid: int): t -> t = lift (D.compact lid rid)
-    (* Meet: a lattice operation *)
+
+    (** Conjunction *)
     let meet (lx: t) (rx: t): t =
       match lx, rx with
       | Bot,_ -> Bot
       | _,Bot -> Bot
       | Nb l,Nb r -> Nb (D.meet l r)
-    (* Forget the information on a dimension *)
-    let forget (id: int): t -> t = lift (D.forget id)
+
+    (** Forget the information on a dimension *)
+    let sv_forget (id: int): t -> t = lift (D.sv_forget id)
 
     (** Export of range information *)
     (* bound of a variable  *)
@@ -109,4 +115,10 @@ module Add_bottom = functor (D: DOM_NUM_NB) ->
       match x with
       | Bot -> IntSet.empty
       | Nb y -> D.get_svs y
+
+    (** Extract all SVs that are equal to a given SV  *)
+    let get_eq_class (i: int) (x: t): IntSet.t =
+      match x with
+      | Bot -> IntSet.empty
+      | Nb y -> D.get_eq_class i y
   end: DOM_NUM)

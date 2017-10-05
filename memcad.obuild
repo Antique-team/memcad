@@ -16,14 +16,14 @@ Executable analyze
   src-dir: main, lib, c, sd, nd
   main-is: main.ml
   build-deps: apron.boxMPQ, apron.octMPQ, apron.polkaMPQ, clangml,
-              clangml-transforms, bdd, setr
+              clangml-transforms, setr
 
 Executable jptest
   oflags: -warn-error +26
   src-dir: lib, c, sd, nd
   main-is: jptest.ml
   build-deps: apron.boxMPQ, apron.octMPQ, apron.polkaMPQ, clangml,
-              clangml-transforms, bdd, oUnit, qcheck
+              clangml-transforms, oUnit, qcheck
 
 Executable increase_arity
   oflags: -warn-error +26

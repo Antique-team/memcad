@@ -6,4 +6,5 @@ void main( ){
   _memcad( "set_assume( a $in E )" );
   _memcad( "set_check( a $in F )" );
   a = a + 1;
+  _memcad("output_dot(a | SUCC)");
 }

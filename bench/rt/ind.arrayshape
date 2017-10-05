@@ -1,56 +1,104 @@
 
 %----------------------------------
 % Singly-linked lists in arrays
-ilist<0,1> :=
+ilist<0,0>(-subi:3-) :=
 | [0] -   emp
       -   this = 255
-        & @i0 = 255
 | [1 int]
       -   this->0 |-> $0
-        * $0.alist( | @i0 | )
+        * $0.ilist( | | )
       -   this != 255 
-        & @i0 != 255   
         & alloc( this, 4 )
 .
 
+
+
+%% %----------------------------------
+%% % Singly-linked lists in arrays
+%% alist<0,0>(-subi:4-) (2) :=
+%% | [0] -   emp
+%%       -   this = 17
+%% | [1 int]
+%%       -   this->0 |-> $0
+%%         * $0.alist( | | )
+%%       -   this != 17
+%%         &  @m0 = 1
+%%         & alloc( this, 4 )
+%% .
+
+
+
 %----------------------------------
-% A tail node 
-itail<0,0> :=
+% Singly-linked lists in arrays
+itail<0,1>(-subi:3-) (idx;1):=
 | [0] -   emp
       -   this = 255
-| [1 int]
-      -   this->0 |-> $0
+      &   @i0 = 255
+| [0]
+      -   true
       -   this != 255
-        & $0 = 255  
-        & alloc( this, 4 )
+        & @i0  != 255
+        & @m1 = 255
+        & |@m0| = 1
 .
+
 
 
 
 %----------------------------------
-% Singly-linked lists in arrays linked by pointers
-plist<0,0> :=
-| [0] -   emp
-      -   this = 0
-| [1 prt]
-      -   this->0 |-> $0
-        * $0->plist( | | )
-      -   this != 0 
-        & alloc( this, 4 )
+% Singly-linked lists in arrays
+itture<0,1>(-subi:3-) (idx;1):=
+| [0]
+      -   true
+      -   @m1 = 255
 .
 
 
 
-ilist<0,3> :=
-| [0] -   emp
-      -   this = 0
-        & 
-| [2 int]
-      -   this->0 |-> $0        
-        * this->0 |-> $1   
-        * $1.plist( |$1,@i1 | )
-      -   this != 0 
-        & alloc( this, 4 )
-.
+%% %----------------------------------
+%% % Singly-linked lists in arrays linked by pointers
 
+
+%% plist<0,0>(-subp:2-) :=
+%% | [0] -   emp
+%%       -   this = 0
+%% | [1 addr]
+%%       -   this->0 |-> $0
+%%         * $0.plist( | | )
+%%       -   this != 0
+%%         & alloc( this, 4 )
+%% .
+
+
+%% %----------------------------------
+%% % doubly-linked lists in arrays linked by indexes
+
+
+%% idlist<0,1>(-subi:2-) :=
+%% | [0] -   emp
+%%       -   this = 0
+%%        &  @i0 = 0
+%% | [1 int]
+%%       -   this->0 |-> $0
+%%         * this->4 |-> @i0
+%%         * $0.idlist( | this | )
+%%       -   this != 0
+%%         & alloc( this, 8 )
+%% .
+
+
+
+%% %----------------------------------
+%% % Singly-linked lists in arrays
+%% iflist<0,0>(-subi:2-)(idx;1) :=
+%% | [0] -   emp
+%%       -   @m0 == { }
+%%         & @m1 = 1
+%% | [1 int]
+%%       -   this->4 |-> $0
+%%         * $0.iflist( | | )
+%%       -   this # @m0
+%%         & @m1 = 1
+%%         & alloc( this, 8 )
+%% .
 

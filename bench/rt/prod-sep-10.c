@@ -10,6 +10,8 @@ void main( ){
   tree* t;
   // one tree node
   t = malloc( 12 ) ;
+  if( t == 0 )
+    exit( 0 );
   t -> left = null ;
   t -> right = null ;
   t -> data = -1 ;  

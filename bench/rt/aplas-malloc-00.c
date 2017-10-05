@@ -13,6 +13,8 @@ void main( ){
   while( i < 100 ){
     elist *c;
     c = malloc( 8 );
+    if( c == 0 )
+      exit( 0 );
     c->next = l;
     c->data = 0;
     l = c;

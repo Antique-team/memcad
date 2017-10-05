@@ -5,8 +5,6 @@
 ML_ML=          bin/increase_arity.ml \
 		c/c_parser.mly \
 		c/c_lexer.mll \
-		sd/array_parser.mly \
-		sd/array_lexer.mll \
 		c/mc_parser.mly \
 		c/mc_lexer.mll \
 		main/domsel_parser.mly \
@@ -46,6 +44,7 @@ ML_ML=          bin/increase_arity.ml \
 		lib/lex_lib.mli \
 		lib/lib.ml \
 		lib/lib.mli \
+		lib/printable_graph.ml \
 		lib/refcount.ml \
 		lib/refcount.mli \
 		lib/regular_expr.ml \
@@ -78,10 +77,11 @@ ML_ML=          bin/increase_arity.ml \
 		nd/set_utils.ml \
 		nd/set_utils.mli \
 		nd/sv_sig.ml \
+		sd/array_ind_sig.ml \
+		sd/array_ind_utils.ml \
 		sd/array_node.ml \
-		sd/array_pred_impl.ml \
-		sd/array_pred_sig.ml \
-		sd/array_pred_utils.ml \
+		sd/array_ppred_sig.ml \
+		sd/array_ppred_utils.ml \
 		sd/ast_sig.ml \
 		sd/ast_utils.ml \
 		sd/ast_utils.mli \
@@ -122,6 +122,8 @@ ML_ML=          bin/increase_arity.ml \
 		sd/dom_utils.mli \
 		sd/dom_val_array.ml \
 		sd/dom_val_maya.ml \
+		sd/dom_val_npack.ml \
+		sd/dom_val_record.ml \
 		sd/dom_val_num.ml \
 		sd/dom_val_subm.ml \
 		sd/gen_dom.ml \
@@ -174,6 +176,8 @@ ML_ML=          bin/increase_arity.ml \
 		sd/list_sig.ml \
 		sd/list_utils.ml \
 		sd/list_utils.mli \
+		sd/list_visu.ml \
+		sd/list_visu.mli \
 		sd/off_impl.ml \
 		sd/off_impl.mli \
 		sd/off_linexpr.ml \
@@ -239,17 +243,30 @@ prtst: analyze batch
 	./batch -in-file rt.txt -pure-regtest -very-silent -stress-test 100
 prtp: analyze batch
 	./batch -in-file rt.txt -pure-regtest -very-silent
+# Other targets
+bigrt: analyze batch # regression tests that take significant time
+	./batch -in-file bigrt.txt -very-silent -pure-cat bigrt
+selwiden: analyze batch # regression tests that take significant time
+	./batch -in-file bigrt.txt -pure-cat selwiden
+popl17: analyze batch # regression tests that take significant time
+	./batch -in-file bigrt.txt -pure-cat popl17
+poplm17: analyze batch # regression tests that take significant time
+	./batch -in-file bigrt.txt -pure-cat poplm17
 prtpnt: analyze batch
 	./batch -in-file rt.txt -pure-regtest -very-silent -no-timing
 pex: analyze batch
 	./batch -in-file rt.txt -pure-expe
 pexp: analyze batch
 	./batch -in-file rt.txt -pure-expe -very-silent
+tvl: analyze batch
+	./batch -in-file rt.txt -pure-cat tvl
 # test for array domain
 pcva: analyze batch
 	./batch -in-file rt.txt -pure-cat validarray
 pcea: analyze batch
 	./batch -in-file rt.txt -pure-cat arraypred
+pcas: analyze batch
+	./batch -in-file rt.txt -pure-cat arrayshape
 # unit tests for join_paths
 jptest: analyze
 	qtest -o sd/jptest.ml extract sd/graph_encode.ml
@@ -289,6 +306,20 @@ clean:
 	  c/c_lexer.ml c/c_parser.ml c/c_parser.mli c/mc_parser.mli \
 	  lib/config_lexer.ml lib/config_parser.ml lib/config_parser.mli \
 	  main/domsel_lexer.ml main/domsel_parser.ml main/domsel_parser.mli \
-	  sd/ind_lexer.ml
+	  sd/ind_lexer.ml sd/ind_lexer.mli sd/ind_parser.ml sd/ind_parser.mli
 exclean:
 	rm -rf bench/*.log bench/*/*log
+
+#-------------------------------------------------------------------#
+# GIT            						    #
+#-------------------------------------------------------------------#
+lpull:
+	git pull ../../pull/memcad
+mpull:
+	git pull rival@mezcal.ens.fr:git/memcad.git master
+mpush:
+	git push rival@mezcal.ens.fr:git/memcad.git master
+bpull:
+	git pull /import/absint3/rival/git/memcad.git master
+bpush:
+	git push /import/absint3/rival/git/memcad.git master

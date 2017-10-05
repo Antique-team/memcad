@@ -39,10 +39,6 @@ First, the \sanalyze executable can be used in three modes:
 \item[\doption{-analyze}, or for short \doption{-a}]: \\
   To analyze a C program, using option \soption{-analyze} or, for
   short \soption{-a} (this is the main purpose of this executable).
-\item[\doption{-infer-ind}]: \\
-  To extract inductive definitions from type definitions, using
-  option \soption{-infer-ind} (this is mainly useful to prepare an
-  analysis, or for debugging).
 \item[\doption{-help}]: \\
   The classical display of a help message with a list of options
   with option \soption{-help}.
@@ -52,7 +48,7 @@ executable will do nothing and will return immediately.
 
 \subsection{Input program}
 \label{s:opt:in}
-The following options set the mode 
+The following options set the mode
 \begin{itemize}
 \item[\texttt{filename}]: \\
   The name of the file to be analyzed should be passed on the command
@@ -64,6 +60,8 @@ The following options set the mode
   \texttt{fun}).
 \item[\doption{-header} \texttt{file.h}]: \\
   This option uses the header file \texttt{file.h} during parsing.
+\item[\doption{-reachable}]: \\
+  List functions reachable from the program entry point.
 \end{itemize}
 To summarize, the general format of a command line to analyze a
 program is
@@ -121,6 +119,10 @@ The following options set the level of verbosity of the textual output:
   Activates an internal debugging flag.
 \item[\doption{-set-off} \texttt{flag}] \optdev: \\
   Deactivates an internal debugging flag.
+\item[\doption{-log} \texttt{module:level[, module:level]}] \optdev: \\
+  Set non default log level for given \memcad logging module.
+  Several modules and corresponding log levels can be specified at once.
+  Example: -log l\_abs:fatal,l\_mat:debug.
 \end{itemize}
 The following option switches on~/~off the logging of specific kinds
 of information:
@@ -160,7 +162,23 @@ how long parts or all of the analysis take:
 \item[\doption{-stress-test} \texttt{N}]: \\
   This option repeatedly launches the analysis \texttt{N} times
   and allows to average analysis timing measures.
-\item[\doption{-no-analyze-prog-timer}] \optdev
+\end{itemize}
+
+\subsection{Reference semantics}
+\label{s:opt:sem}
+The analysis is designed to ensure soundness with respect to the
+reference semantics of source programs.
+In C, a malloc statement may either succeed to allocate a new memory
+region, and return a valid pointer to it, or return null as a sign of
+failure.
+By default, the analysis follows this semantics, but in some cases, a
+user may prefer to consider only executions where malloc always
+succeed, which is specified by the following option
+\begin{itemize}
+\item[\doption{-malloc-non0}] \optadv: \\
+  If this option is passed, the analysis will always assume that
+  malloc returns a valid, non null pointer, to a freshly allocated
+  region.
 \end{itemize}
 
 \subsection{Memory abstract domain settings and parameterization}
@@ -187,7 +205,9 @@ definitions for the ``shape'' domain.
   Turns on pre-analyses of inductive definitions, to infer properties
   that can be taken advantage of during the analysis of the C program
   itself.
-\item[\doption{-no-prev-fields}] \optdev
+\item[\doption{-no-prev-fields}] \optdev: \\
+  Ignore back pointers when computing silhouette abstractions
+  of shape graphs.
 \end{itemize}
 
 The default memory domain may be replaced with an alternate memory
@@ -328,7 +348,7 @@ of a shape domain:
 \item[\doption{-add-submem}] \optadv: \\
   This option enables sub-memory abstraction.
 \item[\doption{-submem-ind} \texttt{IND}] \optadv: \\
-  This option sets the inductive definition that the sub-memory abstraction 
+  This option sets the inductive definition that the sub-memory abstraction
   may instantiate to \texttt{IND}.
 \end{itemize}
 The following options allow to activate or deactivate an implementation
@@ -383,6 +403,23 @@ The following options control the computation of loop invariants:
   Uses a less coarse widening operator for \texttt{N} iterations, after
   join iterations, and before regular widening iterations (this option
   is experimental).
+\item[\doption{-dw-iters} \texttt{N}] \optdev: \\
+  Uses a less coarse widening operator for \texttt{N} iterations, after
+  join iterations, and before regular widening iterations (this option
+  is experimental).
+\item[\doption{-no-guided-join}] \optdev: \\
+  Turn off guided join (guided join is the default).
+\item[\doption{-guided-widen}] \optdev: \\
+  Use guided widening.
+\item[\doption{-no-guided-widen}] \optdev: \\
+  Turn off guided widening.
+\item[\doption{-widen-can}] \optdev: \\
+  Canonicalization-like abstraction of shape graphs during join/widen
+  (simpler but less powerful than default).
+\item[\doption{-basic-widen}] \optdev: \\
+  Basic/old disjuncts widening algorithm.
+\item[\doption{-no-basic-widen}] \optdev: \\
+  Turn off basic-widen.
 \end{itemize}
 
 The options below activate {\em threshold widening} in the base
@@ -404,12 +441,13 @@ by developpers at this time (thus not documented in this document):
 \item[\doption{-no-part-lfps}] \optdev
 \item[\doption{-sel-widen}] \optdev
 \item[\doption{-no-sel-widen}] \optdev
-\item[\doption{-basic-widen}] \optdev
-\item[\doption{-no-basic-widen}] \optdev
 \item[\doption{-no-fast-iir}] \optdev
 \item[\doption{-unary-abs}] \optdev
 \item[\doption{-no-unary-abs}] \optdev
 \item[\doption{-rec-calls}] \optdev
+  Turn on support for very simple recursive functions.
+  Only terminal recursive functions and without any parameter are
+  supported.
 \end{itemize}
 
 
@@ -470,7 +508,7 @@ The following two commands allow to specify {\em structural assumptions},
 that is that certain assumptions on the memory structures hold, and are
 thus typically used in order to specify pre-conditions:
 \begin{itemize}
-\item[\dcommand{add\_inductive}]: \\
+\item[\dcommand{add\textunderscore inductive}]: \\
   Assumes an inductive structural memory predicate holds.
   The syntax of this command is:
   \[
@@ -486,7 +524,7 @@ thus typically used in order to specify pre-conditions:
   \texttt{iptrs}, \texttt{sptrs} ] \), where \texttt{pptrs},
   \texttt{iptrs}, \texttt{sptrs} respectively denote the symbolic
   variables corresponding to the pointer, integer and set variables.
-\item[\dcommand{add\_segment}]: \\
+\item[\dcommand{add\textunderscore segment}]: \\
   Assumes an inductive structural memory predicate holds.
   The syntax of this command is:
   \[
@@ -505,7 +543,7 @@ Conversely, the following two commands allow to verify structural
 properties, and are typically used in order to specify post-conditions;
 they follow a similar format:
 \begin{itemize}
-\item[\dcommand{check\_inductive}]: \\
+\item[\dcommand{check\textunderscore inductive}]: \\
   Verifies that a structural assertion specified by an inductive predicate
   holds, and reports a failure message in the analysis log when it does
   not succeed to do so (this is the memory counterpart for a violated C
@@ -514,7 +552,7 @@ they follow a similar format:
   \[
   \scommand{check\_inductive}( \texttt{lv}, \texttt{iname} [, \texttt{ipars}] )
   \]
-\item[\dcommand{check\_segment}]: \\
+\item[\dcommand{check\textunderscore segment}]: \\
   Verifies that a structural assertion describing an inductive segment
   holds, and reports a failure message in the analysis log when it does
   not succeed to do so (this is the memory counterpart for a violated C
@@ -564,7 +602,7 @@ structure can be verified.
 To describe set properties, we need to introduce explicitely set
 variables:
 \begin{itemize}
-\item[\dcommand{decl\_setvars}]: \\
+\item[\dcommand{decl\textunderscore setvars}]: \\
   Introduces one or several universally quantified set variable(s).
   The syntax of this command is:
   \[
@@ -601,13 +639,13 @@ Set properties are described using the following grammar:
 \]
 The following two commands allow to assume and verify set properties:
 \begin{itemize}
-\item[\dcommand{set\_assume}]: \\
+\item[\dcommand{set\textunderscore assume}]: \\
   Assumes a set property.
   The syntax of this command is:
   \[
   \scommand{set\_assume}( \texttt{P} )
   \]
-\item[\dcommand{set\_check}]: \\
+\item[\dcommand{set\textunderscore check}]: \\
   Attempts to verify a set property (a failure is treated as a failed
   proof goal and reported in the alarm trace).
   The syntax of this command is:
@@ -628,7 +666,7 @@ inductif:
   \]
   where \( \texttt{lv} \) is an l-value pointing to the structure
   (inductive predicate or segment) to be unfolded.
-\item[\dcommand{unfold\_bseg}]: \\
+\item[\dcommand{unfold\textunderscore bseg}]: \\
   Forces the {\em backward} unfolding of an inductive segment predicate
   (backward unfolding operates from the tail of the segment).
   The syntax of this command is:
@@ -644,13 +682,13 @@ inductif:
 way the analysis handles disjunctions:
 \begin{itemize}
 \item[\dcommand{merge}] \optadv: \\
-  Forces the fusion of a union of abstract states into a single abstract
-  state, at the current point.
+  Makes the analysis attempt to join of abstract states into a single
+  abstract state, at the current point.
   The syntax is \( \scommand{merge}( ) \).
-\item[\dcommand{sel\_merge}] \optdev: \\
+\item[\dcommand{sel\textunderscore merge}] \optdev: \\
   Experimental variation of \( \scommand{merge} \).
-  The syntax is \( \scommand{merge}( ) \).
-\item[\dcommand{force\_live}] \optdev: \\
+  The syntax is \( \scommand{sel\textunderscore merge}( ) \).
+\item[\dcommand{force\textunderscore live}] \optdev: \\
   Provide a hint to static analysis algorithms (mainly join), by providing
   a set of variables information about which should be preserved in priority.
   The syntax is
@@ -660,7 +698,7 @@ way the analysis handles disjunctions:
   \]
   where \( \texttt{lv}_0, \texttt{lv}_1, \ldots, \texttt{lv}_n \) are
   l-values.
-\item[\dcommand{check\_bottomness}]: \\
+\item[\dcommand{check\textunderscore bottomness}]: \\
   Checks whether the flow is \( \bot \) (if called with flag
   \( \texttt{true} \)) or not \( \bot \) (if called with flag
   \( \texttt{false} \)).
@@ -668,7 +706,7 @@ way the analysis handles disjunctions:
   \[
   \scommand{check\_bottomness}( \texttt{flag} )
   \]
-\item[\dcommand{kill\_flow}] \optdev: \\
+\item[\dcommand{kill\textunderscore flow}] \optdev: \\
   Removes the current abstract flow, which is unsound in the analysis point
   of view, but can be useful for debugging.
   The syntax is \( \scommand{kill\_flow}( ) \).
@@ -859,7 +897,7 @@ predicates or set predicates:
 \begin{array}{rcll}
   \grside
   & ::=
-  & 
+  &
   & \text{ (true)}
   \\
   & |
@@ -1133,6 +1171,10 @@ testing is supposed to be performed:
       \sfield{main\_fun}
       & \valstr
       & controls option \soption{-main-fun} (\sref{opt:in})
+      \\ \hline
+      \sfield{malloc_non0}
+      & \valonoff
+      & controls option \soption{-malloc-non0} (\sref{opt:sem})
       \\ \hline
       \sfield{old\_parser}
       & \valonoff

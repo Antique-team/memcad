@@ -11,6 +11,8 @@ void main( ){
   _memcad( "add_inductive( l, dllo, [ p | | ] )" );
   if( l != null ){
     r = malloc( 8 );
+    if( r == 0 )
+      exit( 0 );
     r->next = l;
     r->prev = l->prev;
     l->prev = r;

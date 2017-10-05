@@ -101,10 +101,25 @@ let l_call_2strc (lc: l_call): string =
     List.fold_left (fun acc i -> Printf.sprintf "%s%d;" acc i) "" lc.lc_args in
   match lc.lc_def.ld_name with
   | None ->
-      Printf.sprintf "list{0-%d;n@%d;args:%s}" lc.lc_def.ld_size 
+      Printf.sprintf "list{0-%d;n@%d;args:%s}" lc.lc_def.ld_size
         lc.lc_def.ld_nextoff sargs
   | Some s  ->
       Printf.sprintf "%s{args:%s}" s sargs
+let l_call_setvars_2str (lc: l_call): string =
+  match lc.lc_args with
+  | [] -> ""
+  | lc_args ->
+      let buff = Buffer.create 11 in
+      Buffer.add_string buff "\\{"; (* backslash needed by dot *)
+      List.iteri
+        (fun i sv ->
+          if i <> 0 then
+            Buffer.add_string buff (Printf.sprintf ",s%d" sv)
+          else
+            Buffer.add_string buff (Printf.sprintf "s%d" sv)
+        ) (List.rev lc_args);
+      Buffer.add_string buff "\\}"; (* backslash needed by dot *)
+      Buffer.contents buff
 let lheap_frag_2stri (ind: string) (is: nid): lheap_frag -> string = function
   | Lhemp -> ""
   | Lhpt pte -> block_2stria ind is pte ""
@@ -172,6 +187,9 @@ let lmem_reach (m: lmem) (start: IntSet.t): IntSet.t =
       aux (IntSet.add c acc_done, IntSet.remove c to_follow) in
   aux (IntSet.empty, start)
 
+let nodes_of_lmem (mem: lmem): lnode list =
+  IntMap.values mem.lm_mem
+
 (** Sanity checks *)
 (* - all references should belong to the graph
  * - consistency between prevs, refcount, and edges
@@ -180,15 +198,12 @@ let lmem_reach (m: lmem) (start: IntSet.t): IntSet.t =
 let sanity_check (loc: string) (x: lmem): unit =
   if Flags.flag_sanity_ldom then
     (* auxilliary functions *)
-    let abort () =
-      Log.fatal_exn "sanity_check: failed (%s): %s"
-        loc (lmem_2stri ~refcount:true "  " x) in
+    let report (msg: string) =
+      Log.warn "sanity_check: failed (%s): %s\n %s"
+        loc msg (lmem_2stri ~refcount:true "  " x) in
     let check_successor (d: int): unit =
       if not (IntMap.mem d x.lm_mem) then
-        begin
-          Log.error "successor not in the graph %d" d;
-          abort ()
-        end in
+        report (Printf.sprintf "successor not in the graph %d" d) in
     let check_bound (bnd: Bounds.t): unit =
       if not (Bounds.t_is_const bnd) then
         Log.fatal_exn "non constant bound: %s" (Bounds.t_2str bnd) in
@@ -224,7 +239,7 @@ let sanity_check (loc: string) (x: lmem): unit =
           | Lhlseg (c, d) -> check_successor d; f d i accp, f_l_call c accsetvs
         ) x.lm_mem (IntMap.empty, IntSet.empty) in
     (* - consistency of the SETVs *)
-    Keygen.sanity_check "SETV occurrences" setvs x.lm_setvkey;
+    (*Keygen.sanity_check "SETV occurrences" setvs x.lm_setvkey;*)
     (* - consistency between prevs and refcount, and edges *)
     IntMap.iter
       (fun i p ->
@@ -232,17 +247,20 @@ let sanity_check (loc: string) (x: lmem): unit =
         IntMap.iter
           (fun j n ->
             let cn = IntMap.find_val 0 j cp in
-            if cn != n then Log.fatal_exn "refcount set mismatch"
+            if cn != n then
+              let msg = Printf.sprintf "[%d,%d,%d!=%d]" i j cn n in
+              report ("refcount set mismatch\n     "^msg)
           ) p
       ) x.lm_refcnt;
     (* - consistency of dangle: should contain exactly non reachable SVs *)
     let reach = lmem_reach x x.lm_roots in
     if IntSet.inter reach x.lm_dangle != IntSet.empty then
-      Log.fatal_exn "reachable SVs have been moved into dangle";
+      report "reachable SVs in dangle";
     let n_c = IntSet.cardinal reach + IntSet.cardinal x.lm_dangle
     and n_e = IntMap.cardinal x.lm_mem in
-    if n_c < n_e then Log.fatal_exn "dangle: some SVs must be missing";
-    if n_c > n_e then Log.fatal_exn "dangle: some SVs must be unbound";
+    if n_c != n_e then
+      report (Printf.sprintf "dangle SVs mismatch\n -r: {%s}\n -d: {%s}"
+                (IntSet.t_2str "," reach) (IntSet.t_2str "," x.lm_dangle));
     ( )
 
 (** Management of SVs *)
@@ -258,6 +276,8 @@ let sv_find (i: nid) (x: lmem): lnode =
   | Not_found ->
       Log.info "sv_find %d fails:\n%s" i (lmem_2stri "  " x);
       Log.fatal_exn "node %d not found" i
+(* Checking whether an SV is dangling *)
+let sv_is_dangle (i: int) (x: lmem): bool = IntSet.mem i x.lm_dangle
 (* Making an SV dangling (i.e., could be quickly removed) *)
 let rec sv_dangle_add (i: int) (x: lmem): lmem =
   if IntSet.mem i x.lm_dangle then x
@@ -316,14 +336,14 @@ let sv_rem (i: int) (x: lmem): lmem =
     Log.debug "sv_rem: %d" i;
   if IntSet.mem i x.lm_roots then Log.fatal_exn "sv_rem called on root node";
   let n = sv_find i x in
-  match n.ln_e with
-  | Lhemp -> { x with
-               lm_mem    = IntMap.remove i x.lm_mem;
-               lm_nkey   = Keygen.release_key x.lm_nkey i;
-               lm_dangle = IntSet.remove i x.lm_dangle;
-               lm_refcnt = IntMap.remove i x.lm_refcnt;
-               lm_svemod = svenv_rem i x.lm_svemod }
-  | _ -> Log.fatal_exn "sv_rem: SV region is non empty"
+  if not (n.ln_e = Lhemp) then Log.warn "sv_rem: SV region is non empty";
+  { x with
+    lm_mem    = IntMap.remove i x.lm_mem;
+    lm_nkey   = Keygen.release_key x.lm_nkey i;
+    lm_dangle = IntSet.remove i x.lm_dangle;
+    lm_refcnt = IntMap.remove i x.lm_refcnt;
+    lm_svemod = svenv_rem i x.lm_svemod }
+
 (* Collects all SVs *)
 let sv_col (x: lmem): IntSet.t =
   IntMap.fold (fun i _ acc -> IntSet.add i acc) x.lm_mem IntSet.empty
@@ -334,11 +354,21 @@ let sv_is_ind (i: int) (x: lmem): bool =
   | Lhlist _ | Lhlseg _ -> true
 (* Operations on roots *)
 let sv_root (i: int) (x: lmem): lmem =
-  sv_dangle_rem i { x with lm_roots = IntSet.remove i x.lm_roots }
+  sv_dangle_rem i { x with lm_roots = IntSet.add i x.lm_roots }
 let sv_unroot (i: int) (x: lmem): lmem =
   if not (IntSet.mem i x.lm_roots) then
      Log.fatal_exn "sv_unroot not called on root";
   sv_dangle_add_check i { x with lm_roots = IntSet.remove i x.lm_roots }
+
+(* Get offsets of maya elements *)
+let get_maya_off (i: int) (x: lmem): int list =
+  let ln = IntMap.find i x.lm_mem in
+  let lc =
+    match ln.ln_e with
+    | Lhlist l
+    | Lhlseg (l,_) -> l
+    | _ -> Log.fatal_exn "not a inductive" in
+  lc.lc_def.ld_m_offs
 
 (** Management of SETVs *)
 let setv_add_fresh (root: bool) (ko: set_par_type option) (x: lmem)
@@ -543,7 +573,7 @@ let pt_edge_replace
     | Lhemp -> Log.fatal_exn "pt_edge_repace: empty"
     | Lhpt mc ->
         begin
-          let old_pe = pt_edge_retrieve sat (is,bnd) mc pte.pe_size in 
+          let old_pe = pt_edge_retrieve sat (is,bnd) mc pte.pe_size in
           match Offs.size_order sat pte.pe_size old_pe.pe_size with
           | Some c ->
               if c = 0 then (* i.e., pte.pe_size = old_pe.pe_size *)
@@ -616,7 +646,8 @@ let list_edge_add (i: int) (ld: l_call) (x: lmem): lmem =
                  ln_e     = Lhlist ld;
                  ln_odesc = Some ld.lc_def } in
       { x with lm_mem = IntMap.add i ln x.lm_mem }
-  | Lhpt _ | Lhlist _ | Lhlseg _ -> Log.fatal_exn "list_edge_add"
+  | Lhpt _ | Lhlist _ | Lhlseg _ ->
+      Log.fatal_exn "list_edge_add: %d\n%s" i (lmem_2stri "  " x)
 (* Removal of a list edge *)
 let list_edge_rem (i: int) (x: lmem): lmem =
   let ln = sv_find i x in
@@ -644,6 +675,17 @@ let lseg_edge_rem (i: int) (x: lmem): lmem =
       let ln = { ln with ln_e = Lhemp } in
       rem_refcount i dst { x with lm_mem = IntMap.add i ln x.lm_mem }
   | Lhemp | Lhpt _ | Lhlist _ -> Log.fatal_exn "lseg_edge_rem"
+
+let lseg_2list (h: int) (x: lmem): lmem =
+  let ln = sv_find h x in
+  match ln.ln_e with
+  | Lhlseg (ld, dst) ->
+      let ln = { ln with ln_e = Lhlist ld} in
+      let lm =
+        rem_refcount h dst { x with lm_mem = IntMap.add h ln x.lm_mem } in
+      let lm = sv_unroot dst lm in
+      sv_rem dst lm
+  | Lhemp | Lhpt _ | Lhlist _ -> Log.fatal_exn "lseg_2list"
 
 (* Number of remaining edges *)
 let num_edges (x: lmem): int =
@@ -673,7 +715,7 @@ let gc (roots: int Aa_sets.t) (x: lmem): lmem * IntSet.t =
       | Lhpt _ -> pt_edge_block_destroy i x, IntSet.empty
       | Lhlist lc ->
           list_edge_rem i x, l_call_col_setv lc
-      | Lhlseg (lc, _) -> 
+      | Lhlseg (lc, _) ->
           lseg_edge_rem i x, l_call_col_setv lc in
     sv_rem i x, s in
   (* internal dispose function that makes no sanity check;
@@ -719,7 +761,9 @@ let gc (roots: int Aa_sets.t) (x: lmem): lmem * IntSet.t =
             try
               let old_prevs = IntMap.find next x.lm_refcnt in
               let old_count = IntMap.find_val 0 prev old_prevs in
-              if old_count <= 0 then Log.fatal_exn "reached 0";
+              if old_count <= 0 then
+                Log.fatal_exn "lmem_gc: reached 0 [%d,%d]\n%s" prev next
+                  (lmem_2stri "  " x);
               let new_count = old_count - 1 in
               let new_prevs =
                 if new_count <= 0 then IntMap.remove prev old_prevs
@@ -753,9 +797,9 @@ let gc (roots: int Aa_sets.t) (x: lmem): lmem * IntSet.t =
         (fun i _ acc ->
           if IntSet.mem i reach then acc else IntSet.add i acc
         ) x.lm_mem IntSet.empty in
-    let x, s = 
-      IntSet.fold 
-        (fun i (x, s_acc) -> 
+    let x, s =
+      IntSet.fold
+        (fun i (x, s_acc) ->
           let x, s = sv_dispose false i x in
           x, IntSet.union s s_acc
         ) nremoved (x, IntSet.empty) in
@@ -763,20 +807,20 @@ let gc (roots: int Aa_sets.t) (x: lmem): lmem * IntSet.t =
     x, s in
   let x, s = incr_gc x in
   if debug_module then Log.debug "incr-GC done";
-  if do_full_gc then 
+  if do_full_gc then
     let x, s1 = full_gc x in
     x, IntSet.union s s1
   else x, s
 
 (** Inductive set parameters construction *)
-(* - unfold a seg or an ind edge presented by lc: l_call in the right side 
+(* - unfold a seg or an ind edge presented by lc: l_call in the right side
  * - with a new segment
  * - and a new seg or an new ind edge
  * - also returns the set of removed SETVs
  * - and          the set of all new SETVs *)
 let gen_ind_setpars (lm: lmem) (lc: l_call)
     : lmem * l_call * l_call * (set_cons list) * IntSet.t * IntSet.t =
-  let l_paras = 
+  let l_paras =
     match lc.lc_def.ld_set with
     | None -> []
     | Some si -> si.s_params in
@@ -785,12 +829,12 @@ let gen_ind_setpars (lm: lmem) (lc: l_call)
       (fun (lm, lseg_args, l_args, c, acc_rem, acc_add) a k ->
         let seg_arg, lm = setv_add_fresh false (Some k) lm in
         let l_arg, lm   = setv_add_fresh false (Some k) lm in
-        let c = 
+        let c =
           if k.st_const then
             let c = S_eq (S_var l_arg, S_var a) :: c in
             S_eq (S_var seg_arg, S_var a) :: c
           else if k.st_head then
-            S_eq (S_var a, S_uplus (S_var seg_arg, S_var l_arg)) :: c 
+            S_eq (S_var a, S_uplus (S_var seg_arg, S_var l_arg)) :: c
           else Log.todo_exn "unhandled kind" in
         (lm, seg_arg :: lseg_args, l_arg :: l_args, c,
          IntSet.add a acc_rem,
@@ -830,6 +874,106 @@ let split_indpredpars (lc: l_call) (lm: lmem)
       | _, _ -> Log.fatal_exn "split_indpredpars: pars of distinct lengths" in
     aux (lm, [ ], [ ], [ ]) lc.lc_args params in
   lm, { lc with lc_args = List.rev l0 }, { lc with lc_args = List.rev l1 }, sc
+
+(* Get definition of the list in a memory *)
+let get_def (lm: lmem): l_def=
+  let opdef =
+    IntMap.fold
+      (fun _ ln acc->
+        match ln.ln_e with
+        | Lhlist lc
+        | Lhlseg (lc, _) -> Some lc.lc_def
+        | _ -> acc
+      ) lm.lm_mem None in
+  match opdef with
+  | Some ldef -> ldef
+  | None -> Log.fatal_exn "no ldef in lmem"
+
+(** Reduction *)
+(* rename an SV associated to an Lhemp node *)
+let lmem_rename_sv (svf: nid) (svt: nid) (l: lmem): lmem =
+  if IntSet.mem svf l.lm_roots then
+    Log.fatal_exn "lmem_rename_sv: cannot remove root";
+  let map = IntMap.singleton svf svt in
+  let do_bound = Bounds.rename map in
+  let do_nid (sv: nid): nid = if sv = svf then svt else sv in
+  let do_pt_edge (pe: pt_edge): pt_edge =
+    { pe with pe_dest = do_nid (fst pe.pe_dest), snd pe.pe_dest } in
+  let do_lcall (c: l_call): l_call = c in
+  let do_lheap_frag: lheap_frag -> lheap_frag = function
+    | Lhemp -> Lhemp
+    | Lhpt m -> Lhpt (Block_frag.map_bound do_bound do_pt_edge m)
+    | Lhlist c -> Lhlist (do_lcall c)
+    | Lhlseg (c, i) -> Lhlseg (do_lcall c, do_nid i) in
+  let do_lnode (ln: lnode): lnode =
+    { ln with ln_e = do_lheap_frag ln.ln_e } in
+  let do_refcount (m: int IntMap.t IntMap.t): int IntMap.t IntMap.t =
+    (* - check that no occurrence of svf appears in the preds
+     * - move the predecessors of svf into svt *)
+    IntMap.iter
+      (fun svpost ->
+        IntMap.iter
+          (fun svpre n ->
+            if svpre = svf && n != 0 then Log.error "removed node not empty"
+          )
+      ) m;
+    let recf = try IntMap.find svf m with Not_found -> IntMap.empty
+    and rect = try IntMap.find svt m with Not_found -> IntMap.empty in
+    let nrect =
+      IntMap.fold
+        (fun i n acc ->
+          let o = try IntMap.find i rect with Not_found -> 0 in
+          IntMap.add i (o + 1) acc
+        ) recf rect in
+    IntMap.add svf IntMap.empty (IntMap.add svt nrect m) in
+  let l = { l with
+            lm_mem    = IntMap.map do_lnode l.lm_mem;
+            lm_refcnt = do_refcount l.lm_refcnt } in
+  if sv_is_dangle svf l then l
+  else sv_dangle_add svf (sv_dangle_rem svt l)
+(* Guard function over lmem; adding certain kinds of constraints *)
+let rec lmem_guard (c: n_cons) (l: lmem): lguard_res =
+  match c with
+  | Nc_cons (Apron.Tcons1.EQ, Ne_var sv, Ne_csti n)
+  | Nc_cons (Apron.Tcons1.EQ, Ne_csti n, Ne_var sv) ->
+      if n = 0 then
+        match (sv_find sv l).ln_e with
+        | Lhemp
+        | Lhlist _ -> (* reduction brings no information: nothing to do *)
+            Gr_no_info
+        | Lhpt _ -> (* return bot *)
+            (* null pointer is a valid address, so reduce to bottom *)
+            Gr_bot
+        | Lhlseg (_, svt) ->
+            (* by construction of the inductive predicates of this domain,
+             * it entails the segment is empty and svt is null;
+             * for now, we simply propagate the reduction to svt (hope to
+             * get a reduction to _|_), but we will able also to remove the
+             * segment *)
+            Log.warn "lmem_guard: empty segment could be removed";
+            lmem_guard (Nc_cons (Apron.Tcons1.EQ, Ne_csti n, Ne_var svt)) l
+      else Gr_no_info
+  | Nc_cons (Apron.Tcons1.DISEQ, Ne_var _, Ne_csti _)
+  | Nc_cons (Apron.Tcons1.DISEQ, Ne_csti _, Ne_var _) ->
+      Gr_no_info (* nothing to reduce in this case *)
+  | Nc_cons (Apron.Tcons1.EQ, Ne_var sv0, Ne_var sv1) ->
+      if sv0 = sv1 then Gr_no_info
+      else
+        begin
+          match (sv_find sv0 l).ln_e, (sv_find sv1 l).ln_e with
+          | Lhemp, Lhemp ->
+              if sv0 < sv1 then Gr_sveq (sv1, sv0)
+              else Gr_sveq (sv0, sv1)
+          | Lhemp, _ -> Gr_sveq (sv0, sv1)
+          | _, Lhemp -> Gr_sveq (sv1, sv0)
+          | _, _ ->
+              Log.todo "reduce_equality unsupported; give up on reduction";
+              Gr_no_info
+        end
+  | _ ->
+      Log.warn "lmem_guard: unsupported condition, imprecise result:\n %s\n%s"
+        (Nd_utils.n_cons_2str c) (lmem_2stri "  " l);
+      Gr_no_info;;
 
 
 (** Utilities for join *)
@@ -879,7 +1023,7 @@ let l_call_compare (lc0: l_call) (lc1: l_call): int =
   | Some n0, Some n1 -> n0 = n1
   | _, _ -> false in
   if b then 0
-  else 
+  else
     begin
       assert (lc0.lc_def.ld_set = lc1.lc_def.ld_set
                 && lc0.lc_def.ld_onexts = lc1.lc_def.ld_onexts);
@@ -966,8 +1110,9 @@ let exp_search_lists ( ): unit =
         | `Fa_par_set i -> Sv_actual i in
       let tr_sexpr = function
         | Se_var sv -> Sd_var (tr_formal_set_arg sv)
-        | Se_uplus (set, elt) ->
-            Sd_uplus (tr_formal_arith_arg elt, tr_formal_set_arg set) in
+        | Se_uplus ([set], elt) ->
+            Sd_uplus (tr_formal_arith_arg elt, tr_formal_set_arg set)
+        | _ -> raise (M.Stop "tr_sform: not translateable") in
       let tr_sform = function
         | Sf_mem (elt, set) ->
             Se_mem (tr_formal_arith_arg elt, Sd_var (tr_formal_set_arg set))
@@ -976,7 +1121,7 @@ let exp_search_lists ( ): unit =
         | _ -> raise (M.Stop "tr_sform: not translateable") in
       List.fold_left
         (fun acc -> function
-          | Pf_alloc _ | Pf_arith _ -> acc
+          | Pf_alloc _ | Pf_arith _ | Pf_path _ -> acc
           | Pf_set sf -> tr_sform sf :: acc
         ) [ ] r.ir_pure in
     (* Equalities induced by parameter definitions *)
@@ -1020,6 +1165,11 @@ let exp_search_lists ( ): unit =
       | Some s -> s in
     (* Produce result *)
     { ld_name    = Some ind.i_name;
+      ld_m_offs  = [];
+      ld_submem  = None;
+      ld_emp_csti= 0;
+      ld_emp_mcons = [];
+      ld_next_mcons = [] ;
       ld_nextoff = onext;
       ld_size    = size;
       ld_onexts  = nest_calls;

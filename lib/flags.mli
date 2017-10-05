@@ -19,6 +19,7 @@ open Data_structures
  * - Input
  * - Parsing
  * - ABI assumptions
+ * - Semantics
  * - Output format
  * - Core interpreter
  * - Abstract domain (shape), structure
@@ -50,6 +51,8 @@ val rec_calls: bool ref
 val use_old_parser: bool ref
 (* the C header file used by clang *)
 val clang_header_fn: string ref
+(* additional directories where to look for C headers *)
+val include_dirs: string ref
 (* dump file after clang and transformations *)
 val dump_parse: bool ref
 (* read in a previous parse_dump *)
@@ -62,6 +65,11 @@ val abi_ptr_size:  int
 val abi_int_size:  int
 val abi_bool_size: int
 val abi_char_size: int
+
+(** Semantics *)
+(* whether cases where malloc returns true are considered
+ *  (false by default, as per the C semantics) *)
+val flag_malloc_never_null: bool ref
 
 (** Output format *)
 (* whether to print the null offset *)
@@ -84,8 +92,6 @@ type output_format = (* might be extended with Tikz for LaTeX *)
   | Out_dot of string list * string list (* (variable names, display options) *)
 (* export all points *)
 val flag_enable_ext_export_all: bool ref
-(* disable timing module to prevent shadowing of exceptions *)
-val no_analyze_prog_timer: bool ref
 (* show call graph from entry point *)
 val show_reachable_functions: bool ref
 
@@ -118,6 +124,8 @@ val widen_can: bool ref
 val disj_merge_before_join: bool ref
 (* Guided join (makes memcad join less smart if turned off) *)
 val guided_join: bool ref
+(* Guided widen *)
+val guided_widen: bool ref
 
 (** Shape domain (shape), structure *)
 (* domain structure *)
@@ -127,6 +135,7 @@ type shape_dom =
   | Shd_flat                           (* flat, summary-less abstract domain *)
   | Shd_all                            (* all inductive definitions *)
   | Shd_list                           (* abstract domain specific for lists *)
+  | Shd_tvl                            (* TVL based shape domain *)
   | Shd_inds of string list            (* some inductive definitions *)
   | Shd_sep of shape_dom * shape_dom   (* separating product of abstraction *)
   | Shd_prod of shape_dom * shape_dom  (* product of abstractions *)
@@ -206,7 +215,10 @@ val pl_max_ind_analysis_iter: int
 
 (** Abstract domain (arrays) *)
 val enable_array_domain: bool ref
-val ljc_debug:  string -> unit
+
+(** Equalities pack (arrays) *)
+val enable_eq_pack: bool ref
+
 (** Abstract domain (values) *)
 (* Kind of numerical domain *)
 type num_dom = ND_box | ND_oct | ND_pol
@@ -215,7 +227,11 @@ val num_dom_2str: num_dom -> string
 (* Numerical domain selector *)
 val nd_selector: num_dom ref
 (* Kind of set domain *)
-type set_dom = SD_none | SD_bdd | SD_lin | SD_quicr
+type set_dom =
+  | SD_none            (* no set domain *)
+  | SD_lin             (* lin set domain, local implementation *)
+  | SD_quicr           (* QUICr domain *)
+  | SD_setr of string  (* SETr library *)
 (* Pretty-print of numerical domain kind *)
 val set_dom_2str: set_dom -> string
 (* Set domain selector *)

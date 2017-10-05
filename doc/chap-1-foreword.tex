@@ -116,49 +116,44 @@ an officially released version of \memcad.
 
 \memcad is now ready to install:
 \begin{verbatim}
-$ opam install memcad
+$ opam depext -i memcad
 \end{verbatim}
 
 \memcad is a complex software with several dependencies.
 Some of those dependencies require specific system packages
 to be installed (clang for example).
-For any \memcad dependency failing to install (let's say dependency D
-failed); use the following command:
-\begin{verbatim}
-$ opam depext -i D
-\end{verbatim}
-
-Then try again:
-\begin{verbatim}
-$ opam install memcad
-\end{verbatim}
+The opam depext tool (used in the previous command) allows
+to automatically install them.
 
 \subsection{Developer install}
 This subsection is for users who want to install \memcad from sources.
+Overriding the default memcad package is necessary.
 
-First, overriding the default memcad package is necessary:
+If you have ssh access to the developers' git repository:
 \begin{verbatim}
 $ git clone ssh.di.ens.fr:~rival/git/memcad.git
 $ cd memcad
-$ opam pin add memcad $PWD
+$ opam pin -n add memcad $PWD
+$ opam depext -i memcad
 \end{verbatim}
+
+If you only have access to a tarball of memcad:
+\begin{verbatim}
+$ wget https://github.com/Antique-team/\
+memcad/archive/v1.0.1.tar.gz
+$ tar xzf v1.0.1.tar.gz
+$ cd memcad-1.0.1/
+$ opam pin -n add memcad $PWD
+$ opam depext -i memcad
+\end{verbatim}
+
 This will download and install all required dependencies
-then compile \memcad from sources.
+(including system packages) then compile \memcad from sources.
 
-In case the automatic dependencies installation and compilation of \memcad
-failed, the following list of commands can be tried:
-\begin{verbatim}
-$ git clone ssh.di.ens.fr:~rival/git/memcad.git
-$ cd memcad
-$ opam depext clangml
-$ opam depext apron
-$ opam install \
-  dolog obuild apron parmap clangml \
-  clangml-transforms bdd ounit qtest setr
-$ make
-\end{verbatim}
+\subsection{Test suites}
 
-\subsection{Test suite}
+\subsubsection{Regression tests}
+
 Two regression test suites are provided with the analyzer and can be
 analyzed automatically:
 \begin{verbatim}
@@ -168,3 +163,20 @@ $ make bigrt
 Not a single test should end in a failure or timeout state (unless
 running with a particularly slow hardware, in which case, the bounds
 for timeouts can be increased ---as explained in \cref{3:refman}).
+
+\subsubsection{Unit tests}
+
+For parts of the code which are non trivial and were implemented
+from a rather shaky specification, there are unit tests.
+Those unit tests can be run with:
+\begin{verbatim}
+$ make jptest
+[...]
+Ran: 39 tests in: 0.01 seconds.                                                
+SUCCESS
+[...]
+\end{verbatim}
+Those tests need the qtest OPAM package
+in order to be extracted from comments in the source file\\
+'sd/graph\_encode.ml'.
+Not a single of these tests should fail.

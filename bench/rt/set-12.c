@@ -1,5 +1,5 @@
 //lsetin set-12, list travel, test inclusion check and join! (lsetin)
-typedef struct  elist {
+typedef struct elist {
   struct elist * next ;
   int data ;
   } elist ;
@@ -16,4 +16,5 @@ void main( ){
   }
   _memcad( "check_inductive( l, lsetin, [ | | E] )" );
   _memcad( "check_inductive( k, lsetin, [ | | E] )" );
+  _memcad("output_dot(l, k | SUCC)");
 }

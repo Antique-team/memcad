@@ -29,7 +29,7 @@ module Log =
 let debug_module = true
 
 (** Unfolding primitive *)
-let unfold (i: int) (lm: lmem): unfold_result list =
+let unfold (i: int) (only_non_emp: bool) (lm: lmem): unfold_result list =
   (* Computation of the set of setv to remove *)
   let setv_to_remove (lc: l_call) (lm: lmem): IntSet.t =
     List.fold_left
@@ -62,9 +62,9 @@ let unfold (i: int) (lm: lmem): unfold_result list =
         : (sid list) * lmem * set_par_type IntMap.t =
       match ds with
       | None -> [ ], lm, nsetvs
-      | Some sel -> 
+      | Some sel ->
           let params, lm, nsetvs, _ =
-            List.fold_left 
+            List.fold_left
               (fun (acc, lm, nsetvs, i) skind ->
                 let setv, lm = setv_add_fresh false (Some skind) lm in
                 if debug_module then
@@ -94,34 +94,34 @@ let unfold (i: int) (lm: lmem): unfold_result list =
           let (o, n1), x, lm, nsetvs = add_pt_edge off ldd lm nsetvs in
           IntMap.add o n1 off_2nid, (x :: lind_edges), lm, nsetvs
         ) (off_2nid, [ ], lm, IntMap.empty)
-        ((ld.ld_nextoff, ld) :: ld.ld_onexts) in 
-    let lm, off_2nid = 
+        ((ld.ld_nextoff, ld) :: ld.ld_onexts) in
+    let lm, off_2nid =
       let off =
         Flags.abi_ptr_size * (List.length ld.ld_onexts + 1) + ld.ld_nextoff in
       if off < ld.ld_size then
         let j, lm = create_pt Ntraw off (ld.ld_size-off) lm in
-        lm, IntMap.add off j off_2nid 
+        lm, IntMap.add off j off_2nid
       else lm, off_2nid in
     off_2nid, List.rev lind_edges, lm, nsetvs in
   (* - add the set constraints in ld_def to set_cons *
-   * - p is the set args of the inductive egde needed unfold *) 
-  let setequ_2_real (of_2n: int IntMap.t) (p: sid list) 
+   * - p is the set args of the inductive egde needed unfold *)
+  let setequ_2_real (of_2n: int IntMap.t) (p: sid list)
       (l: (int * l_call) list) (se: set_equa)
       : set_cons =
     (* deal with offset to symbolic variables*)
     let selt_2_real (e: set_elt): int =
-      match e with 
+      match e with
       | Se_this -> i
       | Se_field f ->
           try IntMap.find f of_2n
           with Not_found -> Log.fatal_exn "offset without match sv" in
     (* deal with set var in ld_def to real set args *)
-    let setv_2_real (s: set_var): sid =   
+    let setv_2_real (s: set_var): sid =
       match s with
-      | Sv_actual x ->  
+      | Sv_actual x ->
           begin
             try List.nth p x
-            with 
+            with
             | Failure _ ->
                 Log.fatal_exn "current: cannot find real set parameter"
           end
@@ -132,21 +132,21 @@ let unfold (i: int) (lm: lmem): unfold_result list =
            | (_, lst) :: _ ->
                try List.nth lst.lc_args x
                with
-               | Failure _ -> 
+               | Failure _ ->
                    Log.fatal_exn "nth: cannot find set arguments of next"
           end
       | Sv_subpar (x, y) ->
           begin
-            try 
+            try
               let _, n = List.nth l (x+1) in
-              List.nth n.lc_args x  
+              List.nth n.lc_args x
             with
             | Failure _ -> Log.fatal_exn "nth: cannot find nth ldesc"
           end in
     let setdef_2_real (sd: set_def): set_expr =
       match sd with
       | Sd_var v -> S_var (setv_2_real v)
-      | Sd_uplus (e, v) -> 
+      | Sd_uplus (e, v) ->
           S_uplus (S_node (selt_2_real e), S_var (setv_2_real v))
       | Sd_eunion (e, v) ->
           S_union (S_node (selt_2_real e), S_var (setv_2_real v))
@@ -155,7 +155,7 @@ let unfold (i: int) (lm: lmem): unfold_result list =
     match se with
     | Se_mem (x, y) -> S_mem (selt_2_real x, setdef_2_real y)
     | Se_eq  (x, y) -> S_eq (S_var (setv_2_real x), setdef_2_real y) in
-  let setequ_2_real (of_2n: int IntMap.t) (p: sid list) 
+  let setequ_2_real (of_2n: int IntMap.t) (p: sid list)
       (l: (int*l_call) list) (se: set_equa)
       : set_cons =
     let r = setequ_2_real of_2n p l se in
@@ -173,9 +173,10 @@ let unfold (i: int) (lm: lmem): unfold_result list =
     let lm, cons =
       match oidst with
       | Some idst ->
-          lseg_edge_rem i lm, Nc_cons (Apron.Tcons1.EQ, Ne_csti i, Ne_csti idst)
+          lseg_edge_rem i lm, Nc_cons (Apron.Tcons1.EQ, Ne_var i, Ne_var idst)
       | None ->
-          list_edge_rem i lm, Nc_cons (Apron.Tcons1.EQ, Ne_csti 0, Ne_var i) in
+          list_edge_rem i lm,
+          Nc_cons (Apron.Tcons1.EQ, Ne_csti lc.lc_def.ld_emp_csti, Ne_var i) in
     let paras =
       match lc.lc_def.ld_set with
       | None -> []
@@ -191,7 +192,8 @@ let unfold (i: int) (lm: lmem): unfold_result list =
       with Invalid_argument _ ->
         Log.fatal_exn "list_unfold: parameters does not match" in
     { ur_lmem     = lm;
-      ur_cons     = [ cons ]; 
+      ur_cons     = [ cons ];
+      ur_mcons    = lc.lc_def.ld_emp_mcons;
       ur_setcons  = setcons;
       ur_newsetvs = IntMap.empty;
       ur_remsetvs = remsetvs; } in
@@ -199,12 +201,12 @@ let unfold (i: int) (lm: lmem): unfold_result list =
   | Lhpt _ -> Log.fatal_exn "unfold to empty / points-to"
   | Lhemp -> Log.fatal_exn "non-local unfold"
   | Lhlist lc ->
-      let remsetvs = setv_to_remove lc lm in 
+      let remsetvs = setv_to_remove lc lm in
       (* empty segment *)
       let ur_empty = make_empty lc remsetvs None in
       (* inductive of length at least 1 *)
       let ur_next =
-        let ln = { ln with ln_e = Lhemp } in 
+        let ln = { ln with ln_e = Lhemp } in
         let lm = { lm with lm_mem = IntMap.add i ln lm.lm_mem } in
         let o2n, n2l, lm, nsetvs = create_ld_block lc.lc_args lc.lc_def lm in
         let lm =
@@ -218,7 +220,9 @@ let unfold (i: int) (lm: lmem): unfold_result list =
                   add_setcons (setequ_2_real o2n lc.lc_args n2l l) setcons
                 ) [ ] x.s_equas in
         { ur_lmem     = lm;
-          ur_cons     = [ Nc_cons (Apron.Tcons1.DISEQ, Ne_csti 0, Ne_var i) ];
+          ur_cons     = [ Nc_cons (Apron.Tcons1.DISEQ,
+                                   Ne_csti lc.lc_def.ld_emp_csti, Ne_var i) ];
+          ur_mcons    = lc.lc_def.ld_next_mcons;
           ur_setcons  = setcons;
           ur_newsetvs = nsetvs;
           ur_remsetvs = remsetvs } in
@@ -229,18 +233,16 @@ let unfold (i: int) (lm: lmem): unfold_result list =
       let ur_empty = make_empty lc remsetvs (Some idst) in
       (* segment of length at least 1 *)
       let ur_next =
-        let ln = { ln with ln_e = Lhemp } in  
-        let n_lm = { lm with lm_mem = IntMap.add i ln lm.lm_mem } in
+        (* TODO: check if there is an issue with this list edge *)
+        let n_lm = lseg_edge_rem i lm in
         let o2n, n2l, n_lm, nsetvs =
           create_ld_block lc.lc_args lc.lc_def n_lm in
         let o_ff, o_ld = List.hd n2l in
         let n_lm = lseg_edge_add o_ff idst o_ld n_lm in
-        let n_lm = 
-          List.fold_left 
-            (fun m (i, lc) -> 
-              list_edge_add i lc m) 
+        let n_lm =
+          List.fold_left (fun m (i, lc) -> list_edge_add i lc m)
             n_lm (List.tl n2l) in
-        let setcons = 
+        let setcons =
           match lc.lc_def.ld_set with
           | None -> [ ]
           | Some x ->
@@ -249,8 +251,11 @@ let unfold (i: int) (lm: lmem): unfold_result list =
                   add_setcons (setequ_2_real o2n lc.lc_args n2l l) setcons
                 ) [ ]  x.s_equas in
         { ur_lmem     = n_lm ;
-          ur_cons     = [ Nc_cons (Apron.Tcons1.DISEQ, Ne_csti 0, Ne_var i) ] ;
+          ur_cons     = [ Nc_cons (Apron.Tcons1.DISEQ,
+                                   Ne_csti lc.lc_def.ld_emp_csti, Ne_var i) ] ;
+          ur_mcons    = lc.lc_def.ld_next_mcons;
           ur_setcons  = setcons;
           ur_newsetvs = nsetvs;
           ur_remsetvs = remsetvs  } in
-      [ ur_next ; ur_empty ]
+      if only_non_emp then [ ur_next ]
+      else [ ur_next ; ur_empty ]

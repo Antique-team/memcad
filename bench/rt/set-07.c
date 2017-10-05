@@ -19,4 +19,5 @@ void main( ){
   // XR: this test seems unsound to me
   //     (it now fails ---seems rightfully so to me--- and it used not to...)
   // _memcad( "check_inductive( k, lsetex, [ | | F] )" );
+  _memcad("output_dot(l, k | SUCC)");
 }

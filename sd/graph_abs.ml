@@ -54,7 +54,8 @@ let perform_one_weakening
     let pargs, gn = ind_args_1_make Ntaddr ind.i_ppars gn in
     assert (ind.i_ipars = 0);
     let args = { ia_ptr = pargs ;
-                 ia_int = [ ] } in
+                 ia_int = [ ];
+                 ia_set = [ ]; } in
     let ie = { ie_ind  = ind ;
                ie_args = args } in
     ind_edge_add i ie gn, ie in
@@ -69,7 +70,8 @@ let perform_one_weakening
   let le_res =
     let inj = Aa_maps.singleton i i in
     Graph_is_le.is_le_partial None true
-      ~submem:false g hu IntSet.empty sat gcan inj in
+      ~submem:false g hu IntSet.empty sat (fun _ -> false) gcan inj
+      Aa_maps.empty in
   (* Return depending on inclusion check result *)
   match le_res with
   | Ilr_not_le ->
@@ -101,7 +103,9 @@ let perform_one_weakening
                 with Not_found -> Log.fatal_exn "segment parameter not mapped"
               ) ie_up.ie_args.ia_ptr in
           { ia_ptr = pl ;
-            ia_int = (assert (ie_up.ie_ind.i_ipars = 0); [ ]) } in
+            ia_int = (assert (ie_up.ie_ind.i_ipars = 0); [ ]);
+            ia_set = (assert (ie_up.ie_ind.i_spars = 0); [ ]);
+          } in
         (* parameters at destination site, from ie_rem *)
         let seg = { se_ind   = ie_up.ie_ind ;
                     se_sargs = mapped_args ;

@@ -14,6 +14,7 @@ open Data_structures
 open Graph_sig
 open Ind_sig
 open Nd_sig
+open Set_sig
 
 (** Sided algorithms support *)
 (* Display *)
@@ -32,7 +33,8 @@ val is_le_ind:
     -> graph (* graph to weaken *)
       -> int (* index of the node from which to weaken *)
         -> (n_cons -> bool) (* constraint verification *)
-          -> is_le_res * ind_edge * IntSet.t
+          -> (set_cons -> bool) (* set constraint verification *) 
+            -> is_le_res * ind_edge * IntSet.t
 
 val is_le_seg:
     submem: bool (* sub-mem is_le is slightly different: no alloc check *)
@@ -41,4 +43,5 @@ val is_le_seg:
       -> int (* source node from which to weaken *)
         -> int (* destination node up to which to weaken *)
           -> (n_cons -> bool) (* constraint verification *)
-            -> is_le_res * seg_edge
+            -> (set_cons -> bool) (* set constraint verification *)
+              -> is_le_res * seg_edge

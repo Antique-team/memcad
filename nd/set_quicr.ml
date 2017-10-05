@@ -77,6 +77,11 @@ module type SDomain =
 module Make = functor (D: SDomain) ->
   (struct
     (** Type of abstract values *)
+    let module_name = "set_quicr"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n"
+        module_name "sdomain"
+
     type t =
         { t_u: D.t;          (* a QUICr value *)
           t_roots: IntSet.t; (* set of root set variables *) }
@@ -124,7 +129,7 @@ module Make = functor (D: SDomain) ->
       forget_syms [ setv_2sym i ] x
 
     (** Forget (if the meaning of the sv changes) *)
-    let forget (i: int) (x: t): t =
+    let sv_forget (i: int) (x: t): t =
       forget_syms [ sv_2sym i ] x
 
     (** Comparison and join operators *)
@@ -134,7 +139,7 @@ module Make = functor (D: SDomain) ->
       D.le () x0.t_u x1.t_u
 
     (* Weak bound: serves as widening *)
-    let weak_bnd (x0: t) (x1: t): t = 
+    let weak_bnd (x0: t) (x1: t): t =
       { x0 with t_u = D.widening () x0.t_u x1.t_u }
 
     (* Upper bound: serves as join and widening *)
@@ -188,4 +193,5 @@ module Make = functor (D: SDomain) ->
             not (IntSet.mem i setvkeep) && not (IntSet.mem i x.t_roots) in
       let remove = List.filter f_sym syms in
       forget_syms remove x
+
   end: DOMSET)

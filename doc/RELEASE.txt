@@ -1,0 +1,65 @@
+MemCAD release HOWTO
+====================
+
+author: francois.berenger@inria.fr
+date: Wed Dec 14 2016
+
+This HOWTO describes how to release a new version of MemCAD as an official
+OPAM[0] package.
+
+I - Tag a new release
+---------------------
+
+First, make sure the source tree doesn't contain things you don't want to
+release to the public (files in bench/, git commit logs, etc.).
+
+Please follow the semantic versioning scheme[1] when creating a version number.
+Given a version number MAJOR.MINOR.PATCH, increment the:
+MAJOR version when you make incompatible API changes,
+MINOR version when you add functionality in a backwards-compatible manner, and
+PATCH version when you make backwards-compatible bug fixes.
+
+The official website for the source code of memcad is:
+https://github.com/Antique-team/memcad
+
+You must tag this new version of the software:
+---
+git tag v1.0.1 # for example
+git push --tags git@github.com:Antique-team/memcad.git
+---
+
+Github will automatically create a tarball for this version at:
+https://github.com/Antique-team/memcad/archive/v1.0.1.tar.gz
+
+II - Create a new OPAM package
+------------------------------
+
+Now, you must create a new OPAM package.
+For simplicity, we will reuse the already existing package.
+
+---
+git clone https://github.com/ocaml/opam-repository.git
+cd opam-repository
+cp -a packages/memcad/memcad.1.0.0 packages/memcad/memcad.1.0.1
+---
+
+Update the URL and MD5 of your new tarball in file
+packages/memcad/memcad.1.0.1/url.
+
+Store the new package version in a specific git branch:
+---
+git checkout -b memcad_1.0.1
+git add packages/memcad/memcad.1.0.1
+git commit packages/memcad/memcad.1.0.1
+---
+
+Then create a pull request with your branch at:
+https://github.com/ocaml/opam-repository
+
+Once your pull request is accepted, the new package will be available
+to all opam users within a few days (and after they execute 'opam update').
+
+References
+==========
+[0] https://opam.ocaml.org/
+[1] http://semver.org/

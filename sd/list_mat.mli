@@ -14,4 +14,6 @@ open List_sig
 open Set_sig
 
 (** Unfolding primitive *)
-val unfold: int -> lmem -> unfold_result list
+val unfold: int
+  -> bool (* whether to include only non empty segment cases *)
+    -> lmem -> unfold_result list

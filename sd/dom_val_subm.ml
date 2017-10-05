@@ -61,6 +61,13 @@ type node_kind =
 (** Module construction *)
 module Make_Val_Subm = functor (Dv: DOM_VALUE) -> functor (S: SUBMEM_SIG) ->
   (struct
+    let module_name = "dom_val_subm"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s -> %s\n%s%s"
+        module_name Dv.module_name
+        module_name S.module_name
+        (Dv.config_2str ())
+        (S.config_2str ())
     module S = Dom_subm_graph.Submem
 
     (** Dom ID *)
@@ -316,7 +323,7 @@ module Make_Val_Subm = functor (Dv: DOM_VALUE) -> functor (S: SUBMEM_SIG) ->
     (* For sanity check *)
     let check_nodes (s: IntSet.t) (x: t): bool =
       Dv.check_nodes s x.t_main
-        
+
     (* Node addition and removal *)
     let add_node (id: int) (x: t): t =
       { x with t_main = Dv.add_node id x.t_main }
@@ -685,7 +692,7 @@ module Make_Val_Subm = functor (Dv: DOM_VALUE) -> functor (S: SUBMEM_SIG) ->
               Log.force "Equality: %d = %d" glo loc;
             Dv.guard true (Nc_cons (Tcons1.EQ, Ne_var glo, Ne_var loc)) num
           ) x.t_main eqs in
-      let r = 
+      let r =
         { x with
           t_main  = num;
           t_bases = Bi_fun.add base sv x.t_bases;
@@ -735,7 +742,7 @@ module Make_Val_Subm = functor (Dv: DOM_VALUE) -> functor (S: SUBMEM_SIG) ->
                *  - remove entries about suba and maina
                *  - filter out nodes in the sub-graph *)
               let snodes =
-                let img = 
+                let img =
                   try S.get_keys (IntMap.find suba x.t_subs)
                   with Not_found -> Log.fatal_exn "sanity issue" in
                 Log.info "ffound keys: %s" (intset_2str img);
@@ -941,7 +948,7 @@ module Make_Val_Subm = functor (Dv: DOM_VALUE) -> functor (S: SUBMEM_SIG) ->
             match ex with
             | Ne_var rglo ->
                 if rglo < 0 then
-                  (* the mutation is internal to the sub-memory *) 
+                  (* the mutation is internal to the sub-memory *)
                   x, ex, sub, x.t_main
                 else (* the mutation points to outside the sub-memory *)
                   let x, nglo, sub = prepare_submem () in
@@ -1026,35 +1033,42 @@ module Make_Val_Subm = functor (Dv: DOM_VALUE) -> functor (S: SUBMEM_SIG) ->
       { x with t_main = Dv.add_array_address id x.t_main }
     let is_array_address (id: int) (x: t): bool =
        Dv.is_array_address id x.t_main
-    let array_node_deref (id: int) (off: Offs.t) (x: t): (t * int) list = 
+    let array_node_deref (id: int) (off: Offs.t) (x: t): (t * int) list =
       let vlist = Dv.array_node_deref id off x.t_main in
       List.map (fun (v,i) -> { x with t_main = v }, i) vlist
-    let array_materialize (id: int) (off: Offs.t) (x: t): t * int = 
+    let array_materialize (id: int) (off: Offs.t) (x: t): t * int =
       let m, v = Dv.array_materialize id off x.t_main in
       { x with t_main = m },v
-    let expand (id: int) (nid: int) (x: t): t = 
+    let expand (id: int) (nid: int) (x: t): t =
       { x with t_main = Dv.expand id nid x.t_main}
     let compact (lid: int) (rid: int) (x: t): t =
       { x with t_main = Dv.compact lid rid x.t_main}
     let meet (lx: t) (rx: t): t =
       Log.todo_exn "meet in subm"
-    let forget (id: int) (x: t): t =
+
+    (* Forget the information about an SV *)
+    let sv_forget (id: int) (x: t): t =
       Log.todo_exn "forget in subm"
 
     (** Export of range information *)
-    let bound_variable (dim: int) (x: t): interval = 
+    let bound_variable (dim: int) (x: t): interval =
       Log.todo_exn "bound_variable in subdom"
 
     (** Temporaries specific for array *)
-    let check (op: Opd0.check_operand) (x: t): bool =
+    let check (op: vcheck_op) (x: t): bool =
       match op with
-      | Opd0.SL_array -> Log.fatal_exn "array check in submem"
-      | Opd0.SL_ind (i, off, iname) ->
+      | VC_ind (i, off, iname) ->
           (* retrieval of the sub-memory, and underlying ind_check *)
           let sub = addr_2submem x i in
           S.ind_check (Dv.sat x.t_main) off iname sub
+      | _ -> Log.fatal_exn "array check in submem"
 
-    let assume (op: Opd0.assume_operand) (x: t): t =
+    let assume (op: vassume_op) (x: t): t =
       match op with
-      | Opd0.SL_array -> Log.fatal_exn "array assume in submem"
+      | VA_array -> Log.fatal_exn "array assume in submem"
+      | _ -> Log.fatal_exn "unexpected assume"
+
+    (** Extract all SVs that are equal to a given SV *)
+    let get_eq_class (i: int) (x: t): IntSet.t =
+      Log.fatal_exn "get_eq_class in submem"
   end: DOM_VALUE)

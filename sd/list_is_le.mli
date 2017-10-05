@@ -28,6 +28,7 @@ val is_le:
 (** Partial inclusion checking function, used for join *)
 val is_le_weaken_check:
     lmem                         (* left input *)
+  -> IntSet.t                    (* no unfold 0 *)
   -> IntSet.t                    (* segment end(s), if any *)
   -> (n_cons -> bool)            (* satisfiability, in the left argument *)
   -> (set_cons -> bool)          (* satisfiability, left arg, set constraints *)
@@ -40,6 +41,7 @@ val is_le_weaken_check:
 val is_le_weaken_guess:
     stop: int Aa_sets.t option   (* optional stop nodes *)
   -> lmem                        (* left input *)
+  -> IntSet.t                    (* no unfold 0 *)
   -> IntSet.t                    (* segment end(s), if any *)
   -> (n_cons -> bool)            (* satisfiability, in the left argument *)
   -> (set_cons -> bool)          (* satisfiability, left arg, set constraints *)

@@ -8,7 +8,8 @@
  ** Copyright (c) 2016 INRIA
  **
  ** File: nd_add_diseqs.ml
- **       addition of disequalities to a numerical domain (without bottom interface)
+ **       addition of disequalities to a numerical domain
+ **         (without bottom interface)
  ** Xavier Rival, 2011/08/08 *)
 open Apron
 open Data_structures
@@ -21,47 +22,12 @@ module Log =
   Logger.Make(struct let section = "nd_+dise" and level = Log_level.DEBUG end)
 
 (** Data-structures: maps over atoms standing for variables and constants *)
-(* Constraints involve atoms *)
-type atom =
-  | Acst of int (* stands for integer constant *)
-  | Anode of int (* stands for a graph node *)
-module AtomOrd =
-  struct
-    type t = atom
-    let compare (a0: atom) (a1: atom): int =
-      match a0, a1 with
-      | Acst i0, Acst i1
-      | Anode i0, Anode i1 ->
-          i0 - i1
-      | Acst _, Anode _ -> 1
-      | Anode _, Acst _ -> -1
-  end
-module AtomSet = Set.Make( AtomOrd )
-module AtomMap = Map.Make( AtomOrd )
 
 (* Triangular representation of constraints on pairs of atoms:
  *  Example: if a0 != a1, a1 != a2 we get:
  *    a0 => { a1 }
  *    a1 => { a2 } *)
 type amap = AtomSet.t AtomMap.t
-(* Pretty-printing *)
-let atom_2str (sn: sv_namer) (a: atom): string =
-  match a with
-  | Acst i -> Printf.sprintf "%d" i
-  | Anode i -> try IntMap.find i sn with Not_found -> Printf.sprintf "|%d|" i
-let atomset_2str (sn: sv_namer) (s: AtomSet.t): string =
-  let is_beg = ref true in
-  AtomSet.fold
-    (fun a acc ->
-      let sep =
-        if !is_beg then
-          begin
-            is_beg := false;
-            ""
-          end
-        else "; " in
-      Printf.sprintf "%s%s%s" acc sep (atom_2str sn a)
-    ) s ""
 (* Find constraints *)
 let amap_find_diff (a: atom) (am: amap): AtomSet.t =
   try AtomMap.find a am
@@ -111,17 +77,16 @@ let atoms_in_rel_to (a0: atom) (am: amap): AtomSet.t =
       else acc
     ) am (amap_find_diff a0 am)
 
-(* Conversion of n_expressions to atom *)
-let n_expr_2atom: n_expr -> atom option = function    
-  | Ne_csti i -> Some (Acst i)
-  | Ne_var i -> Some (Anode i)
-  | _ -> None
-
 
 (** Module adding disequality constraints on top of another numerical domain *)
 
 module Add_diseqs = functor (M: DOM_NUM_NB) ->
   (struct
+    let module_name = "nd_add_diseqs"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s"
+        module_name M.module_name (M.config_2str ())
+
     type t =
         { t_u: M.t ; (* underlying: equalities, inequalities *)
           t_d: amap  (* disequalities *) }
@@ -246,9 +211,25 @@ module Add_diseqs = functor (M: DOM_NUM_NB) ->
       match cons with
       | Nc_cons (Tcons1.DISEQ, Ne_var vi, Ne_csti ci)
       | Nc_cons (Tcons1.DISEQ, Ne_csti ci, Ne_var vi) ->
-          amap_mem (Acst ci) (Anode vi) t.t_d || M.sat cons t.t_u
+          let b =
+            let set = M.get_eq_class vi t.t_u in
+            IntSet.fold
+              (fun key acc ->
+                (amap_mem (Acst ci) (Anode key) t.t_d || acc)
+              ) set false in
+          b || M.sat cons t.t_u
       | Nc_cons (Tcons1.DISEQ, Ne_var v0, Ne_var v1) ->
-          amap_mem (Anode v0) (Anode v1) t.t_d || M.sat cons t.t_u
+          let b =
+            let aset = M.get_eq_class v0 t.t_u in
+            let bset = M.get_eq_class v1 t.t_u in
+            IntSet.fold
+              (fun akey acc ->
+                IntSet.fold
+                  (fun bkey iac ->
+                    (amap_mem (Anode akey) (Anode bkey) t.t_d || iac)
+                  ) bset acc
+              ) aset false in
+          b || M.sat cons t.t_u
       | _ -> (* send to underlying domain *)
           M.sat cons t.t_u
 
@@ -336,13 +317,13 @@ module Add_diseqs = functor (M: DOM_NUM_NB) ->
     (* Upper bound of the constraits of two dimensions *)
     let compact (lid: int) (rid: int) (x: t): t = 
       { x with t_u = M.compact lid rid x.t_u }
-    (* Meet: a lattice operation *)
+    (* Conjunction *)
     let meet (lx: t) (rx: t): t =
       { lx with t_u = M.meet lx.t_u rx.t_u }
     (* Forget the information on a dimension *)
-    let forget (id: int) (x: t): t = 
+    let sv_forget (id: int) (x: t): t =
       { t_d = amap_forget (Anode id) x.t_d;
-        t_u = M.forget id x.t_u }
+        t_u = M.sv_forget id x.t_u }
 
     (** Export of range information *)
     (* bound of a variable  *)
@@ -352,5 +333,9 @@ module Add_diseqs = functor (M: DOM_NUM_NB) ->
     (** Extract the set of all SVs *)
     let get_svs (x: t) : IntSet.t =
       M.get_svs x.t_u
+
+    (** Extract all SVs that are equal to a given SV *)
+    let get_eq_class (i: int) (x: t): IntSet.t =
+      M.get_eq_class i x.t_u
   end: DOM_NUM_NB)
 

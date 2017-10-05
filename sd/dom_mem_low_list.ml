@@ -50,6 +50,9 @@ module DBuild = functor (Dv: DOM_VALSET) ->
   (struct
     (** Module name *)
     let module_name = "[list]"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s"
+        module_name Dv.module_name (Dv.config_2str ())
     (** Dom ID *)
     let dom_id: mod_id ref = ref (-1, "list")
 
@@ -102,9 +105,23 @@ module DBuild = functor (Dv: DOM_VALSET) ->
     let t_2str: t -> string = t_2stri ""
     (* External output *)
     let ext_output (o: output_format) (base: string) (namer: namer) (x: t)
-        : unit =
-      Log.todo_exn "ext output"
-
+      : unit =
+      match o with
+      | Out_dot (vars, visu_opts) ->
+          if !Flags.very_silent_mode then
+            (* don't slow down memcad during benchmarks *)
+            Log.warn "no pdf output in very_silent_mode"
+          else
+            let options = List.map Graph_utils.visu_opt_of_string visu_opts in
+            let dot_fn = Printf.sprintf "%s.dot" base in
+            let pdf_fn = Printf.sprintf "%s.pdf" base in
+            let set_constraints = Dv.t_2stri IntMap.empty "" x.t_num in
+            let long_label = pdf_fn ^ "\n" ^ set_constraints in
+            with_out_file dot_fn
+              (List_visu.output_dot options long_label vars x.t_mem namer);
+            let dot_to_pdf =
+              Printf.sprintf "dot -Tpdf %s -o %s" dot_fn pdf_fn in
+            ignore (run_command dot_to_pdf)
     (** Sanity checks *)
     let sanity_check (ctxt: string) (x: t): unit =
       (* - collect SVs in the memory abstraction
@@ -123,6 +140,12 @@ module DBuild = functor (Dv: DOM_VALSET) ->
             Log.fatal_exn "check_nodes failed"
           end;
         Log.info "domlist,sanity_check<%s>: ok" ctxt
+    let sanity_sv (s: IntSet.t) (x: t): bool =
+      Log.force "Sanity_sv: { %s }\n%s" (IntSet.t_2str "," s)
+        (lmem_2stri "   " x.t_mem);
+      List_utils.sanity_check "sanity_sv" x.t_mem;
+      (* if it makes it that far, then the test is passed *)
+      true
 
     (** Management of symbolic variables *)
     (* Ensuring consistency of SVs *)
@@ -443,26 +466,49 @@ module DBuild = functor (Dv: DOM_VALSET) ->
       sanity_check "local_abstract,after" o;
       o
 
+
+    (** Reduction into the graph *)
+    (* Performs reduction in the graph, and extends a renamer *)
+    let reduce_graph (gr: lguard_res) (renamer: int IntMap.t) (x: t)
+        : int IntMap.t * t =
+      match gr with
+      | Gr_no_info -> renamer, x
+      | Gr_bot -> raise Bottom
+      | Gr_sveq (svr, svk) ->
+          IntMap.add svr svk renamer,
+          { x with t_mem = lmem_rename_sv svr svk x.t_mem }
+
+
     (** Unfolding support *)
-    let unfold (i: int) (x: t): t list =
-      let l = List_mat.unfold i x.t_mem in
-      let l =
-        List.map
-          (fun ur ->
-            let x = sve_fix "unfold" { x with t_mem = ur.ur_lmem; } in
-            let n =
-              IntMap.fold (fun i _ -> Dv.setv_add i) ur.ur_newsetvs x.t_num in
-            let n =
-              List.fold_left (fun n c -> Dv.guard true c n) n ur.ur_cons in
-            let n =
-              List.fold_left (fun n c -> Dv.set_guard c n) n ur.ur_setcons in
-            let n = IntSet.fold Dv.setv_rem ur.ur_remsetvs n in
-            let m = IntSet.fold setv_rem ur.ur_remsetvs x.t_mem in
-            { x with
-              t_mem = m;
-              t_num = n }
-          ) l in
-      let l = List.filter (fun x -> not (is_bot x)) l in
+    (* Classical forward unfolding, returs a list of disjuncts,
+     * together with a renaming function (for cases where nodes are renamed) *)
+    let unfold (i: int) (x: t): (int IntMap.t * t) list =
+      let l = List_mat.unfold i false x.t_mem in
+      let f acc ur =
+        Log.debug "\n\nnew unfold begin...\n%s" (lmem_2stri "  " ur.ur_lmem);
+        let x = sve_fix "unfold" { x with t_mem = ur.ur_lmem; } in
+        let m = x.t_mem in
+        let n = IntMap.fold (fun i _ -> Dv.setv_add i) ur.ur_newsetvs x.t_num in
+        List.iter (fun c -> Log.debug "cons: %s" (n_cons_2str c)) ur.ur_cons;
+        let n = List.fold_left (fun n c -> Dv.guard true c n) n ur.ur_cons in
+        let n = List.fold_left (fun n c -> Dv.set_guard c n) n ur.ur_setcons in
+        let x = { x with
+                  t_mem = IntSet.fold setv_rem ur.ur_remsetvs m;
+                  t_num = IntSet.fold Dv.setv_rem ur.ur_remsetvs n } in
+        try
+          (* reduction phase *)
+          let renamer, x =
+            List.fold_left
+              (fun (renamer, x) c ->
+                reduce_graph (lmem_guard c x.t_mem) renamer x
+              ) (IntMap.empty, x) ur.ur_cons in
+          Log.debug "result after reduction:\n%s" (t_2stri "  " x);
+          Log.debug "unfold finished...\n";
+          (renamer, x) :: acc
+        with
+        | Bottom -> acc in
+      let l = List.fold_left f [ ] (List.rev l) in
+      let l = List.filter (fun (_, x) -> not (is_bot x)) l in
       l
 
     (* Non local unfolding support *)
@@ -628,8 +674,11 @@ module DBuild = functor (Dv: DOM_VALSET) ->
             if count > 0 then
               let ncount = count - 1 in
               let l = unfold i x in
-              List.flatten
-                (List.map (fun u -> cell_read_exc ncount src u) l)
+              let f (r, u) =
+                let i, o = src in
+                let ni = try IntMap.find i r with Not_found -> i in
+                cell_read_exc ncount (ni, o) u in
+              List.flatten (List.map f l)
             else Log.fatal_exn "reached the maximal number of unfoldings" in
       let rl = cell_read_exc Flags.max_unfold src x in
       List.iter (fun (rx,_,_) -> sanity_check "cell_read,after" rx) rl;
@@ -667,7 +716,10 @@ module DBuild = functor (Dv: DOM_VALSET) ->
 
     (** Transfer functions *)
     let guard (c: n_cons) (x: t): t =
-      { x with t_num = Dv.guard true c x.t_num }
+      try
+        let _, x = reduce_graph (lmem_guard c x.t_mem) IntMap.empty x in
+        { x with t_num = Dv.guard true c x.t_num }
+      with Bottom -> { x with t_num = Dv.bot }
     let sat (c: n_cons) (x: t): bool = Dv.sat x.t_num c
 
     let tr_setcon (x: svo setprop): set_cons =
@@ -714,11 +766,11 @@ module DBuild = functor (Dv: DOM_VALSET) ->
       | SL_seg _ ->
           Log.todo_exn "lseg_assume"
       | SL_array ->
-          { t with t_num = Dv.assume Opd0.SL_array t.t_num }
+          { t with t_num = Dv.assume VA_array t.t_num }
 
     let ind_unfold (u: unfold_dir) ((n,o): onode) (x: t): t list =
       if u != Udir_fwd then Log.fatal_exn "unfold: only forward supported";
-      if List_utils.sv_is_ind n x.t_mem then unfold n x
+      if List_utils.sv_is_ind n x.t_mem then List.map snd (unfold n x)
       else [ x ]
 
     let check (op: meml_log_form) (x: t): bool =
@@ -760,7 +812,8 @@ module DBuild = functor (Dv: DOM_VALSET) ->
                 Dv.setv_add ~root:true i set
               ) (Dv.setv_col_root x.t_num) (Aa_maps.empty, Dv.top) in
           let r =
-            List_is_le.is_le_weaken_check x.t_mem IntSet.empty (make_sat x)
+            List_is_le.is_le_weaken_check x.t_mem
+              IntSet.empty IntSet.empty (make_sat x)
               (make_setsat x) tref inj sinj in
           begin
             match r with
@@ -787,6 +840,6 @@ module DBuild = functor (Dv: DOM_VALSET) ->
                       acc
                   ) true setcons
           end
-      | SL_array ->
-          Dv.check Opd0.SL_array x.t_num
+      | SL_array -> Dv.check VC_array x.t_num
+
   end: DOM_MEM_LOW)

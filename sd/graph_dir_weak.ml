@@ -24,6 +24,7 @@ open Sv_sig
 
 open Graph_utils
 open Ind_utils
+open Inst_utils
 
 
 (** Error report *)
@@ -356,6 +357,8 @@ let apply_ind_ind
               List.length ier.ie_args.ia_int);
       assert (List.length iel.ie_args.ia_ptr =
               List.length ier.ie_args.ia_ptr);
+      assert (List.length iel.ie_args.ia_set = 0);
+      assert (List.length ier.ie_args.ia_set = 0);
       if Ind_utils.compare iel.ie_ind ier.ie_ind = 0 then
         let l_pargs, j =
           List.fold_left2
@@ -376,7 +379,9 @@ let apply_ind_ind
             ier.ie_args.ia_int in
         let ie = { ie_ind  = iel.ie_ind ;
                    ie_args = { ia_ptr = List.rev l_pargs ;
-                               ia_int = List.rev l_iargs } } in
+                               ia_int = List.rev l_iargs ;
+                               ia_set = [ ] } } in
+        (* HS: todo: deal with set parameters *)
         let vrules =
           invalidate_rules isl isr (Ihf nl.n_e) (Ihf nr.n_e) dw.dw_rules in
         { dw with
@@ -444,20 +449,27 @@ let apply_seg_intro
         else raise (Abort_rule "seg-intro: not the best source")
     | [ ] -> raise (Abort_rule "seg-intro: no pair of nodes") in
   assert (ind.i_ipars = 0);
+  assert (ind.i_spars = 0);
+  assert (ind.i_ppars = 0);
   (* test of inclusion of a part of the right side into a segment edge *)
   let le_res, ser =
-    Graph_algos.is_le_seg false ind dw.dw_inr isr idr dw.dw_satr in
+    Graph_algos.is_le_seg false ind dw.dw_inr isr idr dw.dw_satr
+      (fun _ -> false) in
   match le_res with
-  | Ilr_le_rem (grem, removedr, inj, inst) ->
+  | Ilr_le_rem (grem, removedr, inj, sinst, _, sv_inst, cons_non_proved) ->
       if ser.se_sargs.ia_ptr != [ ] || ser.se_dargs.ia_ptr != [ ] then
         Log.fatal_exn "dw, segintro does not support parameters";
-      assert (inst = IntMap.empty);
+      assert (sinst = IntMap.empty); (* HS: todo *)
+      assert (sv_inst = sv_inst_empty); (* HS: todo *)
+      assert (cons_non_proved = []); (* HS: todo *)
       let seg =
         { se_ind   = ind ;
           se_sargs = { ia_ptr = [ ] ;
-                       ia_int = [ ] } ;
+                       ia_int = [ ];
+                       ia_set = [ ] } ;
           se_dargs = { ia_ptr = [ ] ;
-                       ia_int = [ ] } ;
+                       ia_int = [ ];
+                       ia_set = [ ];} ;
           se_dnode = id } in
       let vrules =
         invalidate_rules isl isr Isiblings Inone

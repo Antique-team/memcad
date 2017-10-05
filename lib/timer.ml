@@ -168,75 +168,67 @@ module Timer_Mod = functor (Mod: TIMER_DEF) ->
         b := StringMap.add s (t :: o) !b in
       update (Printf.sprintf "%s.%s" Mod.name f) timing time_funs;
       update Mod.name timing time_mods
-    type 'a result =
-      | R_res of 'a
-      | R_exn of exn
-    let follow = function
-      | R_res r -> r
-      | R_exn e -> raise e
     let start = clock_start Mod.name
     let stop  = clock_stop  Mod.name
     (* Functions computing a time *)
     let app1 s f x0 =
       start s;
-      let res = try R_res (f x0) with e -> R_exn e in
+      let res = f x0 in
       let tt, ta = stop s in
       log s tt ta;
-      follow res
+      res
     let app2 s f x0 x1 =
       start s;
-      let res = try R_res (f x0 x1) with e -> R_exn e in
+      let res = f x0 x1 in
       let tt, ta = stop s in
       log s tt ta;
-      follow res
+      res
     let app3 s f x0 x1 x2 =
       start s;
-      let res = try R_res (f x0 x1 x2) with e -> R_exn e in
+      let res = f x0 x1 x2 in
       let tt, ta = stop s in
       log s tt ta;
-      follow res
+      res
     let app4 s f x0 x1 x2 x3 =
       start s;
-      let res = try R_res (f x0 x1 x2 x3) with e -> R_exn e in
+      let res = f x0 x1 x2 x3 in
       let tt, ta = stop s in
       log s tt ta;
-      follow res
+      res
     let app5 s f x0 x1 x2 x3 x4 =
       start s;
-      let res = try R_res (f x0 x1 x2 x3 x4) with e -> R_exn e in
+      let res = f x0 x1 x2 x3 x4 in
       let tt, ta = stop s in
       log s tt ta;
-      follow res
+      res
     let app6 s f x0 x1 x2 x3 x4 x5 =
       start s;
-      let res = try R_res (f x0 x1 x2 x3 x4 x5) with e -> R_exn e in
+      let res = f x0 x1 x2 x3 x4 x5 in
       let tt, ta = stop s in
       log s tt ta;
-      follow res
+      res
     let app7 s f x0 x1 x2 x3 x4 x5 x6 =
       start s;
-      let res = try R_res (f x0 x1 x2 x3 x4 x5 x6) with e -> R_exn e in
+      let res = f x0 x1 x2 x3 x4 x5 x6 in
       let tt, ta = stop s in
       log s tt ta;
-      follow res
+      res
     let app8 s f x0 x1 x2 x3 x4 x5 x6 x7 =
       start s;
-      let res = try R_res (f x0 x1 x2 x3 x4 x5 x6 x7) with e -> R_exn e in
+      let res = f x0 x1 x2 x3 x4 x5 x6 x7 in
       let tt, ta = stop s in
       log s tt ta;
-      follow res
+      res
     let app9 s f x0 x1 x2 x3 x4 x5 x6 x7 x8 =
       start s;
-      let res = try R_res (f x0 x1 x2 x3 x4 x5 x6 x7 x8) with e -> R_exn e in
+      let res = f x0 x1 x2 x3 x4 x5 x6 x7 x8 in
       let tt, ta = stop s in
       log s tt ta;
-      follow res
+      res
     let app10 s f x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 =
       start s;
-      let res =
-        try R_res (f x0 x1 x2 x3 x4 x5 x6 x7 x8 x9)
-        with e -> R_exn e in
+      let res = f x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 in
       let tt, ta = stop s in
       log s tt ta;
-      follow res
+      res
   end

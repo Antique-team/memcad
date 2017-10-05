@@ -46,7 +46,7 @@ type set_expr =
   | S_uplus of set_expr * set_expr     (* E0 \uplus F1 *)
   | S_union of set_expr * set_expr     (* E0 \union F1 *)
   | S_empty                            (* empty set *)
-type set_cons = 
+type set_cons =
   | S_mem of nid * set_expr         (* \alpha0 \in E1 *)
   | S_eq of set_expr * set_expr     (* E0 = E1 *)
   | S_subset of set_expr * set_expr (* E0 \subset E1 *)
@@ -54,6 +54,7 @@ type set_cons =
 
 module type DOMSET =
   sig
+    include INTROSPECT
     (** Type of abstract values *)
     type t
     (* Bottom element (empty context) *)
@@ -74,7 +75,7 @@ module type DOMSET =
     (* collect root set variables*)
     val setv_col_root: t -> IntSet.t
     (* Set variables *)
-    val setv_add: ?root: bool -> ?kind: set_par_type option 
+    val setv_add: ?root: bool -> ?kind: set_par_type option
       -> ?name: string option -> int -> t -> t
     val setv_rem: int -> t -> t
     (** Comparison and join operators *)
@@ -89,15 +90,15 @@ module type DOMSET =
     (** Set condition test *)
     val set_guard: set_cons -> t -> t
     (** Forget (if the meaning of the sv changes) *)
-    val forget: int -> t -> t (* will be used for assign *)
+    val sv_forget: int -> t -> t (* will be used for assign *)
     (** Renaming (e.g., post join) *)
-    val symvars_srename: (Offs.t * int) OffMap.t -> (int * Offs.t) node_mapping 
+    val symvars_srename: (Offs.t * int) OffMap.t -> (int * Offs.t) node_mapping
       -> setv_mapping option -> t -> t
     (* Synchronization of the SV environment*)
     val sve_sync_top_down: svenv_mod -> t -> t
     (* Removes all symbolic vars that are not in a given set *)
     (* may change a little bit *)
-    val symvars_filter: IntSet.t -> IntSet.t -> t -> t     
+    val symvars_filter: IntSet.t -> IntSet.t -> t -> t
   end
 
 

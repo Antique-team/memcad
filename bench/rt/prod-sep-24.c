@@ -31,6 +31,8 @@ void main( ){
     _memcad( "check_inductive( t0, bintree_o )" );    
     if( rand ){ // list alloc
       l1 = malloc( 8 );
+      if( l1 == 0 )
+        exit( 0 );
       l1 -> n = l0;
       l1 -> id = i0;
       i0 = i0 + 1;
@@ -45,6 +47,8 @@ void main( ){
       // create tree node
       i1 = i1 + 1 ;
       t1 = malloc( 12 ) ;
+      if( t1 == 0 )
+        exit( 0 );
       t1 -> d = i1 * i2 ;
       // insert it in the tree
       if( t0 == null ){

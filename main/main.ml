@@ -40,8 +40,9 @@ let exn_report (e: exn): unit =
 (* Basic parsers for parameters *)
 let ilines_parser =
   Lib.read_from_file "ind" Ind_parser.main_ilines Ind_lexer.token
-let array_pred_parser =
-  Lib.read_from_string "array" Array_parser.main_pred Array_lexer.token
+
+let array_ind_parser =
+  Lib.read_from_file "ind" Ind_parser.array_indlist Ind_lexer.token
 
 (* Testing parsers *)
 let meta_test_parser
@@ -81,6 +82,17 @@ let run_old_parser (f: C_sig.c_prog -> unit): string list -> unit =
 (*   Log.set_log_level level; *)
 (*   Log.set_output stdout *)
 
+(* handle the user-provided and coma-separated list of include *)
+(* dirs for additional C headers *)
+let expand_include_dirs () =
+  if !include_dirs = "" then
+    []
+  else if String.contains !include_dirs ',' then
+    let dirs = BatString.nsplit !include_dirs ~by:"," in
+    List.map (fun dir -> "-I" ^ dir) dirs
+  else
+    ["-I" ^ !include_dirs]
+
 (* parse C files with clangml, with optional storing/loading to/from
  * dump files *)
 let run_clangml_parser
@@ -100,10 +112,11 @@ let run_clangml_parser
              if not (Sys.file_exists !clang_header_fn) then
                Log.fatal_exn "main.ml: run_clangml_parser: file not found: %s"
                  !clang_header_fn;
-             Clang.Api.parse
+             let clang_opts =
                (* memcad assumes a 32bit environment, hence the -m32 option *)
                ["-m32"; "-include"; !clang_header_fn; "-w"; file;
-                "-DMEMCAD_INRIA"]
+                "-DMEMCAD_INRIA"] @ expand_include_dirs () in
+             Clang.Api.parse clang_opts
                (fun clang ->
                  let translation_unit =
                    Clang.Api.request clang Clang.Api.TranslationUnit in
@@ -134,8 +147,13 @@ let run_c_parser () =
 (** Initialize the domain *)
 (* Initialization of the inductive definitions domain *)
 let init_inductives (ifile: string): unit =
-  let l = ilines_parser ifile in
-  Ind_utils.ind_init l;
+  let _ =
+    if !enable_array_domain then
+      let al = array_ind_parser ifile in
+      Array_ind_utils.array_ind_init al
+    else
+      let l = ilines_parser ifile in
+      Ind_utils.ind_init l in
   (* antoine: do the inductive defs pre-analysis *)
   if !reduction_mode_selector != Rm_disabled then
     begin
@@ -149,13 +167,18 @@ let init_inductives (ifile: string): unit =
 let exp_search_lists (indfile: string option) (domstruct: shape_dom): unit =
   let has_list =
     let rec aux = function
-      | Shd_flat | Shd_all | Shd_inds _ -> false
+      | Shd_flat | Shd_all | Shd_inds _ | Shd_tvl -> false
       | Shd_list -> true
       | Shd_prod (s0, s1) | Shd_sep (s0, s1) -> aux s0 || aux s1 in
     aux domstruct in
-  if has_list && indfile != None then
+  if has_list && indfile != None && not !enable_array_domain then
     List_utils.exp_search_lists ( )
+  else if !enable_array_domain && indfile != None then
+    Array_ind_utils.exp_search_array_lists ( )
 
+let search_ppred (indfile: string option): unit =
+  if indfile != None then
+    Array_ppred_utils.search_ppred ( )
 
 (** Starting the analysis *)
 let do_analyze
@@ -173,6 +196,7 @@ let do_analyze
         init_inductives ifile in
   inductives_initialization indfile;
   exp_search_lists indfile shapedom_struct;
+  search_ppred indfile;
   (* Numerical domain construction *)
   let mod_apron =
     let mod_pre_apron =
@@ -192,7 +216,13 @@ let do_analyze
       (module Nd_timing.Dom_num_nb_timing( APR ): Nd_sig.DOM_NUM_NB)
     else (module APR: Nd_sig.DOM_NUM_NB) in
   let module MApron  = (val mod_apron: Nd_sig.DOM_NUM_NB) in
-  let module MAdiseq = Nd_add_diseqs.Add_diseqs( MApron ) in
+  let module MAeq = Nd_add_eqs.Add_eqs( MApron ) in
+  let mod_eq =
+    if !enable_eq_pack then
+      (module Nd_add_eqp.Add_eq_partition( MAeq ): Nd_sig.DOM_NUM_NB)
+    else (module MAeq: Nd_sig.DOM_NUM_NB) in
+  let module MAeq = (val mod_eq: Nd_sig.DOM_NUM_NB) in
+  let module MAdiseq = Nd_add_diseqs.Add_diseqs( MAeq ) in
   let mod_dynenv =
     if !enable_dynenv then
       (module Nd_add_dyn_svenv.Add_dyn_svenv( MAdiseq ): Nd_sig.DOM_NUM_NB)
@@ -205,8 +235,6 @@ let do_analyze
     if !enable_submem then
       let module MSub = Dom_subm_graph.Submem in
       (module Dom_val_subm.Make_Val_Subm( MVal0 )( MSub ): Dom_sig.DOM_VALUE)
-    else if !enable_array_domain then
-      (module Dom_val_array.Make_Val_Array( MVal0 ): Dom_sig.DOM_VALUE)
     else (module MVal0: Dom_sig.DOM_VALUE) in
   let mod_val2 =
     if !timing_value then
@@ -217,18 +245,50 @@ let do_analyze
   (* Addition of the set domain if needed *)
   let mod_vset1 =
     match !sd_selector with
-    | SD_bdd ->
-        let mod_set =
-          if !timing_valset then
-            (module Nd_timing.Dom_set_timing( Set_bdd ): Set_sig.DOMSET)
-          else (module Set_bdd: Set_sig.DOMSET) in
-        let module MSet = (val mod_set: Set_sig.DOMSET) in
-        (module Dom_set.DBuild( MVal2 )( MSet ): Dom_sig.DOM_VALSET)
     | SD_lin ->
         let mod_set =
           if !flag_dump_ops then
             (module Set_dump.Make( Set_lin.Set_lin ): Set_sig.DOMSET)
           else (module Set_lin.Set_lin: Set_sig.DOMSET) in
+        let module MSet = (val mod_set: Set_sig.DOMSET) in
+        let mod_set =
+          if !timing_valset then
+            (module Nd_timing.Dom_set_timing( MSet ): Set_sig.DOMSET)
+          else (module MSet: Set_sig.DOMSET) in
+        let module MSet = (val mod_set: Set_sig.DOMSET) in
+        (module Dom_set.DBuild( MVal2 )( MSet ): Dom_sig.DOM_VALSET)
+    | SD_setr s ->
+        let module L = SETr.SymSing.Logic in
+        let d =
+          match s with
+          | "bdd" ->
+              let module D0 = SETr.Symbolic.BDD.MLBDD in
+              let module D1 = SETr.SymSing.Sing.Make( D0 ) in
+              (module D1 : SETr.Domain with
+               type sym = int
+               and type cnstr  = int L.t
+               and type output = int L.t )
+          | "lin" ->
+              begin
+                match SETr.get s with
+                | SETr.SymSing d ->
+                    let module D = (val d) in
+                    (module D: SETr.Domain with
+                     type sym = int
+                     and type cnstr  = int L.t
+                     and type output = int L.t )
+                | _ ->  Log.fatal_exn "unbound SETr module: %s" s
+              end
+          | _ ->  Log.fatal_exn "unbound SETr module name: %s" s in
+        let module D = (val d) in
+        let module MPre =
+          struct
+            let name = s
+            module D = (val d)
+            let ctx = D.init ( )
+          end in
+        let mod_set =
+          (module Set_setr.Make( MPre ): Set_sig.DOMSET) in
         let module MSet = (val mod_set: Set_sig.DOMSET) in
         let mod_set =
           if !timing_valset then
@@ -238,7 +298,7 @@ let do_analyze
         (module Dom_set.DBuild( MVal2 )( MSet ): Dom_sig.DOM_VALSET)
     | SD_quicr ->
         let mod_quickr = (* temporary: add timing and logging *)
-          if !flag_dump_ops then
+          if true || !flag_dump_ops then
             (module Quicr_dump.Make( Quicr_lin ): Set_quicr.SDomain)
           else (module Quicr_lin: Set_quicr.SDomain) in
         let module MQuickr = (val mod_quickr: Set_quicr.SDomain) in
@@ -247,6 +307,12 @@ let do_analyze
         (module Dom_set.DBuild( MVal2 )( MSet ): Dom_sig.DOM_VALSET)
     | SD_none ->
         (module Dom_no_set.DBuild( MVal2 ): Dom_sig.DOM_VALSET) in
+  let module MVSet1 = (val mod_vset1: Dom_sig.DOM_VALSET) in
+  (* Add array *)
+  let mod_vset1 = 
+    if !enable_array_domain then
+      (module Dom_val_array.Make_VS_Array( MVSet1 ): Dom_sig.DOM_VALSET)
+    else mod_vset1 in
   let module MVSet1 = (val mod_vset1: Dom_sig.DOM_VALSET) in
   let mod_vset2 =
     if !timing_valset then
@@ -278,10 +344,15 @@ let do_analyze
     Log.info "Creating ad-hoc list domain";
     let m = (module Dom_mem_low_list.DBuild( MVSet2 ): Dom_sig.DOM_MEM_LOW) in
     add_timing m timing_lshape None in
+  let build_shape_tvl () =
+    Log.info "Creating ad-hoc TVL domain";
+    let m = (module Dom_mem_low_tvl.DBuild( MVSet2 ): Dom_sig.DOM_MEM_LOW) in
+    add_timing m timing_lshape None in
   let rec sd_2str = function
     | Shd_flat -> "[___]"
     | Shd_all -> "[@ll]"
     | Shd_list -> "[#list]"
+    | Shd_tvl -> "[tvl]"
     | Shd_inds l -> Printf.sprintf "[%s]" (gen_list_2str "" (fun x -> x) "," l)
     | Shd_prod (d0, d1) -> Printf.sprintf "(%s X %s)" (sd_2str d0) (sd_2str d1)
     | Shd_sep (d0, d1) ->
@@ -298,6 +369,8 @@ let do_analyze
         build_shape_ind inds
     | Shd_list ->
         build_shape_list ()
+    | Shd_tvl ->
+        build_shape_tvl ()
     | Shd_inds lst ->
         let inds =
           List.fold_left
@@ -372,6 +445,7 @@ let do_analyze
   let module Mpre_var_analysis =
     C_pre_analyze.Gen_pre_analysis( Var_liveness ) in
   let module MC      = Dom_c.Dom_C( MDisj ) in
+  Log.info "abstract domain config:\n%s" (MC.config_2str ());
   let module MAnalyzer = C_analyze.Make( MC )( Mpre_path_analysis ) in
   (* Launching the analysis *)
   let time_start = Timer.cpu_timestamp () in
@@ -391,35 +465,15 @@ let do_analyze
           let module Mater =  C_pre_analyze.Materialization in
           let module Mpre_Mater_analysis =
             C_pre_analyze.Gen_path_sensitive_pre_analysis( Mater ) in
+          let acc = Mpre_Mater_analysis.pre_prog mainfun cp in
+          Array_node.mat_var:= Mpre_Mater_analysis.mat_resolve acc;
           Log.info "%s"
             (Mpre_Mater_analysis.t_2str
                (Mpre_Mater_analysis.pre_prog mainfun cp))
         end;
-      (* parsing of array predicates *)
-      Log.info "array length is %d"
-        (String.length !(Array_pred_sig.hint_array));
-      if (String.length !(Array_pred_sig.hint_array)) > 1 then
-        begin
-          Log.info "hint array:";
-          Log.info "%s\n" !Array_pred_sig.hint_array;
-          let parsed_apred = array_pred_parser !(Array_pred_sig.hint_array) in
-          Log.info "before parse: %s"
-            (Array_pred_utils.apred_2str parsed_apred);
-          let binded_apred =
-            Array_pred_utils.apred_bind_by_cp cp parsed_apred in
-          Log.info "after parse: %s"
-            (Array_pred_utils.apred_2str binded_apred);
-          Array_pred_utils.hint_array_pred := Some binded_apred
-        end
-      else ();
-      if !Flags.no_analyze_prog_timer then
-        for i = 1 to repeat_num do
-          MAnalyzer.analyze_prog mainfun cp
-        done
-      else
-        for i = 1 to repeat_num do
-          T.app2 "analyze" MAnalyzer.analyze_prog mainfun cp
-        done
+      for i = 1 to repeat_num do
+        MAnalyzer.analyze_prog mainfun cp
+      done
     ) [ filename ];
   pipe_end_status_report ( );
   Statistics.show_gc_statistics ( );
@@ -515,6 +569,7 @@ let main ( ): unit =
   (* Setter functions *)
   let set_numdom (nd: num_dom) (): unit = nd_selector := nd in
   let set_setdom (sd: set_dom) (): unit = sd_selector := sd in
+  let set_setrdom (sd: string) = set_setdom (SD_setr sd) in
   let set_red_mode (rm: reduction_mode) (): unit =
     reduction_mode_selector:= rm in
   let set_stringopt (r: string option ref) (f: string): unit = r := Some f in
@@ -558,10 +613,11 @@ let main ( ): unit =
       "-no-timing",   Arg.Clear flag_pp_timing, "disable timing pp";
       "-reachable",   Arg.Set Flags.show_reachable_functions,
       "show functions reachable from entry point";
+      (* source language semantics *)
+      ("-malloc-non0",Arg.Set Flags.flag_malloc_never_null,
+       "only consider cases where malloc does not return null");
       (* timing and stress test *)
       "-timing",      Arg.String add_time, "perform timing of a module";
-      ("-no-analyze-prog-timer",
-       Arg.Set no_analyze_prog_timer, "disable analyze_prog timer");
       "-stress-test", Arg.Int (fun i -> stress_test := i), "repeat number";
       (* inductive definitions settings *)
       "-use-ind",     Arg.String (set_stringopt indfile), "inductive file";
@@ -580,6 +636,9 @@ let main ( ): unit =
       "-submem-ind",  Arg.String add_submem_ind, "sub-memory inductive";
       "-dynenv-yes",  Arg.Set enable_dynenv, "dynenv in num";
       "-dynenv-no",   Arg.Clear enable_dynenv, "no dynenv in num";
+      (* equation pack *)
+      "-eq-pack-on",    Arg.Set enable_eq_pack, "enable equation pack";
+      "-eq-pack-off",    Arg.Clear enable_eq_pack, "disable equation pack";
       (* array domain activation / deactivation *)
       "-array-on",    Arg.Set enable_array_domain, "enable array domain";
       "-array-off",   Arg.Clear enable_array_domain, "disable array domain";
@@ -588,9 +647,10 @@ let main ( ): unit =
       "-disj-off",    Arg.Clear disj_selector, "disjunctive domain OFF";
       (* set domain activation *)
       "-setd-lin",    Arg.Unit (set_setdom SD_lin)  , "set dom lin";
-      "-setd-on",     Arg.Unit (set_setdom SD_bdd)  , "set dom BDD";
       "-setd-off",    Arg.Unit (set_setdom SD_none) , "set dom None";
       "-setd-quicr",  Arg.Unit (set_setdom SD_quicr), "set dom QUICr";
+      "-setd-r-lin",  Arg.Unit (set_setrdom "lin"), "set dom SETr-lin";
+      "-setd-r-bdd",  Arg.Unit (set_setrdom "bdd"), "set dom SETr-bdd";
       (* dumping domain operations *)
       "-dump-ops",    Arg.Set flag_dump_ops, "activate operations dump";
       (* iteration strategy and widening parameters *)
@@ -607,6 +667,8 @@ let main ( ): unit =
       "-sel-widen",   Arg.Set sel_widen, "select widening through loops";
       "-no-sel-widen",Arg.Clear sel_widen, "no select widen through loops";
       "-no-guided-join", Arg.Clear Flags.guided_join, "unguided join";
+      "-guided-widen",    Arg.Set   Flags.guided_widen, "guided widen";
+      "-no-guided-widen", Arg.Clear Flags.guided_widen, "unguided widen";
       "-widen-can",   Arg.Set Flags.widen_can,
       "canonicalization-like abstraction of shape graphs during join/widen \
        (simpler but less powerful)";
@@ -638,6 +700,8 @@ let main ( ): unit =
       ("-load-dump",   Arg.Set load_dump,
        "load an AST dump; cf. -dump-parse option");
       "-header",      Arg.Set_string clang_header_fn, "header for Clang";
+      "-idirs",       Arg.Set_string include_dirs,
+      "directories for C headers; example -idirs include,/usr/include";
       "-tlog",        Arg.Set_string transforms_log_level,
       "log level during transformations: [color:]fatal|error|warn|info|debug";
       "-log",         Arg.String set_log_level_per_module,

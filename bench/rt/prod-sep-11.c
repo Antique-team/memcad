@@ -19,6 +19,8 @@ void main( ){
   y = x * z;
   // heap
   t = malloc( 12 ) ;
+  if( t == 0 )
+    exit( 0 );
   t -> left = null ;
   t -> right = null ;
   t -> data = y ;  

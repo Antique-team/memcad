@@ -25,10 +25,23 @@ module Log =
 (** Functor lifting an environment domain into a disjunctive domain *)
 module Dom_no_disj = functor (D: DOM_ENV) -> functor (GE: GRAPH_ENCODE) ->
   (struct
+    let module_name = "dom_no_disj"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s -> %s\n%s%s"
+        module_name D.module_name
+        module_name GE.module_name
+        (D.config_2str ())
+        (GE.config_2str ())
+
     (* Abstract elements *)
     type t =
       | Bot       (* _|_ *)
       | Nb of D.t (* single disjunct *)
+
+    (* Disjunction size *)
+    let disj_size: t -> int = function
+      | Bot  -> 0
+      | Nb _ -> 1
 
     (* Commands *)
     type log_form = var tlval gen_st_log_form
@@ -102,9 +115,10 @@ module Dom_no_disj = functor (D: DOM_ENV) -> functor (GE: GRAPH_ENCODE) ->
         | Nb x0, Nb x1 ->
             if !do_unary_abstraction then
               let hu = extract_hint ho in
-              Nb (D.widen ho lo (D.local_abstract hu x0)
-                    (D.local_abstract hu x1))
-            else Nb (D.widen ho lo  x0 x1) in
+              Nb (D.widen ho lo (D.local_abstract hu x0, ext_graph None None)
+                    (D.local_abstract hu x1, ext_graph None None))
+            else Nb (D.widen ho lo (x0, ext_graph None None)
+                       (x1, ext_graph None None)) in
       res, None
     let directed_weakening (ho: hint_be option) (t0: t) (t1: t): t =
       match t0, t1 with
@@ -132,16 +146,14 @@ module Dom_no_disj = functor (D: DOM_ENV) -> functor (GE: GRAPH_ENCODE) ->
 
    (** set domain **)
    (* management of set vars *)
-   let unary_op (op: Opd3.unary_operand): t -> t =
+   let unary_op (op: unary_op) (x: t): t =
      match op with
-     | Opd3.Add_var v -> map (D.unary_op (Opd2.Add_var v))
-     | Opd3.Add_setvar sv -> map (D.unary_op (Opd2.Add_setvar sv))
-     | Opd3.Add_return_var _ -> Log.fatal_exn "add Return_var"
-     | Opd3.Add_no_return_var -> Log.fatal_exn "add No_return_var"
-     | Opd3.Remove_var v -> map (D.unary_op (Opd2.Remove_var v))
-     | Opd3.Remove_setvar sv -> map (D.unary_op (Opd2.Remove_setvar sv))
-     | Opd3.Memory (Allocate (lv, ex)) -> map_one (D.memory (Allocate (lv, ex)))
-     | Opd3.Memory (Deallocate lv) -> map_one (D.memory (Deallocate lv))
+     | UO_env eop -> map (D.unary_op eop) x
+     | UO_ret _ -> Log.fatal_exn "return_var"
+     | UO_mem (MO_alloc _ as mop) ->
+         if !flag_malloc_never_null then map_one (D.memory mop) x
+         else Log.fatal_exn "C malloc cannot be precisely analyzed w/o disj"
+     | UO_mem (MO_dealloc _ as mop) -> map_one (D.memory mop) x
 
    let assume (op: state_log_form): t -> t = map (D.assume op)
 

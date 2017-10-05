@@ -22,12 +22,14 @@ open Sv_sig
 (** To string *)
 (* Node types *)
 val ntyp_2str: ntyp -> string
+val ntyp_2str_short: ntyp -> string
 (* Parameters *)
 val formal_arg_2str: formal_arg -> string
 val formal_main_arg_2str: formal_main_arg -> string
 val formal_ptr_arg_2str: formal_ptr_arg -> string
 val formal_int_arg_2str: formal_int_arg -> string
 val formal_set_arg_2str: formal_set_arg -> string
+val formal_arith_arg_2str: formal_arith_arg -> string
 val formal_ptr_args_2str: formal_ptr_args -> string
 val formal_int_args_2str: formal_int_args -> string
 val formal_set_args_2str: formal_set_args -> string
@@ -110,7 +112,10 @@ val indpars_analysis: ind -> ind
  *  - and a null pointer.
  *  This information can be used in order to speed up materialization. *)
 val empty_heap_rule_analysis: ind -> ind
-
+(** Computation of the guard condition of the empty rule,
+ *  e.g.  this = null
+ *  or    this = e *)
+val emp_rule_cons: ind -> aform option
 (** Computation of parameters which may denote prev pointers.
  *  This information is important for backward unfolding. *)
 val bwdpar_analysis: ind -> ind

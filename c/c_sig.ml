@@ -191,6 +191,7 @@ type c_statk =
   | Csreturn of c_expr option
   | Csbreak
   | Cscontinue
+  | Csexit
   (* parameterization of the analysis *)
   | Cs_memcad of c_memcad_com (* MemCAD command *)
   | Csassert of c_expr (* conventional C assert *)

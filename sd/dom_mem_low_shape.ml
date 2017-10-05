@@ -23,6 +23,7 @@ open Graph_sig
 open Graph_encode
 open Ind_sig
 open Nd_sig
+open Set_sig
 open Sv_sig
 open Svenv_sig
 
@@ -30,6 +31,8 @@ open Ast_utils
 open Dom_utils
 open Graph_utils
 open Nd_utils
+open Inst_utils
+open Inst_sig
 
 open Apron
 
@@ -59,6 +62,9 @@ module DBuild = functor (Dv: DOM_VALSET) ->
   (struct
     (** Module name *)
     let module_name = "[shape]"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s"
+        module_name Dv.module_name (Dv.config_2str ())
     (** Dom ID *)
     let dom_id: mod_id ref = ref (-1,"shape")
 
@@ -85,6 +91,9 @@ module DBuild = functor (Dv: DOM_VALSET) ->
     (** Fixing sets of keys *)
     let sve_sync_bot_up (x: t): t * svenv_mod =
       { x with t_envmod = svenv_empty }, x.t_envmod
+    let sanity_sv (_: IntSet.t) (x: t): bool =
+      Log.todo "sanity_sv: unimp";
+      true
 
     (** Lattice elements *)
     (* Bottom element *)
@@ -110,11 +119,6 @@ module DBuild = functor (Dv: DOM_VALSET) ->
     (* External output *)
     let ext_output (o: output_format) (base: string) (namer: namer) (x: t)
         : unit =
-      let visu_opt_of_string = function
-        | "CC" -> Connex_component
-        | "SUCC" -> Successors
-        | "CUTL" -> Cut_leaves
-        | s -> failwith ("visu_opt_of_string: " ^ s) in
       match o with
       | Out_dot (vars, opts) ->
           (* don't slow down memcad during benchmarks *)
@@ -123,6 +127,9 @@ module DBuild = functor (Dv: DOM_VALSET) ->
           else
             let dot_fn = Printf.sprintf "%s.dot" base in
             let enc_txt_fn = Printf.sprintf "%s.enc.txt" base in
+            let enc02_txt_fn = Printf.sprintf "%s.enc02.txt" base in
+            let enc02_dot_fn = Printf.sprintf "%s.enc02.dot" base in
+            let enc02_pdf_fn = Printf.sprintf "%s.enc02.pdf" base in
             let enc_dot_fn = Printf.sprintf "%s.enc.dot" base in
             let enc_pdf_fn = Printf.sprintf "%s.enc.pdf" base in
             let pdf_fn = Printf.sprintf "%s.pdf" base in
@@ -135,12 +142,18 @@ module DBuild = functor (Dv: DOM_VALSET) ->
             with_out_file enc_txt_fn
               (Graph_encode.pp_encoded_graph
                 disj_num vars x.t_shape namer enc_dot_fn);
+            with_out_file enc02_txt_fn
+              (Graph_encode.pp_precisely_encoded_graph
+                 disj_num vars x.t_shape namer enc02_dot_fn);
             let shape_graph_to_pdf =
               Printf.sprintf "dot -Tpdf %s -o %s" dot_fn pdf_fn in
             ignore (run_command shape_graph_to_pdf);
             let enc_shape_graph_to_pdf =
               Printf.sprintf "dot -Tpdf %s -o %s" enc_dot_fn enc_pdf_fn in
-            ignore (run_command enc_shape_graph_to_pdf)
+            ignore (run_command enc_shape_graph_to_pdf);
+            let simple_shape_graph_to_pdf =
+              Printf.sprintf "dot -Tpdf %s -o %s" enc02_dot_fn enc02_pdf_fn in
+            ignore (run_command simple_shape_graph_to_pdf)
 
     (** Graph encoding *)
     let encode (disj: int) (l: namer) (x: t)
@@ -288,6 +301,83 @@ module DBuild = functor (Dv: DOM_VALSET) ->
           else Dv.sat x.t_num nn
       | _ ->
           Dv.sat x.t_num nn
+    let make_setsat (x: t) (sc: set_cons): bool =
+      Dv.set_sat sc x.t_num
+
+    (* This function does some preparation for set abstraction renaming.
+     * As an example, \sete --> {\alpha}+{\beta} in inst, in order to rename
+     *  1. we generate a fresh set variable \sete',
+     *  2. then, let \sete --> \sete' and add \sete' = {\alpha} + {\beta}
+     *     into the input set abstraction *)
+    let inst_set (inst: setv_inst) (x: t): setv_mapping * t =
+      assert (inst.setvi_fresh = IntSet.empty);
+      let map, x =
+        IntMap.fold
+          (fun i ele (accm, acct) ->
+            match ele with
+            | S_var sid -> IntMap.add i sid accm, acct
+            | _ ->
+                let key, mem = setv_add_fresh false None acct.t_shape in
+                let num =
+                  Dv.set_guard (S_eq (S_var key, ele))
+                    (Dv.setv_add key acct.t_num) in
+                let acct = { acct with
+                             t_num   = num;
+                             t_shape = mem } in
+                IntMap.add i key accm, acct
+          ) inst.setvi_eqs (IntMap.empty, x) in
+      IntMap.fold (fun k e acc -> Set_utils.add_to_mapping e k acc)
+        map Set_utils.setv_mapping_empty, x
+
+    (* deal with the sv instantiation from join *)
+    let inst_sv (inst: sv_inst) (x: t) (map: 'a node_mapping)
+        : t * 'a node_mapping =
+      let t_num = IntSet.fold Dv.sv_add inst.sv_fresh x.t_num in
+      let map =
+        let rem =
+          IntSet.union map.nm_rem
+            (IntSet.filter (fun sv -> not (IntMap.mem sv map.nm_map))
+               inst.sv_fresh) in
+        { map with nm_rem = rem } in
+      let t_num =
+        IntMap.fold
+          (fun i ex acc ->
+            Dv.guard true (Nc_cons (Lincons1.EQ, Ne_var i, ex)) acc
+          ) inst.sv_eqs t_num in
+      let t_num =
+        IntMap.fold
+          (fun i exs acc ->
+            List.fold_left
+              (fun acc ex ->
+                Dv.guard true (Nc_cons (Lincons1.SUP, Ne_var i, ex)) acc
+              ) acc exs
+          ) inst.sv_low t_num in
+      let t_num =
+        IntMap.fold
+          (fun i exs acc ->
+            List.fold_left
+              (fun acc ex ->
+                Dv.guard true (Nc_cons (Lincons1.SUP, ex, Ne_var i)) acc
+              ) acc exs
+          ) inst.sv_up t_num in
+      let t_num =
+        IntMap.fold
+          (fun i exs acc ->
+             List.fold_left
+              (fun acc ex ->
+                Dv.guard true (Nc_cons (Lincons1.SUPEQ, Ne_var i, ex)) acc
+              ) acc exs
+          ) inst.sv_eqlow t_num in
+      let t_num =
+        IntMap.fold
+          (fun i exs acc ->
+             List.fold_left
+              (fun acc ex ->
+                Dv.guard true (Nc_cons (Lincons1.SUPEQ, ex, Ne_var i)) acc
+              ) acc exs
+          ) inst.sv_equp t_num in
+      { x with t_num = t_num }, map
+
     (* Function for converting hints (temporary glue) *)
     let convert_bin_hint (h: sym_index hint_bs): hint_bg =
       { hbg_live = h.hbs_live }
@@ -296,25 +386,28 @@ module DBuild = functor (Dv: DOM_VALSET) ->
     let convert_bin_lint (h: onode lint_bs): lint_bg =
       { lbg_dead = h.lbs_dead }
     (* Checks if the left argument is included in the right one *)
-    let is_le (ninj: sym_index bin_table) (_: sym_index bin_table)
+    let is_le (ninj: sym_index bin_table) (sinj: sym_index bin_table)
         (xl: t) (xr: t): svenv_upd option =
       sanity_check "is_le,l,before" true true xl;
       sanity_check "is_le,r,before" true true xr;
       (* function to test whether a condition is satisfied *)
       let satl: n_cons -> bool = make_sat xl in
+      let setsatl = make_setsat xl in
       (* launching the graph algorithm and processing its output *)
-      let oinj = Graph_is_le.is_le false xl.t_shape None satl xr.t_shape ninj in
+      let oinj =
+        Graph_is_le.is_le false xl.t_shape None satl setsatl
+          xr.t_shape ninj sinj in
       match oinj with
       | None ->
           if !flag_debug_is_le_gen then
             Log.force "Comparison: shape did not conclude le!";
           None
-      | Some inj ->
+      | Some (inj, set_inst, sv_inst) ->
           if !flag_debug_is_le_gen then
             begin
               let smap = IntMap.t_2str "" string_of_int inj in
               Log.force ("Comparison: is_le holds in the shape!\n" ^^
-                        "Numerics:\n%sMapping:\n%s")
+                         "Numerics:\n%sMapping:\n%s")
                 (Dv.t_2stri IntMap.empty "  " xr.t_num) smap
             end;
           let inj_rel: (int * Offs.t) node_mapping =
@@ -323,10 +416,14 @@ module DBuild = functor (Dv: DOM_VALSET) ->
               { nm_map    = IntMap.empty ;
                 nm_rem    = nodes;
                 nm_suboff = fun _ -> true } in
+          let xl, inj_rel = inst_sv sv_inst xl inj_rel in
+          let set_map, xl =
+            inst_set { setv_inst_empty with setvi_eqs = set_inst } xl in
           if !flag_debug_is_le_gen then
             Log.force "Effective mapping:\n%s"
               (node_mapping_2str inj_rel);
-          let n_l = Dv.symvars_srename OffMap.empty inj_rel None xl.t_num in
+          let n_l =
+            Dv.symvars_srename OffMap.empty inj_rel (Some set_map) xl.t_num in
           let sat_diseq = Graph_utils.sat_graph_diseq xr.t_shape in
           let r =
             if Dv.is_le n_l xr.t_num sat_diseq then
@@ -341,6 +438,8 @@ module DBuild = functor (Dv: DOM_VALSET) ->
               (Dv.t_2stri IntMap.empty "   " n_l)
               (Dv.t_2stri IntMap.empty "   " xr.t_num);
           r
+
+
     (* Generic join *)
     let join (j: join_kind) (hso: sym_index hint_bs option)
         (lso: (onode lint_bs) option)
@@ -357,31 +456,45 @@ module DBuild = functor (Dv: DOM_VALSET) ->
         Aa_sets.fold
           (fun (il, ir, io) acc -> Nrel.add acc (il, ir) io)
           roots_rel Nrel.empty in
+      (* Computation of setvar_relation *)
+      let srel =
+        Aa_sets.fold
+          (fun (il, ir, io) acc -> Graph_utils.Nrel.add acc (il, ir) io)
+          setroots_rel Graph_utils.Nrel.empty in
       if !flag_debug_join_shape then
-        Log.force "Relation found:\n%s" (Nrel.nr_2stri "  " nrel);
+        Log.force "Node-Relation found:\n%s" (Nrel.nr_2stri "  " nrel);
+      if !flag_debug_join_shape then
+        Log.force "Setvar-Relation found:\n%s" (Nrel.nr_2stri "  " srel);
       (* Creation of the initial graph *)
       let g_init =
-        init_graph_from_roots false nrel.n_pi xl.t_shape xr.t_shape in
+        init_graph_from_roots false nrel.n_pi srel.n_pi
+          xl.t_shape xr.t_shape in
       (* Satisfaction function *)
       let satl: n_cons -> bool = make_sat xl in
       let satr: n_cons -> bool = make_sat xr in
       (* Computation of graph join, and of new graph relation *)
-      let g_out, onrel, instl, instr =
+      let g_out, onrel, instl, instr, inst_setl, inst_setr, instsv_l, instsv_r =
         Graph_join.join false
-          (tr_join_arg satl (xl.t_shape, jl)) satl
-          (tr_join_arg satr (xr.t_shape, jr)) satr
-          hgo lgo nrel false g_init in
+          (tr_join_arg satl (xl.t_shape, jl)) satl (make_setsat xl)
+          (tr_join_arg satr (xr.t_shape, jr)) satr (make_setsat xr)
+          hgo lgo nrel srel false g_init in
+      let smap_l, xl = inst_set inst_setl xl in
+      let smap_r, xr = inst_set inst_setr xr in
       (* Computation of numerical domain join *)
       (* - mappings to be used in the instantiation *)
       let map_l, map_r =
         Gen_join.extract_mappings (Graph_utils.get_all_nodes xl.t_shape)
           (Graph_utils.get_all_nodes xr.t_shape) onrel in
+      let xl, map_l = inst_sv instsv_l xl map_l in
+      let xr, map_r = inst_sv instsv_r xr map_r in
       if !flag_debug_join_num then
         begin
-          Log.force "Renaming (left):\n%s%s"
-            (Dv.t_2stri IntMap.empty "  " xl.t_num) (node_mapping_2str map_l);
-          Log.force "Renaming (right):\n%s%s"
-            (Dv.t_2stri IntMap.empty "  " xr.t_num) (node_mapping_2str map_r);
+          Log.force "Renaming (left):\n%s%s%s"
+            (Dv.t_2stri IntMap.empty "  " xl.t_num) (node_mapping_2str map_l)
+            (Set_utils.setv_mapping_2str smap_l);
+          Log.force "Renaming (right):\n%s%s%s"
+            (Dv.t_2stri IntMap.empty "  " xr.t_num) (node_mapping_2str map_r)
+            (Set_utils.setv_mapping_2str smap_r);
         end;
       (* - saturate instantiation so as to reflect pointers into sub-mems *)
       let saturate (g: graph) (inst: n_instantiation): n_instantiation =
@@ -398,14 +511,8 @@ module DBuild = functor (Dv: DOM_VALSET) ->
       let instantiate_rename
           (inst: n_instantiation) (* node duplication, submems *)
           (map:  unit node_mapping) (* for renaming *)
+          (smap: setv_mapping)      (* for set renaming *)
           (n: Dv.t): Dv.t =
-        (* - add duplicate nodes and associated equalities *)
-        let n =
-          IntMap.fold
-            (fun i ex acc ->
-              Dv.guard true (Nc_cons (Lincons1.EQ, Ne_var i, ex))
-                (Dv.sv_add i acc)
-            ) inst.ins_expr n in
         (* - foldings of sub-memory regions (if any needs folding) *)
         let n =
           IntMap.fold
@@ -427,14 +534,14 @@ module DBuild = functor (Dv: DOM_VALSET) ->
                 assert (not (OffMap.mem o_old acc));
                 OffMap.add o_old (o_new, i_new) acc
               ) OffMap.empty inst.ins_new_off in
-          Dv.symvars_srename om map None n in
+          Dv.symvars_srename om map (Some smap) n in
         (* - return *)
         if !flag_debug_array_blocks then
           Log.force "[sbase] Instantiated:\n%s"
             (Dv.t_2stri IntMap.empty "  " n);
         n in
-      let n_l = instantiate_rename instl map_l xl.t_num in
-      let n_r = instantiate_rename instr map_r xr.t_num in
+      let n_l = instantiate_rename instl map_l smap_l xl.t_num in
+      let n_r = instantiate_rename instr map_r smap_r xr.t_num in
       if !flag_debug_join_num then
         begin
           Log.force "[sbase] Renamed left:\n%s"
@@ -472,9 +579,15 @@ module DBuild = functor (Dv: DOM_VALSET) ->
         Aa_sets.fold
           (fun (il, ir, io) acc -> Nwkinj.add acc (il, ir) io)
           roots_rel Nwkinj.empty in
+      (* Computation of setvar_relation *)
+      let srel =
+        Aa_sets.fold
+          (fun (il, ir, io) acc -> Nwkinj.add acc (il, ir) io)
+          setroots_rel Nwkinj.empty in
       (* Creation of the initial graph *)
       let g_init =
-        init_graph_from_roots false wi.wi_img xl.t_shape xr.t_shape in
+        init_graph_from_roots false wi.wi_img
+          srel.wi_img xl.t_shape xr.t_shape in
       (* Satisfaction function *)
       let satr: n_cons -> bool = make_sat xr in
       (* Computation of the directed weakening in the graph *)
@@ -536,7 +649,7 @@ module DBuild = functor (Dv: DOM_VALSET) ->
     (** Unfolding support *)
     (* Returns a disjunction of cases *)
     let unfold_gen (uloc: unfold_loc) (udir: unfold_dir) (t: t)
-        : (int IntMap.t (* remaning *) * t (* new abstract *)) list =
+        : (int IntMap.t (* renaming *) * t (* new abstract *)) list =
       let l =
         match uloc with
         | Uloc_main n ->
@@ -554,6 +667,19 @@ module DBuild = functor (Dv: DOM_VALSET) ->
                 let nnum1 =
                   List.fold_left
                     (fun nacc p -> Dv.guard true p nacc) t.t_num ur.ur_cons in
+                let nnum1 =
+                  IntSet.fold (fun ele acc -> Dv.setv_add ele acc)
+                    ur.ur_newsetvs nnum1 in
+                let nnum1 =
+                  List.fold_left (fun nacc p -> Dv.set_guard p nacc)
+                    nnum1 ur.ur_setcons in
+                let nnum1 =
+                  IntSet.fold
+                    (fun e nacc ->
+                      if not (Dv.setv_is_root e nacc) then
+                        Dv.setv_rem e nacc
+                      else nacc
+                    ) ur.ur_remsetvs nnum1 in
                 let t = { t with t_num = nnum1 } in
                 (* reduction of equal cells, determined in unfolding
                  * (in the empty segment case) *)
@@ -890,6 +1016,49 @@ module DBuild = functor (Dv: DOM_VALSET) ->
           (* - perform a write in the sub-memory *)
           { x with t_num = Dv.write_sub ddst size (Rv_expr ne) x.t_num }
 
+    (* Reduction function to be used in guard *)
+    let guard_reduction (c: n_cons) (x: t): t =
+      (* this function checks that, if 'c' is a guard condition of
+       * an inductive edge *)
+      let node_is_ind (n: int) (g: graph): bool =
+        match (node_find n g).n_e with
+        | Hemp | Hpt _ | Hseg _ -> false
+        | Hind _ -> true in
+      let res =
+        match c with
+        | Nc_cons (Tcons1.EQ, Ne_var v, Ne_csti i)
+        | Nc_cons (Tcons1.EQ, Ne_csti i, Ne_var v) ->
+            if node_is_ind v x.t_shape then
+              Some (v, Nc_cons (Tcons1.EQ, Ne_var v, Ne_csti i))
+            else None
+        | Nc_cons (Tcons1.DISEQ, Ne_var v, Ne_csti i)
+        | Nc_cons (Tcons1.DISEQ, Ne_csti i, Ne_var v)->
+            if node_is_ind v x.t_shape then
+              Some (v, Nc_cons (Tcons1.DISEQ, Ne_var v, Ne_csti i))
+            else None
+        | Nc_cons (Tcons1.EQ, Ne_var v1, Ne_var v2)->
+            if node_is_ind v1 x.t_shape then
+              Some (v1, Nc_cons (Tcons1.EQ, Ne_var v1, Ne_var v2))
+            else if node_is_ind v2 x.t_shape then
+              Some (v2, Nc_cons (Tcons1.EQ, Ne_var v2, Ne_var v1))
+            else None
+        | Nc_cons (Tcons1.DISEQ, Ne_var v1, Ne_var v2) ->
+            if node_is_ind v1 x.t_shape then
+              Some (v1, Nc_cons (Tcons1.DISEQ, Ne_var v1, Ne_var v2))
+            else if node_is_ind v2 x.t_shape then
+              Some (v2, Nc_cons (Tcons1.DISEQ, Ne_var v2, Ne_var v1))
+            else None
+        | _ -> None in
+      match res with
+      | None -> x
+      | Some (v, c) ->
+          let cons, set_cons = Graph_materialize.unfold_num v c x.t_shape in
+          let num =
+            List.fold_left (fun nacc p -> Dv.guard true p nacc) x.t_num cons in
+          let num =
+            List.fold_left (fun nacc p -> Dv.set_guard p nacc) num set_cons in
+          { x with t_num = num }
+
 
     (** Transfer functions *)
 
@@ -903,8 +1072,8 @@ module DBuild = functor (Dv: DOM_VALSET) ->
       let r =
         (* first, apply the guard in the graph if the expression
          * is not a sub-memory expression *)
+        let is_main = n_cons_fold (fun i b -> b && i >= 0) c true in
         let gtest =
-          let is_main = n_cons_fold (fun i b -> b && i >= 0) c true in
           if is_main then graph_guard true c x.t_shape
           else Gr_no_info in
         (* then, apply  *)
@@ -912,6 +1081,7 @@ module DBuild = functor (Dv: DOM_VALSET) ->
         | Gr_bot -> (* test in the graph level yields _|_ *)
             { x with t_num = Dv.bot }
         | Gr_no_info -> (* conventional guard function *)
+            let x = if is_main then guard_reduction c x else x in
             { x with t_num = Dv.guard true c x.t_num }
         | Gr_equality (irem, ikeep) -> (* equality reduction *)
             fst (red_equal_cells (PairSet.singleton (irem, ikeep)) x)
@@ -931,6 +1101,7 @@ module DBuild = functor (Dv: DOM_VALSET) ->
              * though, in many cases, it also loses important
              * information about actual inductive arguments, so it
              * cannot be activated yet *)
+            let x = if is_main then guard_reduction c x else x in
             { x with
               (*t_shape = ind_edge_rem i tt.t_shape;*)
               t_num   = Dv.guard true c x.t_num } in
@@ -951,7 +1122,11 @@ module DBuild = functor (Dv: DOM_VALSET) ->
 
 
     (** Set domain *)
-    let setv_add_fresh _ = Log.todo_exn "setv_add_fresh"
+    let setv_add_fresh(isroot: bool) (s: string) (t: t): int * t =
+      let i, mem = setv_add_fresh isroot None t.t_shape in
+      i, { t with
+           t_num = Dv.setv_add ~root:isroot ~name:(Some s) i t.t_num;
+           t_shape = mem }
     let setv_delete _ = Log.todo_exn "setv_delete"
 
     (** Assuming and checking inductive edges *)
@@ -991,9 +1166,9 @@ module DBuild = functor (Dv: DOM_VALSET) ->
         (mayext: bool) (* whether graph may need extension *)
         (ic: onode gen_ind_call)
         (t: t) (* for evaluation of pointer fields *)
-      : t (* graph produced *)
+        : t (* graph produced *)
         * (nid * n_cons) list
-        * int list =
+        * int list * int list =
       assert (mayext != (tref == t));
       let ind = Ind_utils.ind_find ic.ic_name in
       (* Allocation of the node arguments, for integer parameters *)
@@ -1010,7 +1185,15 @@ module DBuild = functor (Dv: DOM_VALSET) ->
                     let n, ng = sv_add_fresh Ntint Nnone accg in
                     Log.info "int parameter: |%d| => %d" n i;
                     ng, (n, Nc_cons (Tcons1.EQ, Ne_var n, Ne_csti i)) :: accl
-                | Ii_lval _ -> Log.fatal_exn "non supported lval parameter"
+                | Ii_lval (n,off) ->
+                    assert (Offs.is_zero off);
+                    let nacct =
+                      if mayext && not (node_mem n accg.t_shape) then
+                        let nn = node_find n tref.t_shape in
+                        let nt = sv_add n nn.n_t nn.n_alloc accg.t_shape in
+                        { accg with t_shape = nt }
+                      else accg in
+                    nacct, (n, Nc_bool true) :: accl
               ) (t, [ ]) (List.rev iii.ic_int) in
       (* Reading the location of ptr parameters *)
       let comp_t1, comp_ppars =
@@ -1029,8 +1212,21 @@ module DBuild = functor (Dv: DOM_VALSET) ->
                 assert (Offs.is_zero off);   (* should evaluate to zero off *)
                 nacct, n :: accl
               ) (comp_t, [ ]) (List.rev iii.ic_ptr) in
+      let comp_t1, comp_spars =
+        match ic.ic_pars with
+        | None -> comp_t1, [ ]
+        | Some iii ->
+            assert (List.length iii.ic_set = ind.i_spars);
+            List.fold_left
+              (fun (acct, accl) i ->
+                if Keygen.key_is_used acct.t_shape.g_setvkey i.s_uid then
+                  acct, (i.s_uid)::accl
+                else
+                  {acct with t_shape = setv_add true i.s_uid acct.t_shape},
+                  (i.s_uid)::accl
+              ) (comp_t1, [ ]) (List.rev iii.ic_set) in
       if not mayext then assert (comp_t1 == comp_t);
-      comp_t1, comp_ipars, comp_ppars
+      comp_t1, comp_ipars, comp_ppars, comp_spars
 
     (* Utility function for the assumption and the checking of segments *)
     let make_seg_edge
@@ -1041,30 +1237,33 @@ module DBuild = functor (Dv: DOM_VALSET) ->
         (t: t)
         : t (* graph produced *)
           * (nid * n_cons) list
-          *  node_emb (* intial mapping, for inclusion *) =
+          *  node_emb * node_emb (* initial mapping, for inclusion *) =
       (* Modification only if different graph for evaluation *)
       assert (mayext != (tref == t));
       assert (ic.ic_name = ic_e.ic_name);
       let ind = Ind_utils.ind_find ic.ic_name in
       (* Allocation of the node arguments, for integer parameters *)
-      let comp_t1, comp_ipars, comp_ppars =
+      let comp_t1, comp_ipars, comp_ppars, comp_spars =
         prepare_pars tref mayext ic t in
-      let comp_t2, comp_ipars_e, comp_ppars_e =
+      let comp_t2, comp_ipars_e, comp_ppars_e, comp_spars_e =
         prepare_pars tref mayext ic_e comp_t1 in
       (* Construction of the inductive edge *)
       let ie = { se_ind  = ind ;
                  se_sargs = { ia_ptr = comp_ppars ;
-                              ia_int = List.map fst comp_ipars };
+                              ia_int = List.map fst comp_ipars;
+                              ia_set = comp_spars };
                  se_dargs = { ia_ptr = comp_ppars_e ;
-                              ia_int = List.map fst comp_ipars_e};
+                              ia_int = List.map fst comp_ipars_e;
+                              ia_set = comp_spars_e };
                  se_dnode = i_e; } in
       (* Construction of the adequate injection *)
-      let inj =
+      let inj, sinj =
         let f = List.fold_left (fun acc i -> Aa_maps.add i i acc) in
         f (f (Aa_maps.add i_e i_e (Aa_maps.singleton i i)) comp_ppars)
-          comp_ppars_e in
+          comp_ppars_e,
+        f (f Aa_maps.empty comp_spars) comp_spars_e in
       let tn = { comp_t2 with t_shape = seg_edge_add i ie comp_t2.t_shape } in
-      tn, List.rev_append comp_ipars comp_ipars_e, inj
+      tn, List.rev_append comp_ipars comp_ipars_e, inj, sinj
 
     (* Utility function for the assumption and the checking of ind edges *)
     let make_ind_edge
@@ -1073,26 +1272,50 @@ module DBuild = functor (Dv: DOM_VALSET) ->
         (i: nid) (ic: onode gen_ind_call) (t: t)
         : t (* graph produced *)
         * (nid * n_cons) list
-        * node_emb (* intial mapping, for inclusion *) =
+        * node_emb * node_emb(* initial mapping, for inclusion *) =
       let ind = Ind_utils.ind_find ic.ic_name in
-      let comp_t1, comp_ipars, comp_ppars =
-        prepare_pars  tref mayext ic t in
+      let comp_t1, comp_ipars, comp_ppars, comp_spars =
+        prepare_pars tref mayext ic t in
       (* Construction of the inductive edge *)
       let ie = { ie_ind  = ind ;
                  ie_args = { ia_ptr = comp_ppars ;
-                             ia_int = List.map fst comp_ipars } } in
+                             ia_int = List.map fst comp_ipars;
+                             ia_set = comp_spars } } in
       (* Construction of the adequate injection *)
-      let inj =
+      let inj, sinj =
         let f = List.fold_left (fun acc i -> Aa_maps.add i i acc) in
-        (* HS: we do not understand the next line *)
-        f (f (Aa_maps.singleton i i) comp_ppars) comp_ppars in
+        (*HS: the next line is a bit weird *)
+        (f (f (Aa_maps.singleton i i) comp_ppars) comp_ppars),
+        f Aa_maps.empty comp_spars in
       let tn = { comp_t1 with t_shape = ind_edge_add i ie comp_t1.t_shape } in
-      tn, comp_ipars, inj
+      tn, comp_ipars, inj, sinj
+
+    (** Transfer functions *)
+    let tr_setcon (x: svo setprop): set_cons =
+      let tr_int i =
+        match i with
+        | None -> 0
+        | Some i -> i in
+      match x with
+      | Sp_sub (l, r) -> S_subset (S_var l.s_uid, S_var r.s_uid)
+      | Sp_mem ((i, o), r) -> (* check the off be zero for now*)
+          let o =tr_int (Offs.to_int_opt o) in
+          if o = 0 then
+            S_mem (i, S_var r.s_uid)
+          else Log.fatal_exn "tr_setcon: offset is not eauqal to zero"
+      | Sp_emp l -> S_eq (S_empty, S_var l.s_uid)
+      | Sp_euplus (l, (i, o), r) ->
+          let o = tr_int (Offs.to_int_opt o) in
+          if o = 0 then
+            S_eq (S_var l.s_uid, S_uplus (S_node i, S_var r.s_uid))
+          else Log.fatal_exn "tr_setcon: offset is not eauqal to zero"
 
     (* Assume construction: assume an inductive predicate *)
     let assume (op: meml_log_form) (x: t): t =
       match op with
-      | SL_set _ -> Log.todo_exn "assume Setprop"
+      | SL_set sp ->
+          let sp = tr_setcon sp in
+          { x with t_num = Dv.set_guard sp x.t_num }
       | SL_ind (ic, (i, off)) ->
           (* Assume construction: assume an inductive predicate *)
           if inductive_is_allowed ic.ic_name then
@@ -1101,7 +1324,7 @@ module DBuild = functor (Dv: DOM_VALSET) ->
                 graph_sanity_check "assume,before" x.t_shape;
               assert (Offs.is_zero off);
               (* Generate the arguments (temp: only constants) *)
-              let comp_t, comp_ipars, _ = make_ind_edge x false i ic x in
+              let comp_t, comp_ipars, _ , _ = make_ind_edge x false i ic x in
               (* Taking into account all relations *)
               let comp_n =
                 List.fold_left
@@ -1123,7 +1346,7 @@ module DBuild = functor (Dv: DOM_VALSET) ->
               assert (Offs.is_zero off);
               assert (Offs.is_zero off_e);
               (* Generate the arguments (temp: only constants) *)
-              let comp_t, comp_ipars, _ =
+              let comp_t, comp_ipars, _, _ =
                 make_seg_edge x false i ic i_e ic_e x in
               (* Taking into account all relations *)
               let comp_n =
@@ -1138,7 +1361,7 @@ module DBuild = functor (Dv: DOM_VALSET) ->
             end
           else x
       | SL_array ->
-          { x with t_num = Dv.assume Opd0.SL_array x.t_num }
+          { x with t_num = Dv.assume VA_array x.t_num }
 
     let f_trans (inj: int IntMap.t) (j: int): int =
       try IntMap.find j inj
@@ -1146,15 +1369,18 @@ module DBuild = functor (Dv: DOM_VALSET) ->
 
     (* part common to ind_check and seg_check *)
     let final_check (tref: t) (comp_ipars: (int * Nd_sig.n_cons) list)
-        (inj: (int, int) Aa_maps.t) (x: t): bool =
+        (inj: (int, int) Aa_maps.t)
+        (sinj: (int, int) Aa_maps.t) (x: t): bool =
       let r =
         Graph_is_le.is_le_partial None false false x.t_shape None
-          IntSet.empty (make_sat x) tref.t_shape inj in
+          IntSet.empty (make_sat x) (make_setsat x)
+          tref.t_shape inj sinj in
       match r with
       | Ilr_not_le | Ilr_le_seg _ -> false
       | Ilr_le_ind _ -> Log.fatal_exn "is_le returned an inductive"
-      | Ilr_le_rem (_, _, inj, inst) ->
-          assert (inst = IntMap.empty);
+      | Ilr_le_rem (_, _, inj, sinst, nset, _, cons) -> (* HS: todo*)
+          assert (nset = IntSet.empty);
+          assert (cons = [ ]);
           (* Renaming and verification of the numeric relations *)
           List.for_all
             (fun (i, cons) ->
@@ -1177,15 +1403,15 @@ module DBuild = functor (Dv: DOM_VALSET) ->
              *  - for now parameters are not handled in inductive to check *)
             if ic.ic_pars != None then
               Log.todo_exn "ind_check, sub-memory, with parameters"
-            else Dv.check (Opd0.SL_ind (i, off, ic.ic_name)) x.t_num
+            else Dv.check (VC_ind (i, off, ic.ic_name)) x.t_num
           else if not (Offs.is_zero off) then
             Log.fatal_exn "ind_check, main memory, but non zero offset"
           else (* "normal" case, inductive leaving in the main memory *)
             (* Generate the arguments (temp: only constants) *)
-            let tref, comp_ipars, inj =
+            let tref, comp_ipars, inj, sinj =
               let t0 = add_node i Ntaddr Nnone (top ()) in
               make_ind_edge x true i ic t0 in
-            final_check tref comp_ipars inj x
+            final_check tref comp_ipars inj sinj x
       | SL_seg (ic, (i, off), ic_e, (i_e, off_e)) ->
           if !Flags.flag_sanity_graph then
             graph_sanity_check "seg_check,before" x.t_shape;
@@ -1196,11 +1422,10 @@ module DBuild = functor (Dv: DOM_VALSET) ->
           if ic = ic_e && (i, off) = (i_e, off_e) then
             true
           else
-            let tref, comp_ipars, inj =
+            let tref, comp_ipars, inj, sinj =
               let t0 = add_node i   Ntaddr Nnone (top ()) in
               let t0 = add_node i_e Ntaddr Nnone t0 in
               make_seg_edge x true i ic i_e ic_e t0 in
-            final_check tref comp_ipars inj x
-      | SL_array ->
-          Dv.check Opd0.SL_array x.t_num
+            final_check tref comp_ipars inj sinj x
+      | SL_array -> Dv.check VC_array x.t_num
   end : DOM_MEM_LOW)

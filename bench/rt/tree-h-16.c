@@ -18,6 +18,8 @@ void main( ){
     if( cond ){ // insert
       tree m;
       m = malloc( 16 );
+      if( m == 0 )
+        exit( 0 );
       m->h = p;
       if( cond ){ // insert left
         m->l = c->l;

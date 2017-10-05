@@ -9,7 +9,7 @@
  **
  ** File: dom_val_array.ml
  **       lifting of a numerical domain into an array abstraction
- ** Jiangchao Liu 2014/09/23 *)
+ ** Jiangchao Liu 2016/06/13 *)
 open Data_structures
 open Flags
 open Lib
@@ -25,25 +25,25 @@ open Dom_utils
 open Graph_utils
 open Nd_utils
 open Dom_val_maya
-open Array_pred_utils
-open Array_pred_sig
-open Array_pred_impl
 open Array_node
+
+open Svenv_sig
+open Set_sig
+
+open Set_utils
 
 (* Apron library needed here *)
 open Apron
 
+(** Error report *)
 module Log =
-  Logger.Make(struct let section = "dv_array" and level = Log_level.DEBUG end)
+  Logger.Make(struct let section = "v_array___" and level = Log_level.DEBUG end)
 
 (** Node type *)
 type node_type =
   | Nt_array_content
   | Nt_array_address
   | Nt_scalar
-
-
-
 
 (* Temp names for array cells in expressions,  *)
 let cell_counter: int ref = ref 110000000
@@ -53,15 +53,16 @@ let get_cell () =
 let cell_reset  () =
   cell_counter := 110000000
 
-
-
-
-
 (** Module construction *)
-module Make_Val_Array = functor (Dv: DOM_VALUE)  ->
+module Make_VS_Array = functor (Dv: DOM_VALSET)  ->
   (struct
+    let module_name = "dom_valset_array"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s"
+        module_name Dv.module_name (Dv.config_2str ())
+
     module Op = Make_Maya( Dv )
-    module A = Array_node.Array_Node( Op )
+    module A = Array_Node( Op )
     type t =
         { (* The main numeric element  *)
           t_main:   Op.t;
@@ -77,10 +78,11 @@ module Make_Val_Array = functor (Dv: DOM_VALUE)  ->
           t_lval: int option; }
 
 
-    (** Pretty-printing *)
+    let get_namer (x: t) =
+      IntMap.fold A.get_namer x.t_arrays IntMap.empty
 
+    (** Pretty-printing *)
     let t_2stri (namemap: sv_namer) (ind: string) (x: t) =
-      ljc_debug "t_2stri is called\n";
       let p_main =
         (Op.t_2stri
            (IntMap.fold A.get_namer x.t_arrays IntMap.empty) ind x.t_main) in
@@ -89,11 +91,9 @@ module Make_Val_Array = functor (Dv: DOM_VALUE)  ->
           x.t_arrays "" in
       p_array ^ "------The main numeric element\n" ^ p_main
 
-
    (** Utils **)
-
    (* Check whehter a node is a summary one *)
-   let is_scalar (id: int) (x: t): bool =
+   let is_scalar (x: t) (id: int): bool =
      try
        let tp = IntMap.find id x.t_type in
        match tp with
@@ -104,7 +104,6 @@ module Make_Val_Array = functor (Dv: DOM_VALUE)  ->
 
     (* Remove those groups that contains 0 elements *)
     let cleanup (x: t): t =
-      ljc_debug "cleanup is called\n";
       IntMap.fold
         (fun key array acc ->
           let narray,nmain = A.cleanup array x.t_main in
@@ -153,19 +152,12 @@ module Make_Val_Array = functor (Dv: DOM_VALUE)  ->
         t_lval = None ;}
 
     let is_bot (x: t): bool =
-      ljc_debug "is_bot is called\n";
-      if Op.is_bot x.t_main then true
-      else
-        IntMap.fold (fun key anode acc -> acc || A.is_bot x.t_main anode)
-          x.t_arrays false
-
-    (* (\* Minix 1.1 global state *\) *)
-    (* let minix: t ref = ref bot  *)
-
+      Op.is_bot x.t_main ||
+      (IntMap.fold (fun key anode acc -> acc || A.is_bot x.t_main anode)
+         x.t_arrays false)
 
     (* Top element *)
     let top: t =
-      ljc_debug "top is called\n";
       { t_main = Op.top;
         t_arrays = IntMap.empty;
         t_type = IntMap.empty;
@@ -180,21 +172,17 @@ module Make_Val_Array = functor (Dv: DOM_VALUE)  ->
 
     (* For sanity check *)
     let check_nodes (s: IntSet.t) (x: t): bool =
-      ljc_debug "check_nodes is called\n";
       false
 
     (* Node addition and removal *)
-    let add_node (id: int) (x: t): t =
-      ljc_debug "add_node is called \n";
+    let sv_add ?(mark:bool = true) (id: int) (x: t): t =
       let m = Op.add_node  id false 1 (Some 1) x.t_main in
       let tp = IntMap.add id Nt_scalar x.t_type in
-      let x = { x with
-                t_main = m;
-                t_type = tp; } in
-      x
+      { x with
+        t_main = m;
+        t_type = tp; }
 
-    let rem_node (id: int) (x: t): t =
-      ljc_debug "rem_node is called \n";
+    let sv_rem (id: int) (x: t): t =
       match IntMap.find id x.t_type with
       | Nt_scalar
       | Nt_array_address ->
@@ -210,35 +198,30 @@ module Make_Val_Array = functor (Dv: DOM_VALUE)  ->
 
     (* Renaming (e.g., post join) *)
     let symvars_srename
+        ?(mark : bool = true)
         (a: (Offs.t * int) OffMap.t)
         (b: (int * Offs.t) node_mapping)
+        (opt_setv_map: setv_mapping option)
         (x: t): t =
-      ljc_debug "symvars_srename is called\n";
-      x
+      Log.todo_exn "symvars_srename in array domain"
 
     (* Synchronization of the SV environment *)
     let sve_sync_top_down (a: svenv_mod) (x: t): t =
-      ljc_debug "sve_sync_top_down is called\n";
-      x
+      Log.todo_exn "sve_sync_top_down in array domain"
 
     (* Check the symbolic vars correspond exactly to given set *)
     let symvars_check (a:IntSet.t) (x:t): bool =
-      ljc_debug "symvars_check is called\n";
-      false
+      Log.todo_exn "synvars_check"
 
     (* Removes all symbolic vars that are not in a given set *)
-    let symvars_filter (a: IntSet.t) (x: t): t =
-      ljc_debug "svyvars_filter is called\n";
-      x
+    let symvars_filter (a: IntSet.t) ?(set_vars: IntSet.t = IntSet.empty) (x: t): t =
+      Log.todo_exn "symvars_filter"
 
     let symvars_merge (a: int) (b: int) (c: int)
         (d: (Bounds.t * onode * Offs.size) list) (e: OffSet.t) (x: t): t =
-      ljc_debug "symvars_merge is called\n";
-      x
-
+      Log.todo_exn "symvars_merge"
 
     (** Summarizing dimensions related operations  *)
-
     (* Copy the constrains on id to nid
      * (nid should not be in the environment before)  *)
     let expand (id: int) (nid: int) (x: t): t =
@@ -250,90 +233,49 @@ module Make_Val_Array = functor (Dv: DOM_VALUE)  ->
     let compact (lid: int) (rid: int) (x: t): t =
       Log.fatal_exn "compact"
 
+    (* Conjunction  *)
     let meet (lx: t) (rx: t): t =
       Log.todo_exn "dom_val_array meet"
 
     (* Forget the constraints on a dimension *)
-    let forget (id: int) (x: t): t =
+    let sv_forget (id: int) (x: t): t =
       Log.todo_exn "forget"
 
-
     (** Comparison and join operators *)
-
     (* Comparision for two states with  groups of same names *)
     let flat_is_le (lx: t) (rx: t): bool =
-      ljc_debug "flat le is called\n";
-      if is_bot lx then true
-      else
-        if is_bot rx then false
-        else
-          let arrayle =
-            IntMap.fold
-              (fun key larray acc ->
-                if not acc then acc
-                else
-                  let rarray = IntMap.find key rx.t_arrays in
-                  A.flat_is_le larray rarray
-              ) lx.t_arrays true in
-          arrayle && (Op.is_le lx.t_main rx.t_main)
+      is_bot lx || not (is_bot rx) &&
+      (let arrayle =
+        IntMap.fold
+          (fun key larray acc ->
+            if not acc then acc
+            else
+              let rarray = IntMap.find key rx.t_arrays in
+              A.flat_is_le larray rarray
+          ) lx.t_arrays true in
+      Op.get_namer (get_namer lx) lx.t_main;
+      arrayle && (Op.is_le lx.t_main rx.t_main))
 
-    (* Join for two states with  groups of same names *)
-    let flat_join (lx: t) (rx: t): t =
-      (* Format.printf "flat_join  is called\n"; *)
-      (* Format.printf "lx is \n %s\n" (t_2stri IntMap.empty "" lx); *)
-      (* Format.printf "rx is \n %s\n" (t_2stri IntMap.empty "" rx); *)
+    let flat_upper_bnd (akind: join_kind) (lx: t) (rx: t): t =
       if is_bot lx then rx
+      else if is_bot rx then lx
       else
-        if is_bot rx then lx
-        else
-          let narrays =
-            IntMap.mapi
-              (fun key larray ->
-                let rarray = IntMap.find key rx.t_arrays in
-                A.flat_join larray rarray
-              ) lx.t_arrays in
-          let nmain = Op.upper_bnd Jjoin lx.t_main rx.t_main in
-          { lx with
-            t_main = nmain;
-            t_arrays = narrays;
-            t_cells = Bi_fun.empty_inj; }
-
-    (* Widen for two states with  groups of same names *)
-    let flat_widen (lx: t) (rx: t): t =
-      if is_bot lx then rx
-      else
-        if is_bot rx then lx
-        else
-          let narrays =
-            IntMap.mapi
-              (fun key larray ->
-                let rarray = IntMap.find key rx.t_arrays in
-                A.flat_join larray rarray
-              ) lx.t_arrays in
-          let nmain = Op.upper_bnd Jwiden lx.t_main rx.t_main in
-          let nmain =
-            IntMap.fold (fun _ array acc -> A.base_index_cons array acc)
-              narrays nmain in
-          { lx with
-            t_main   = nmain;
-            t_arrays = narrays;
-            t_cells  = Bi_fun.empty_inj; }
-
-
+        let narrays =
+          IntMap.mapi
+            (fun key larray ->
+              let rarray = IntMap.find key rx.t_arrays in
+              A.flat_join larray rarray
+            ) lx.t_arrays in
+        Op.get_namer (get_namer {lx with t_arrays = narrays}) lx.t_main;
+        let nmain = Op.upper_bnd akind lx.t_main rx.t_main in
+        { lx with
+          t_main = nmain;
+          t_arrays = narrays;
+          t_cells = Bi_fun.empty_inj; }
 
 
     (* Comparison *)
-    let is_le (lx: t) (rx: t) (sat_diseq: int -> int -> bool) =
-      ljc_debug "is_le is called\n";
-      let rem_pred (x : t) : t =
-        IntMap.fold
-          ( fun key array acc ->
-            let main,array = A.rem_all_predicates  acc.t_main array in
-            let arrays = IntMap.add key array acc.t_arrays in
-            {acc with t_arrays = arrays;t_main = main}
-           ) x.t_arrays x in
-      let lx = rem_pred lx in
-      let rx = rem_pred rx in
+    let is_le (lx: t) (rx: t) (f: int -> int -> bool) =
       let lx,rx,jud =
         IntMap.fold
           (fun key larray acc ->
@@ -341,13 +283,12 @@ module Make_Val_Array = functor (Dv: DOM_VALUE)  ->
             if judge then acc
             else
               let rarray = IntMap.find key rx.t_arrays in
-              let map,judge = A.inclmap larray lx.t_main rarray rx.t_main in
-              Log.debug "inclmap:\n%s" (ljc_map_2str map);
-              if judge then
-                ltx, rtx, true
+              let larray, lm, map, judge =
+                A.inclmap larray lx.t_main rarray rx.t_main (is_scalar lx) in
+              if judge then ltx, rtx, true
               else
-                let nlm,nlarr,nrm,nrarr =
-                  A.apply_inclmap map larray ltx.t_main rarray rtx.t_main in
+                let nlm, nlarr, nrm, nrarr =
+                  A.apply_inclmap map larray lm rarray rtx.t_main in
                 let nlarrays = IntMap.add key nlarr ltx.t_arrays in
                 let nrarrays = IntMap.add key nrarr rtx.t_arrays in
                 let nlx = { ltx with
@@ -356,26 +297,28 @@ module Make_Val_Array = functor (Dv: DOM_VALUE)  ->
                 let nrx = { rtx with
                             t_main   = nrm;
                             t_arrays = nrarrays } in
-                nlx,nrx,false
+                nlx, nrx, false
           ) lx.t_arrays (lx, rx, false) in
       tmp_dim_reset ();
       not jud && (flat_is_le lx rx)
 
     (* Upper bound: serves as join and widening *)
     let upper_bnd (akind: join_kind) (lx: t) (rx: t) =
-    let lx,rx =
+      let lx,rx =
         IntMap.fold
           (fun key larray acc ->
             let ltx,rtx = acc in
             let rarray = IntMap.find key rx.t_arrays in
-            let rankmap = A.rankscore larray lx.t_main rarray rx.t_main in
-            Log.debug "rank score is:\n%s" (ljc_rankscore_2str rankmap);
+            let is_widen = match akind with Jwiden -> true | _ -> false in
+            let larray,lm,rarray,rm,lmap,rmap =
+              A.pred_join is_widen larray ltx.t_main rarray rtx.t_main
+                (is_scalar lx) in
+            let rankmap =
+              A.rankscore (is_scalar lx) larray lm rarray rm lmap rmap in
             let nlm,nlarr,nrm,nrarr =
               match akind with
-              | Jjoin ->
-                  A.apply_joinmap rankmap larray ltx.t_main rarray rtx.t_main
-              | Jwiden ->
-                  A.apply_widenmap rankmap larray ltx.t_main rarray rtx.t_main
+              | Jjoin ->  A.apply_joinmap rankmap larray lm rarray rm
+              | Jwiden -> A.apply_widenmap rankmap larray lm rarray rm
               | Jdweak -> Log.fatal_exn "weak is not implemented" in
             let nlarrays = IntMap.add key nlarr ltx.t_arrays in
             let nrarrays = IntMap.add key nrarr rtx.t_arrays in
@@ -387,139 +330,109 @@ module Make_Val_Array = functor (Dv: DOM_VALUE)  ->
                         t_arrays = nrarrays } in
             nlx, nrx
           ) lx.t_arrays (lx, rx) in
-      let result =
-        match akind with
-        | Jjoin -> flat_join lx rx
-        | Jwiden -> flat_widen lx rx
-        | jdweak -> Log.fatal_exn "weak is not implemented\n" in
-      result
+      match akind with
+      | Jjoin
+      | Jwiden -> flat_upper_bnd akind lx rx
+      | Jdweak -> Log.fatal_exn "weak is not implemented\n"
 
 
     (** Checks a constraint is satisfied (i.e., attempts to prove it) *)
     let sat (x: t) (cons: n_cons) =
       Op.sat_s x.t_main cons
 
-    let print_cells (cells: (int,onode) Bi_fun.t) : string =
-      Log.fatal_exn "print_cells is called"
-        (* Bi_fun.t_2strf Pervasives.string_of_int onode_2str cells *)
-
-
     (** Condition test *)
 
-    (* Specially deal with the case1 mproc[child].parent == child,
-     * and child \relmem G_3 *)
-    (* This file will be eliminated after new materialization is implemented *)
-    let special_guard (cons: n_cons) (x: t): t * bool =
-      let special_body (iseq: Tcons1.typ) (v1: int) (v2: int) (x: t): t * bool =
-        let id,off = Bi_fun.image v1 x.t_cells in
-        let array = IntMap.find id x.t_arrays in
-        let array,main,b = A.split_on_guard iseq array x.t_main off v2 in
-        if b then
-          { x with
-            t_main= main;
-            t_arrays = IntMap.add id array x.t_arrays;
-            t_cells = Bi_fun.empty_inj;
-            t_lval = None},true
-       else x, false in
-      match cons with
-      | Nc_cons (Tcons1.EQ as is,Ne_var v1,Ne_var v2)
-      | Nc_cons (Tcons1.DISEQ as is,Ne_var v1,Ne_var v2) ->
-          begin
-            match is_scalar v1 x, is_scalar v2 x with
-            | true, false -> special_body is v2 v1 x
-            | false, true -> special_body is v1 v2 x
-            | _ -> x, false
-          end
-      | _ -> x, false
+    (* Dereference an array cell in l-value,
+     * no disjunction is created since it merges groups *)
+    let sv_array_materialize (id: int) (off: Offs.t) (x: t): t * int =
+      let array = IntMap.find id x.t_arrays in
+      let array, main, dim = A.materialize_on_lv  array off x.t_main in
+      let arrays = IntMap.add id array x.t_arrays in
+      { x with
+        t_arrays = arrays;
+        t_main   = main;
+        t_lval   = Some dim}, dim
 
     (* The main algorithm of guard*)
-    let guard_body (typ: bool) (cons: n_cons) (x: t): t =
-      if not typ then
-        Log.fatal_exn "unexpected false condition in guard"
-      else
-        match cons with
-        | Nc_rand -> Log.fatal_exn "Nc_rand appears in guard function"
-        | Nc_bool true -> x
-        | Nc_bool false -> bot
-        | Nc_cons (tb, expr1, expr2) ->
-            let is_expr1_sum =
-              n_expr_fold
-                (fun iv acc -> acc ||(not (is_scalar iv x))) expr1 false in
-            let is_expr2_sum =
-              n_expr_fold
-                (fun iv acc -> acc ||(not (is_scalar iv x))) expr2 false in
-            match is_expr1_sum, is_expr2_sum with
-            | false, false ->
-                let tmain =
-                  (Op.guard_s typ cons x.t_main) in
-                let tmain =
-                  Op.narrow_set_vars tmain in
-                let arrays =
-                  IntMap.map (A.guard typ cons x.t_main) x.t_arrays in
-                let x = { x with
-                          t_main   = tmain;
-                          t_arrays = arrays;
-                          t_cells  = Bi_fun.empty_inj; } in
-                let x = cleanup x in
-                if is_bot x then bot
-                else x
-            | _,_ ->
-                let disjuncts = deref_in_expr [expr1;expr2] x in
-                let disjuncts =
-                  List.map
-                    (fun (expr_l,x) ->
-                      tmp_dim_reset ();
-                      (* Format.printf "in each case of the guard, x is \n %s\n" *)
-                      (*   (t_2stri IntMap.empty "" x); *)
-                      let texpr1 = List.hd expr_l in
-                      let texpr2 = List.hd (List.tl expr_l) in
-                      let ncons = Nc_cons (tb,texpr1,texpr2) in
-                      let nmain = Op.guard_w typ ncons x.t_main in
-                      let x = { x with
-                                t_main = nmain;
-                                t_cells = Bi_fun.empty_inj ;
-                                t_lval = None } in
-                      let x = cleanup x in
-                      if is_bot x then bot
-                      else x
-                    ) disjuncts in
-                List.fold_left flat_join bot disjuncts
-
-    (* Guard, before enter guard_body, pre-process "unequal" and the
-     * "special_guard" *)
-    let guard (typ: bool) (cons: n_cons) (x:t): t =
-      Log.debug "guard is called the cons is %s" (n_cons_2str cons) ;
-      Log.debug "before guard x is \n %s" (t_2stri IntMap.empty "" x);
-      cell_reset ();
-      let x,isspecial = special_guard cons x in
-      if isspecial then x
-      else
-        let result =
-          match cons with
-          | Nc_cons (Tcons1.DISEQ, e1, e2) ->
-              let cons1 = Nc_cons (Tcons1.SUP, e1, e2) in
-              let cons2 = Nc_cons (Tcons1.SUP, e2, e1) in
-              flat_join (guard_body typ cons1 x) (guard_body typ cons2 x)
-          | _ -> guard_body typ cons x in
-        Log.debug "after guard is \n %s" (t_2stri IntMap.empty "" result);
-       result
-
+    let guard (typ: bool) (cons: n_cons) (x: t): t =
+      assert typ;
+      match cons with
+      | Nc_rand -> Log.fatal_exn "Nc_rand appears in guard function"
+      | Nc_bool true -> x
+      | Nc_bool false -> bot
+      | Nc_cons (tb, expr1, expr2) ->
+          let is_expr1_sum =
+            n_expr_fold
+              (fun iv acc -> acc ||(not (is_scalar x iv))) expr1 false in
+          let is_expr2_sum =
+            n_expr_fold
+              (fun iv acc -> acc ||(not (is_scalar x iv))) expr2 false in
+          match is_expr1_sum, is_expr2_sum with
+          | false, false ->
+              let tmain =
+                (Op.guard_s typ cons x.t_main) in
+              let tmain =
+                Op.narrow_set_vars tmain in
+              let arrays,tmain =
+                IntMap.fold
+                  (fun key tarray (acc_arrays,acc_m) ->
+                    let acc_m, tarray = A.guard typ cons acc_m tarray in
+                    (IntMap.add key tarray acc_arrays, acc_m)
+                  ) x.t_arrays (x.t_arrays, tmain) in
+              let x = { x with
+                        t_main   = tmain;
+                        t_arrays = arrays;
+                        t_cells  = Bi_fun.empty_inj; } in
+              let x = cleanup x in
+              if is_bot x then bot
+              else x
+          | _,_ ->
+              let disjuncts = deref_in_expr [expr1;expr2] x in
+              let disjuncts =
+                List.map
+                  (fun (expr_l,x) ->
+                    tmp_dim_reset ();
+                    let texpr1 = List.hd expr_l in
+                    let texpr2 = List.hd (List.tl expr_l) in
+                    let ncons = Nc_cons (tb,texpr1,texpr2) in
+                    let nmain = Op.guard_w typ ncons x.t_main in
+                    let x = { x with
+                              t_main = nmain;
+                              t_cells = Bi_fun.empty_inj ;
+                              t_lval = None } in
+                    let x = cleanup x in
+                    if is_bot x then bot
+                    else x
+                  ) disjuncts in
+              List.fold_left (flat_upper_bnd Jjoin) bot disjuncts
 
     (** Assignment *)
     let assign (id: int) (expr: n_expr) (x: t): t =
-      (* The general case, not include the specific cases *)
-      ljc_debug "assign is called \n";
       cell_reset ();
-      let is_dst_sum = not (is_scalar id x) in
-      let forget_indexRes dim ar =
-        IntMap.map (A.forget_indexRe dim) ar in
+      let arrays, nmain =
+        IntMap.fold
+          (fun key array (acc_as,acc_m) ->
+            let nm, narray = A.pre_assign id acc_m array in
+            (IntMap.add key narray acc_as),nm
+          ) x.t_arrays (x.t_arrays, x.t_main) in
+      let x = { x with t_arrays = arrays; t_main = nmain } in
+      let is_dst_sum = not (is_scalar x id) in
       let is_expr_sum =
-        n_expr_fold (fun iv acc -> acc || (not (is_scalar iv x))) expr false in
+        n_expr_fold (fun iv acc -> acc
+        || (not (is_scalar x iv))) expr false in
+      let find_array (td: int) =
+        IntMap.fold
+          (fun key arr acc ->
+            let acc_id,acc_b = acc in
+            if acc_b then acc
+            else
+              if A.is_dimension_in td arr then key, true
+              else 0, false
+          ) x.t_arrays (0, false) in
       match is_expr_sum, is_dst_sum with
       | false, false ->
-          let arrays = IntMap.map (A.assign id expr) x.t_arrays in
           let nmain  = Op.update_subs_elt id expr x.t_main in
-          let arrays = IntMap.map (A.num_2rl nmain id) arrays in
+          let arrays = IntMap.map (A.assign_on_sca id expr nmain ) x.t_arrays in
           { x with
             t_main = nmain;
             t_arrays = arrays;
@@ -529,21 +442,11 @@ module Make_Val_Array = functor (Dv: DOM_VALUE)  ->
             match x.t_lval with
             | Some d -> d
             | None -> Log.fatal_exn "array cell as lval but not stored" in
-          (* find where the array dst is in *)
-          let a_id,a_b =
-            IntMap.fold
-              (fun key arr acc ->
-                let acc_id,acc_b = acc in
-                if acc_b then acc
-                else
-                  if A.is_dimension_in dst arr then key, true
-                  else 0, false
-              ) x.t_arrays (0, false) in
-          let array = IntMap.find a_id x.t_arrays in
           let nmain = Op.update_subs_elt dst expr x.t_main in
-          let array = A.num_2rl_sum dst expr nmain array in
-          let group = A.get_group_by_dim dst array in
-          let array,nmain = A.assign_for_predicate group nmain array in
+           (* find where the array dst is in *)
+          let a_id,a_b = find_array dst in
+          let array = IntMap.find a_id x.t_arrays in
+          let nmain,array = A.assign_on_sum dst expr nmain array in
           { x with
             t_main   = nmain;
             t_arrays = IntMap.add a_id array x.t_arrays;
@@ -562,39 +465,42 @@ module Make_Val_Array = functor (Dv: DOM_VALUE)  ->
                     | None ->
                         Log.fatal_exn "array cell as lval but not stored" in
                   let nmain = Op.update_subs_elt dst expr tx.t_main in
+                  let a_id,_ = find_array dst in
+                  let array = IntMap.find a_id x.t_arrays in
+                  let nmain,array = A.assign_on_sum dst expr nmain array in
                   { tx with
                     t_main   = nmain;
-                    t_arrays = forget_indexRes id x.t_arrays;
+                    t_arrays = IntMap.add a_id array x.t_arrays;
                     t_cells  = Bi_fun.empty_inj;
                     t_lval   = None }
                 else
                   let nmain = Op.update_subs_elt id expr tx.t_main in
-                  let arrays = IntMap.map (A.propagate id expr) x.t_arrays in
+                  let arrays =
+                    IntMap.map (A.assign_on_sca id expr nmain) x.t_arrays in
                   { x with
                     t_main   = nmain;
                     t_arrays = arrays;
                     t_cells  = Bi_fun.empty_inj;
                    t_lval    = None }
               ) disjuncts in
-          List.fold_left flat_join bot disjuncts
+          List.fold_left (flat_upper_bnd Jjoin) bot disjuncts
 
     (* Assignment inside a sub-memory *)
     let write_sub (a: sub_dest) (b: int) (c: n_rval) (x: t): t =
-      ljc_debug "write_sub is called\n";
-      x
+      Log.fatal_exn "write_sub called in array domain"
 
+    let  unfold (cont: int) (n: nid) (udir: unfold_dir) (x: t)
+        : (int IntMap.t * t) list =
+      Log.fatal_exn "write_sub called in array domain"
 
     (** Utilities for the abstract domain *)
     let simplify_n_expr (x: t) (a: n_expr): n_expr =
-      ljc_debug "simplify_n_expr is called\n";
-      a
+      Log.todo_exn "simplify_n_expr called in array domain"
 
 
     (** Array-domain specific functions  *)
-
     (* Add an array address node  *)
-    let add_array_address (id: int) (x: t) =
-      ljc_debug "add_array_address node is called \n";
+    let sv_array_address_add (id: int) (x: t) =
       let m = Op.add_node id false 1 (Some 1) x.t_main in
       let tp = IntMap.add id Nt_array_address x.t_type in
       { x with
@@ -602,8 +508,7 @@ module Make_Val_Array = functor (Dv: DOM_VALUE)  ->
         t_type = tp; }
 
     (* Add an array content node  *)
-    let add_array_node (id:int) (size:int) (fields:int list) (x:t) =
-      ljc_debug "add_array_node is called \n";
+    let sv_array_add (id:int) (size:int) (fields:int list) (x:t) =
       (* for now, we just add all variables into the subvar  *)
       let anode,nm =
         A.fresh_array_node id size fields x.t_main  in
@@ -623,48 +528,24 @@ module Make_Val_Array = functor (Dv: DOM_VALUE)  ->
 
     (* Dereference an array cell in experision,
      * this function may cause disjunction *)
-    let array_node_deref (id: int) (off: Offs.t) (x: t): (t * int) list =
+    let sv_array_deref (id: int) (off: Offs.t) (x: t): (t * int) list =
       if (Bi_fun.mem_inv (id,off) x.t_cells) then
         let cell = Bi_fun.inverse_inj (id,off) x.t_cells in
         [ x, cell ]
       else
+        let lv,rv = !Array_node.mater_id in
+        let mv = if !mat_left then lv else rv in
+        let array = IntMap.find id x.t_arrays in
+        let main, array = A.sv_array_deref  mv off x.t_main array in
+        let x = {x with t_arrays = IntMap.add id array x.t_arrays;
+                 t_main = main;} in
         let ncell = get_cell () in
         let ncells = Bi_fun.add ncell (id,off) x.t_cells in
         [ {x with t_cells = ncells}, ncell ]
 
-    (* Dereference an array cell in l-value,
-     * no disjunction is created since it merges groups *)
-    let array_materialize (id: int) (off: Offs.t) (x: t): t * int =
-      Log.debug "array_materialize is called";
-      if !is_hint_resolved = false  then
-          match !hint_array_pred with
-          | None -> ();
-          | Some unbinded_pred ->
-              begin
-                Log.debug "before bind";
-                let binded_array_pred =
-                  (apred_bind_by_env !varm !deref unbinded_pred) in
-                hint_array_pred := Some binded_array_pred;
-                is_hint_resolved := true;
-                Log.debug "after bind by env is \n %s"
-                  (apred_2str binded_array_pred)
-              end
-      else ();
-      let array = IntMap.find id x.t_arrays in
-      let array, main, dim = A.materialize  array off x.t_main in
-      let arrays = IntMap.add id array x.t_arrays in
-      let x =
-        { x with
-          t_arrays = arrays;
-          t_main   = main;
-          t_lval   = Some dim} in
-      x, dim
-
-
     (* The bound of a variable. *)
-    let bound_variable (id: int) (x: t): interval =
-      Log.fatal_exn "bound_variable in array"
-
+    let sv_bound (id: int) (x: t): interval =
+      Log.fatal_exn "sv_bound in array"
 
     (** Sub-memory specific functions *)
     (* Checks whether a node is of sub-memory type *)
@@ -692,91 +573,58 @@ module Make_Val_Array = functor (Dv: DOM_VALUE)  ->
     let submem_bind (a: int) (b: int) (c: Offs.t) (x:t) =
       Log.fatal_exn "submem_bind is called\n"
 
-    (* Unfolding *)
-    let unfold (a: int) (b: nid) (c: unfold_dir) (x: t) =
-      ljc_debug "unfold is called\n";
-      []
-
-    (* (\* A temporary specific for array  *\) *)
-    (* let minix_check (x: t):  bool = *)
-    (*   ljc_debug "minix_check is called\n"; *)
-    (*   let result = is_le x !minix in *)
-    (*   result *)
-
-    let check (op: Opd0.check_operand) (x: t): bool =
+    (* Properties check *)
+    let check (op: vcheck_op) (x: t): bool =
       match op with
-      | Opd0.SL_array ->
+      | VC_array ->
           IntMap.for_all
             (fun _key array ->
               A.array_check array x.t_main
             ) x.t_arrays
-      | Opd0.SL_ind (a, b, c) ->
-          ljc_debug "ind_check is called\n";
-          false
+      | VC_aseg  (i,off,ic,i_e,off_e,ic_e) ->
+          assert (IntMap.cardinal x.t_arrays = 1);
+          assert (Offs.is_zero off);
+          let _,array = IntMap.min_binding x.t_arrays in
+          A.check_seg i ic i_e ic_e x.t_main array
+      | VC_aind  (i,off,ic) ->
+          assert (IntMap.cardinal x.t_arrays = 1);
+          assert (Offs.is_zero off);
+          let _,array = IntMap.min_binding x.t_arrays in
+          A.check_ind i ic x.t_main array
+      | _ -> Log.fatal_exn "unexpected check type"
 
-    let assume (op: Opd0.assume_operand) (x: t): t =
-      x
+    (* Properties assumption *)
+    let assume (op: vassume_op) (x: t): t =
+      match op with
+      | VA_aseg  (i,off,ic,i_e,off_e,ic_e) ->
+          assert (IntMap.cardinal x.t_arrays = 1);
+          assert (Offs.is_zero off);
+          let key, array = IntMap.min_binding x.t_arrays in
+          let main, array = A.assume_seg i ic i_e ic_e x.t_main array in
+          { x with
+            t_arrays = IntMap.add key array x.t_arrays;
+            t_main = main }
+      | VA_aind (i,off,ic) ->
+          assert (IntMap.cardinal x.t_arrays = 1);
+          assert (Offs.is_zero off);
+          assert (Offs.is_zero off);
+          let key, array = IntMap.min_binding x.t_arrays in
+          let main, array = A.assume_ind i ic x.t_main array in
+          { x with
+            t_arrays = IntMap.add key array x.t_arrays;
+            t_main = main }
+      | _ -> Log.fatal_exn "array assume"
 
-    (* To build a state which serves as a global state in Memory Management
-     * part of Mimix 1.1. *)
-    (* let minix_start (x: t): t  =  *)
-    (*   let array = IntMap.find 1 x.t_arrays in *)
-    (*   let array,nmain = A.minix_property array x.t_main in *)
-    (*   let p0number = A.get_dimension 0 g_size array in *)
-    (*   let p0flag = A.get_dimension 0 1 array in   *)
-    (*   let p0parent = A.get_dimension 0 2 array in *)
-    (*   let p1number = A.get_dimension 1 g_size array in *)
-    (*   let p1flag = A.get_dimension 1 1 array in  *)
-    (*   let p1index = A.get_dimension 1 g_index array in  *)
-    (*   let nmain = Op.forget p0number nmain in *)
-    (*   let cons1 = Nc_cons (Tcons1.SUPEQ,Ne_var p0number,Ne_csti 1) in *)
-    (*   let cons2 = Nc_cons (Tcons1.SUPEQ,Ne_csti 24,Ne_var p0number) in *)
-    (*   let cons3 = Nc_cons (Tcons1.SUPEQ,Ne_var p0flag,Ne_csti 1) in *)
-    (*   let cons4 = Nc_cons (Tcons1.SUPEQ,Ne_csti 63,Ne_var p0flag) in *)
-    (*   let cons5 = Nc_cons (Tcons1.SUPEQ,Ne_var p0parent,Ne_csti 0) in *)
-    (*   let cons6 = Nc_cons (Tcons1.SUPEQ,Ne_csti 23,Ne_var p0parent) in *)
-    (*   let cons7 = Nc_cons (Tcons1.SUPEQ,Ne_var p1number,Ne_csti 0) in *)
-    (*   let cons8 = Nc_cons (Tcons1.EQ,Ne_var p1flag,Ne_csti 0) in *)
-    (*   let cons9 = Nc_cons (Tcons1.EQ,Ne_csti 24, *)
-    (*                        ( Ne_bin (Texpr1.Add,Ne_var p1number,Ne_var 9))) in *)
-    (*   let cons_l = [ cons1; cons2; cons3; cons4; cons5; *)
-    (*                  cons6; cons7; cons8; cons9 ] in *)
-    (*   let nmain = *)
-    (*     List.fold_left (fun acc c -> Op.guard_s true c acc) nmain cons_l in *)
-    (*   let expr = Ne_bin (Texpr1.Sub,Ne_csti 24,Ne_var 9) in *)
-    (*   let nmain = Op.size_assign p1index expr nmain in *)
-    (*   let narrays = IntMap.add 1 array x.t_arrays in *)
-    (*   let x = { x with *)
-    (*             t_arrays = narrays; *)
-    (*             t_main = nmain } in *)
-    (*   minix := x; *)
-    (*   x *)
-
-    (* (\* To build a state which serves as a global state in an anonymous OS  *\) *)
-    (* let aos_start (x: t): t = *)
-    (*   let array = IntMap.find 9 x.t_arrays in *)
-    (*   let array,nmain = A.spo_property array x.t_main in *)
-    (*   let p0number = A.get_dimension 0 g_size array in *)
-    (*   let p0next = A.get_dimension 0 3 array in *)
-    (*   let p0used = A.get_dimension 0 4 array in *)
-    (*   let p1number = A.get_dimension 1 g_size array in *)
-    (*   let p1used = A.get_dimension 1 4 array in *)
-    (*   let nmain = Op.forget p0number nmain in *)
-    (*   let cons1 = Nc_cons (Tcons1.SUPEQ,Ne_var p0number,Ne_csti 6) in *)
-    (*   let cons2 = Nc_cons (Tcons1.SUPEQ,Ne_csti 16,Ne_var p0number) in *)
-    (*   let cons3 = Nc_cons (Tcons1.SUPEQ,Ne_var p0next,Ne_csti 0) in *)
-    (*   let cons4 = Nc_cons (Tcons1.SUPEQ,Ne_csti 15,Ne_var p0next) in *)
-    (*   let cons5 = Nc_cons (Tcons1.EQ,Ne_var p0used,Ne_csti 1) in *)
-    (*   let cons6 = Nc_cons (Tcons1.SUPEQ,Ne_var p1number,Ne_csti 0) in *)
-    (*   let cons7 = Nc_cons (Tcons1.SUPEQ,Ne_csti 16,Ne_var  p1number) in *)
-    (*   let cons8 = Nc_cons (Tcons1.EQ,Ne_var p1used,Ne_csti 0) in *)
-    (*   let cons_l = [ cons1; cons2; cons3; cons4; *)
-    (*                  cons5; cons6; cons7; cons8 ] in *)
-    (*   let nmain = *)
-    (*     List.fold_left (fun acc c -> Op.guard_s true c acc) nmain cons_l in *)
-    (*   let narrays = IntMap.add 9 array x.t_arrays in *)
-    (*   let x = {x with t_arrays = narrays; *)
-    (*            t_main = nmain} in *)
-    (*   minix := x; *)
-    (*   x *)
-  end: DOM_VALUE)
+    (* Operations on set variables, not used in this domain *)
+    let set_guard (sc: set_cons) (x: t): t = x
+    let set_sat (sc: set_cons) (t: t) = true
+    let setv_col_root (x:t) =  IntSet.empty
+    let setv_is_root (id: int) (x:t) = false
+    let setv_rem (id: int) (x: t) = x
+    let setv_add ?(root: bool = false)
+        ?(kind: set_par_type option = None)
+        ?(name: string option = None) (id: int) (x: t)= x
+    (* get all variables that equal to the current one  *)
+    let get_eq_class (id: int) (x: t): IntSet.t =
+      Log.todo_exn "get_eq_class in dom_valset_array"
+  end: DOM_VALSET)

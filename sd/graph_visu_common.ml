@@ -54,7 +54,11 @@ let filter_nodes (interesting_nodes: IntSet.t) (g: graph): graph =
   let new_map =
     IntMap.fold
       (fun k v acc ->
-        if IntSet.mem k interesting_nodes then IntMap.add k v acc
+        if IntSet.mem k interesting_nodes then
+          (* update node predecessors (the filtered graph has less nodes) *)
+          let v' =
+            { v with n_preds = IntSet.inter v.n_preds interesting_nodes } in
+          IntMap.add k v' acc
         else acc
       ) g.g_g IntMap.empty in
   { g with g_g = new_map }

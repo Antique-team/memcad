@@ -48,6 +48,36 @@ val set_cons_setvs: set_cons -> IntSet.t
  * some SETVs are removed (it is used for is_le) *)
 val set_cons_prune_setvs: IntSet.t -> set_cons list -> set_cons list
 
+
+(* generate set constraints that should be proved equal from left side
+ * that is, when a set variable \sete is mapped to many set
+ * variables {\sete' \setf', ...}, choose one mapped set variable
+ * (like \sete') and add equality constraints on
+ * all the mapped set variables *)
+val gen_eq_setctr: setv_embedding -> set_expr IntMap.t * set_cons list
+
+(* replace instantiated set variables from a set expression*)
+val replace_sexpr: set_expr -> set_expr IntMap.t -> int IntMap.t ->
+  set_expr
+(* replace instantiated set variables from set constraints *)
+val replace_cons: set_cons list -> set_expr IntMap.t -> int IntMap.t
+  -> set_cons list
+
+(* instantiate set variables from equality set constraints *)
+val instantiate: set_cons list -> set_expr IntMap.t -> int IntMap.t
+  -> set_expr IntMap.t * set_cons list
+
+(* check if there is non instantiated set variables,
+ * if there is non instantiated set variables, compute the minimal
+ * set of non-instantiated set variables, that needs to instantiated
+ * to fresh set variables *)
+val check_non_inst: set_cons list -> set_expr IntMap.t -> IntSet.t
+
+(* liner uplus or union set variables from set expression *)
+val linear_svars: set_expr -> bool -> (IntSet.t * IntSet.t) option
+
+(* make uplus or union set expression *)
+val make_sexp: IntSet.t -> IntSet.t ->  bool -> set_expr
 (** Functions on node injections (for is_le) *)
 module Semb:
     sig

@@ -39,7 +39,9 @@ let default_test =
   { (** Options to be passed to analysis *)
     sp_src_file   = "";
     sp_header     = "memcad.h";
+    sp_idirs      = "";
     sp_old_parser = false;
+    sp_malloc_non0 = false;
     sp_ind_file   = "";
     sp_auto_ind   = false;
     sp_no_prev_fields = false;
@@ -60,6 +62,7 @@ let default_test =
     sp_red_mode   = !reduction_mode_selector;
     sp_setdom     = !sd_selector;
     sp_array      = !enable_array_domain;
+    sp_eq_pack    = !enable_eq_pack;
     (** Abstract domain and inductive definitions *)
     sp_indpars    = !flag_indpars_analysis;
     sp_domstruct  = !shapedom_struct;
@@ -122,10 +125,11 @@ let translate_tests (pconf: pconfig_file): tests =
     match extract_list "domain" l with
     | "none" -> SD_none
     | "on"
-    | "bdd"  -> SD_bdd
     | "lin"  -> SD_lin
     | "quicr"-> SD_quicr
-    | s     -> Log.fatal_exn "unbound set domain %s" s in
+    | "setr_lin" | "SETr_lin" -> SD_setr "lin"
+    | "setr_bdd" | "SETr_bdd" -> SD_setr "bdd"
+    | s     -> Log.fatal_exn "unbound set domain (%s)" s in
   let aux_redmod (l: string list): reduction_mode =
     match extract_list "redmod" l with
     | "manual"             -> Rm_manual
@@ -148,6 +152,7 @@ let translate_tests (pconf: pconfig_file): tests =
   let aux_field (t: test_spec) (f: field): test_spec =
     match f.fname, f.fval with
     | "array", F_strings s       -> { t with sp_array = aux_onoff s }
+    | "eq_pack", F_strings s     -> { t with sp_eq_pack = aux_onoff s }
     | "auto_ind", F_strings s    -> { t with sp_auto_ind = aux_onoff s }
     | "no_prev_fields", F_strings s-> { t with sp_no_prev_fields = aux_onoff s }
     | "asserts_proved", F_int n  -> { t with sp_assert_ok = n }
@@ -165,11 +170,13 @@ let translate_tests (pconf: pconfig_file): tests =
     | "fast_iir", F_strings s    -> { t with sp_fast_iir = aux_onoff s }
     | "file", F_qstring s        -> { t with sp_src_file = s }
     | "header", F_qstring s      -> { t with sp_header = s }
+    | "idirs", F_qstring s       -> { t with sp_idirs = s }
     | "indfile", F_qstring s     -> { t with sp_ind_file = s }
     | "indpars", F_strings s     -> { t with sp_indpars = aux_onoff s }
     | "issue", F_qstring s       -> { t with sp_issue = s }
     | "join_iters", F_int n      -> { t with sp_join_iters = n }
     | "main_fun", F_qstring s    -> { t with sp_main_fun = s }
+    | "malloc_non0", F_strings s -> { t with sp_malloc_non0 = aux_onoff s }
     | "old_parser", F_strings s  -> { t with sp_old_parser = aux_onoff s }
     | "basic_widen", F_strings s -> { t with sp_basic_widen = aux_onoff s }
     | "part_lfps", F_strings s   -> { t with sp_part_lfps = aux_onoff s }
@@ -231,6 +238,9 @@ let spec_to_options (t: test_spec): string list =
   (* header file *)
   if t.sp_header <> "" then
     lopts := "-header" :: t.sp_header :: !lopts;
+  (* include dirs *)
+  if t.sp_idirs <> "" then
+    lopts := "-idirs" :: t.sp_idirs :: !lopts;
   if t.sp_old_parser <> !use_old_parser then
     if t.sp_old_parser then
       lopts := "-old-parser" :: !lopts
@@ -250,6 +260,9 @@ let spec_to_options (t: test_spec): string list =
   (* handling of recursive calls *)
   if t.sp_rec_calls != !rec_calls then
     lopts := "-rec-calls" :: !lopts;
+  (* malloc semantics restriction *)
+  if t.sp_malloc_non0 then
+    lopts := "-malloc-non0" :: !lopts;
   (* inductive definitions analysis *)
   if t.sp_indpars != !flag_indpars_analysis then
     lopts := "-ind-analysis" :: !lopts;
@@ -281,6 +294,10 @@ let spec_to_options (t: test_spec): string list =
   if t.sp_array != !enable_array_domain then
     lopts :=
       (if t.sp_array then "-array-on" else "-array-off") :: !lopts;
+  (* Equation pack *)
+  if t.sp_eq_pack != !enable_eq_pack then
+    lopts :=
+      (if t.sp_array then "-eq-pack-on" else "-eq-pack-off") :: !lopts;
   (* disjunctions *)
   if t.sp_disj != !disj_selector then
     lopts := (if t.sp_disj then "-disj-on" else "-disj-off") :: !lopts;
@@ -289,10 +306,10 @@ let spec_to_options (t: test_spec): string list =
     begin
       lopts :=
         match t.sp_setdom with
-        | SD_bdd   -> "-setd-on" :: !lopts
-        | SD_none  -> "-setd-off" :: !lopts
-        | SD_lin   -> "-setd-lin" :: !lopts
-        | SD_quicr -> "-setd-quicr" :: !lopts
+        | SD_none   -> "-setd-off" :: !lopts
+        | SD_lin    -> "-setd-lin" :: !lopts
+        | SD_quicr  -> "-setd-quicr" :: !lopts
+        | SD_setr n -> (Printf.sprintf "-setd-r-%s" n) :: !lopts
     end;
   (* threshold widening activation *)
   if t.sp_thrwide != !widen_do_thr then
@@ -358,6 +375,9 @@ let spec_to_options (t: test_spec): string list =
   (* result *)
   !lopts
 
+let magenta_color = Color.(to_string Bold ^ to_string Magenta)
+let reset_color = Color.(to_string Reset)
+
 (** Management and pretty-printing of the results *)
 let pp_results
     (stress_test: int)          (* repeat number *)
@@ -402,10 +422,20 @@ let pp_results
       Log.info "%s:%s  %s%s%s%s" ii spc0 msg spc1 ts.sp_src_file s_issue
     ) m;
   Log.info "\n\n\n%s" sep;
-  Log.info "Passed:  %d\nTimeout: %d\nFailed:  %d\nTime:    %.3f sec"
-    !cnt_ok !cnt_to !cnt_ko (tot_duration /. float_of_int stress_test);
+  let timeout_str =
+    let count = string_of_int !cnt_to in
+    if !cnt_to <> 0 then magenta_color ^ count ^ reset_color
+    else count in
+  let failed_str =
+    let count = string_of_int !cnt_ko in
+    if !cnt_ko <> 0 then magenta_color ^ count ^ reset_color
+    else count in
+  Log.info "Passed:  %d" !cnt_ok;
+  (if !cnt_to <> 0 then Log.error else Log.info) "Timeout: %s" timeout_str;
+  (if !cnt_ko <> 0 then Log.error else Log.info) "Failed:  %s" failed_str;
+  Log.info "Time:    %.3f sec" (tot_duration /. float_of_int stress_test);
   if validated = Some true && (!cnt_to != 0 || !cnt_ko != 0) then
-    Log.info "REGRESSION: Some validated tests failed"
+    Log.error "REGRESSION: Some validated tests failed"
 
 (** Management of the pipes *)
 let close_pipe ( ): unit =
@@ -496,9 +526,20 @@ let run_test
       assert (pid = child);
       let passed =
         match status with
-        | Unix.WEXITED i   -> Log.info "Status exit: %d" i ; i = 0
-        | Unix.WSIGNALED i -> Log.info "Status signal: %d" i; false
-        | Unix.WSTOPPED i  -> Log.info "Status stopped: %d" i; false in
+        | Unix.WEXITED i ->
+            begin
+              if i = 0 then
+                Log.info "Status exit: %d" i
+              else
+                Log.error "%sStatus exit: %d%s" magenta_color i reset_color
+            end;
+            i = 0
+        | Unix.WSIGNALED i ->
+            Log.error "%sStatus signal: %d%s" magenta_color i reset_color;
+            false
+        | Unix.WSTOPPED i  ->
+            Log.error "%sStatus stopped: %d%s" magenta_color i reset_color;
+            false in
       Log.info "RT: child terminated its task (%.3f)" duration;
       let res =
         if passed then
@@ -528,7 +569,7 @@ let run_test
     with
     | Unix.Unix_error (Unix.EINTR, _, _) ->
         (* waitpid interrupted as the child was killed, due to a timeout *)
-        Log.info "child was terminated";
+        Log.error "%schild was terminated%s" magenta_color reset_color;
         (* return the time-out information *)
         0., Tr_timeout in
   Unix.close out_file;
@@ -634,14 +675,14 @@ let batch () =
       | TC_valid, TC_valid | TC_exp, TC_exp -> true
       | TC_other s0, TC_other s1 -> String.compare s0 s1 = 0
       | _, _ -> false in
-    (* prtp run *)
+    (* sequential prtp run *)
     RevMap.fold
       (fun i t (accd, accr) ->
-        let cats = List.filter (eq_category category) t.sp_category in
-        if cats != [ ] then
-          let d, r = run_test !analyzer !stress_test i t in
-          accd +. d, RevMap.add i r accr
-        else accd, accr
+         let cats = List.filter (eq_category category) t.sp_category in
+         if cats != [ ] then
+           let d, r = run_test !analyzer !stress_test i t in
+           accd +. d, RevMap.add i r accr
+         else accd, accr
       ) tests (0., RevMap.empty) in
   if !test_ids = [ ] then
     (* general run: all tests in a category *)

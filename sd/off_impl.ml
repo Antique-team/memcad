@@ -73,7 +73,7 @@ module Off_Int =
     (* Whether a size is constant *)
     let size_is_const (_: size): bool = true
     (* Compare, syntactic on AST, to build sets *)
-    let compare: t -> t -> int = (-)
+    let compare: t -> t -> int = Pervasives.compare
     (* Equality test *)
     let eq: t -> t -> bool = (=)
     let size_eq: size -> size -> bool = (=)

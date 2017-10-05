@@ -48,11 +48,13 @@ let color_on () =
 let color_off () =
   use_color := false
 
+let reset_color = Color.to_string Color.Reset
+
 let level_to_string lvl =
   let s = LL.to_string lvl in
   if !use_color then
     let color = !level_to_color lvl in
-    (Color.to_string color) ^ s ^ Color.reset
+    (Color.to_string color) ^ s ^ reset_color
   else
     s
 

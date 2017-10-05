@@ -16,11 +16,15 @@ void main( ){
   assert( x == y );
   // allocation
   xp = malloc( 4 );
+  if( xp == 0 )
+    exit( 0 );
   // main := main avec pointeur
   yp = xp;
   assert( xp == yp );
   assert( *xp == *yp );  
   yp = malloc( 4 );
+  if( yp == 0 )
+    exit( 0 );
   // under := under
   *xp = *yp; 
   assert( *xp == *yp );

@@ -413,7 +413,7 @@ module Make_num_dy_pack = functor (Dn: DOM_NUM) ->
       { t_packNum = IntMap.add rep num x.t_packNum;
         t_idPack  = nidPack }
 
-    (* Meet: a lattice operation *)
+    (* Conjunction *)
     let meet (x0: t) (x1: t): t =
       let nx0,nx1 = unify x0 x1 in
       IntMap.fold
@@ -441,4 +441,13 @@ module Make_num_dy_pack = functor (Dn: DOM_NUM) ->
         let rep,_ = Union_find.find dim x.t_idPack in
         let num = IntMap.find rep x.t_packNum in
         Dn.bound_variable dim num
+
+    (* Get all variables that equal to a given SV *)
+    let get_eq_class (var: int) (x: t): IntSet.t =
+       if is_bot x then
+        error "BOT IN GET EQ CLASS"
+      else
+        let rep,_ = Union_find.find var x.t_idPack in
+        let num = IntMap.find rep x.t_packNum in
+        Dn.get_eq_class var num
   end: DOM_NUM)

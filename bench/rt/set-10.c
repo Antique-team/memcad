@@ -22,5 +22,5 @@ void main( ){
   // XR: this test is not solved yet!
   //     we need to add a reduction from shapes to set
   // _memcad( "check_inductive( k, lsetex, [ | | F] )" );
+  _memcad("output_dot(l, k | SUCC)");
 }
-

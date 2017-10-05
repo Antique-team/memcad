@@ -155,6 +155,8 @@ void main( ){
     if( z > 0 ){
       // insert in q
       q0 = malloc( 8 ) ;
+      if( q0 == 0 )
+        exit( 0 );
       q0 -> next = q ;
       q0 -> data = y ;
       q = q0;

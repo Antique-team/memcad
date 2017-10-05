@@ -75,7 +75,7 @@ let c_prog_check_no_recursion (p: c_prog): unit =
       | Cspcall c | Csfcall (_, c) -> aux_call name c g
       | Csblock b | Cswhile (_, b, _) -> aux_block name b g
       | Csif (_, b0, b1) -> aux_block name b1 (aux_block name b0 g)
-      | Csdecl _ | Csassign _ | Csreturn _ | Csbreak | Cscontinue
+      | Csdecl _ | Csassign _ | Csreturn _ | Csbreak | Cscontinue | Csexit
       | Cs_memcad _ | Csassert _ | Csalloc _ | Csfree _ -> g
     and aux_block (name: string) (b: c_block) (g: StringGraph.t) =
       match b with
@@ -217,7 +217,7 @@ let c_prog_fix_types (p: c_prog): c_prog =
       | Csblock b -> Csblock (do_c_block b)
       | Csif (e0, b1, b2) -> Csif (do_c_expr e0, do_c_block b1, do_c_block b2)
       | Cswhile (e0, b1, i) -> Cswhile (do_c_expr e0, do_c_block b1, i)
-      | Csreturn None | Csbreak | Cscontinue | Cs_memcad _ -> s.csk
+      | Csreturn None | Csbreak | Cscontinue | Csexit | Cs_memcad _ -> s.csk
       | Csreturn (Some e) -> Csreturn (Some (do_c_expr e))
       | Csassert e -> Csassert (do_c_expr e)
       | Csalloc (l, e) -> Csalloc (do_c_lval l, do_c_expr e)
@@ -432,6 +432,7 @@ let bind_c_prog (cp: c_prog): c_prog =
         Csreturn (Some (do_expr m e)), m
     | Csbreak -> Csbreak, m
     | Cscontinue -> Cscontinue, m
+    | Csexit -> Csexit, m
     | Cs_memcad c ->
         let c, m = do_memcad_com m (parse_memcad_comstring c) in
         Cs_memcad c, m
@@ -692,6 +693,7 @@ let type_c_prog (cp: c_prog): c_prog =
         Csreturn (Some (do_expr t e)), t
     | Csbreak -> Csbreak, t
     | Cscontinue -> Cscontinue, t
+    | Csexit -> Csexit, t
     | Cs_memcad c ->
         Cs_memcad (do_memcad_com t c), t
     | Csassert e0 ->
@@ -733,7 +735,7 @@ let syntax_post_treat_c_prog (cp: c_prog): c_prog =
         { s with csk = Csif (e, do_block b0, do_block b1) }
     | Cswhile (e, b0, u) ->
         { s with csk = Cswhile (e, do_block b0, u) }
-    | Csreturn _ | Csbreak | Cscontinue
+    | Csreturn _ | Csbreak | Cscontinue | Csexit
     | Cs_memcad _ | Csassert _
     | Csalloc _ | Csfree _ -> s
   and do_block: c_block -> c_block = function

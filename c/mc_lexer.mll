@@ -75,6 +75,7 @@ rule token = parse
 | ":'"[^''']*'''          { let str = Lexing.lexeme lexbuf in
                             let n = String.length str in
                             V_astring (String.sub str 2 (n-3))}
+| '.'                     { T_dot }
 | "=="                    { T_eq }
 | "!="                    { T_ne }
 | ">"                     { T_gt }

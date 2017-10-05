@@ -11,10 +11,12 @@
  **       Logging infrastructure; log level colors
  ** Francois Berenger, 26/07/2016 *)
 
-type t = Black | Red | Green | Yellow | Blue | Magenta | Cyan | White | Default
+type t = Reset | Bold | Black | Red | Green | Yellow | Blue | Magenta | Cyan | White | Default
 
 (* ANSI terminal colors for UNIX *)
 let to_string: t -> string = function
+  | Reset   -> "\027[0m"
+  | Bold    -> "\027[1m"
   | Black   -> "\027[30m"
   | Red     -> "\027[31m"
   | Green   -> "\027[32m"
@@ -24,5 +26,3 @@ let to_string: t -> string = function
   | Cyan    -> "\027[36m"
   | White   -> "\027[37m"
   | Default -> "\027[39m"
-
-let reset: string = "\027[0m"

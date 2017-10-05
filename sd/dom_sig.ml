@@ -148,42 +148,41 @@ type meml_log_form  = svo gen_st_log_form       (* vars: sv+off *)
 type memh_log_form  = int tlval gen_st_log_form (* vars: sv-lvalues *)
 type state_log_form = var tlval gen_st_log_form (* vars: lang-lvalues *)
 
-(* One module per layer, before factorization (TODO: refactor) *)
-module Opd0 =
-  struct
-    type assume_operand =
-      | SL_array
-    type check_operand =
-      | SL_array
-      | SL_ind of int * Offs.t * string
-  end
+(* Environment commands *)
+type env_op =
+  | EO_add_var of var       (* Add C-level Var *)
+  | EO_del_var of var       (* Del C-level Var *)
+  | EO_add_setvar of setvar (* Add C-level Set-Var *)
+  | EO_del_setvar of setvar (* Del C-level Set-Var *)
 
-module Opd2 =
-  struct
-    type unary_operand =
-      | Add_var of var
-      | Remove_var of var
-      | Add_setvar of setvar
-      | Remove_setvar of setvar
-  end
+(* Memory commands *)
+type 'a mem_op =
+  | MO_alloc of 'a tlval * 'a texpr (* Allocation:       l = malloc( e ) *)
+  | MO_dealloc of 'a tlval          (* Deallocation:     free( l )       *)
+type int_mem_op = int mem_op
+type var_mem_op = var mem_op
 
-type 'a mem_operand =
-  | Allocate of 'a tlval * 'a texpr
-  | Deallocate of 'a tlval
-type int_mem_operand = int mem_operand
-type var_mem_operand = var mem_operand
+(* Unary op in the disj domain *)
+type unary_op =
+  | UO_env of env_op     (* addition/deletion of (set) variables *)
+  | UO_ret of typ option (* addition of return var or not *)
+  | UO_mem of var_mem_op (* memory operations *)
 
-module Opd3 =
-  struct
-    type unary_operand =
-      | Add_var of var
-      | Remove_var of var
-      | Add_setvar of setvar
-      | Remove_setvar of setvar
-      | Add_return_var of typ
-      | Add_no_return_var
-      | Memory of var_mem_operand
-  end
+(* Assume commands for the value domain: just array for now *)
+type vassume_op =
+  | VA_array
+  | VA_aseg of int * Offs.t * svo gen_ind_call
+        * int * Offs.t * svo gen_ind_call
+  | VA_aind of int * Offs.t * svo gen_ind_call
+
+(* Check commands for the value domain *)
+type vcheck_op =
+  | VC_array
+  | VC_ind of int * Offs.t * string (* l = ind( ) *)
+  | VC_aseg of int * Offs.t * svo gen_ind_call
+        * int * Offs.t * svo gen_ind_call
+  | VC_aind of int * Offs.t * svo gen_ind_call
+
 
 (** Domain to represent values:
  **  An abstract value represents a set of functions from integer
@@ -194,6 +193,7 @@ module Opd3 =
  **)
 module type DOM_VALUE =
   sig
+    include INTROSPECT
     (** Type of abstract values *)
     type t
     (** Domain initialization *)
@@ -209,7 +209,7 @@ module type DOM_VALUE =
     val t_2stri: sv_namer -> string -> t -> string
     (** Management of symbolic variables *)
     (* For sanity check *)
-    val check_nodes: IntSet.t -> t -> bool (* FBR: candidate for check function *)
+    val check_nodes: IntSet.t -> t -> bool
     (* SV addition and removal *)
     val add_node: int -> t -> t
     val rem_node: int -> t -> t
@@ -219,7 +219,7 @@ module type DOM_VALUE =
     (* Synchronization of the SV environment *)
     val sve_sync_top_down: svenv_mod -> t -> t
     (* Check the symbolic vars correspond exactly to given set *)
-    val symvars_check: IntSet.t -> t -> bool (* FBR: candidate for check function *)
+    val symvars_check: IntSet.t -> t -> bool
     (* Removes all symbolic vars that are not in a given set *)
     val symvars_filter: IntSet.t -> t -> t
     (* Merging into a new variable, arguments:
@@ -263,10 +263,10 @@ module type DOM_VALUE =
     val expand: int -> int -> t -> t
     (* Upper bound of the constraits of two dimensions *)
     val compact: int -> int -> t -> t
-    (* Meet: a lattice operation  *)
+    (* Conjunction *)
     val meet: t -> t -> t
     (* Forget the information on a dimension *)
-    val forget: int -> t -> t
+    val sv_forget: int -> t -> t
     (** Export of range information *)
     val bound_variable:int -> t -> interval
     (** Sub-memory specific functions *)
@@ -281,10 +281,12 @@ module type DOM_VALUE =
     (* Binding of an offset in a sub-memory *)
     val submem_bind: int -> int -> Offs.t -> t -> t * onode
     (* Regression testing support, inside sub-memories *)
-    val check: Opd0.check_operand -> t -> bool
-    val assume: Opd0.assume_operand -> t -> t
+    val check:  vcheck_op  -> t -> bool
+    val assume: vassume_op -> t -> t
     (* Unfolding *)
     val unfold: int -> nid -> unfold_dir -> t -> (int IntMap.t * t) list
+    (* Get all variables that equal to a given SV *)
+    val get_eq_class: int -> t -> IntSet.t
   end
 
 
@@ -292,6 +294,7 @@ module type DOM_VALUE =
  ** In this domain, each variable accounts for a may-empty set of values *)
 module type DOM_MAYA =
   sig
+    include INTROSPECT
     type t
     (** Pretty-printing *)
     val t_2stri: sv_namer -> string -> t -> string
@@ -304,7 +307,7 @@ module type DOM_MAYA =
     val rem_node: int -> t -> t
     val add_node: int -> bool -> int -> int option -> t -> t
     (* Forget the informaiton of a varialbe except its existence *)
-    val forget: int -> t -> t
+    val sv_forget: int -> t -> t
     (* Merge the informaiton of two variables to one *)
     val compact: int -> int -> t -> t
     (* Narrow the type of all set variables from numeric information *)
@@ -346,8 +349,12 @@ module type DOM_MAYA =
     val rename_var: int -> int -> t -> t
     (* Filter variables *)
     val symvars_filter: IntSet.t -> t -> t
-    (* top element *)
+    (* Top element *)
     val top: t
+    (* Get all variables that equal to a given SV *)
+    val get_eq_class: int -> t -> IntSet.t
+    (* Get namer *)
+    val get_namer: sv_namer -> t -> unit
   end
 
 (** Signature of the set+value domain:
@@ -359,6 +366,7 @@ module type DOM_MAYA =
  **  The elements that are specific to the set domain are marked "specific" *)
 module type DOM_VALSET =
   sig
+    include INTROSPECT
     (** Type of abstract values *)
     type t
     (** Domain initialization *)
@@ -452,10 +460,23 @@ module type DOM_VALSET =
     (* Binding of an offset in a sub-memory *)
     val submem_bind: int -> int -> Offs.t -> t -> t * onode
     (* Regression testing support, inside sub-memories *)
-    val check: Opd0.check_operand -> t -> bool
-    val assume: Opd0.assume_operand -> t -> t
+    val check:  vcheck_op  -> t -> bool
+    val assume: vassume_op -> t -> t
     (* Unfolding *)
     val unfold: int -> nid -> unfold_dir -> t -> (int IntMap.t * t) list
+    (** Summarzing dimensions related operations *)
+    (* Expand the constraints on one dimension to another *)
+    val expand: int -> int -> t -> t
+    (* Upper bound of the constraits of two dimensions *)
+    val compact: int -> int -> t -> t
+    (* Conjunction *)
+    val meet: t -> t -> t
+    (* Forget the information about an SV *)
+    val sv_forget: int -> t -> t
+    (** Export of range information *)
+    val sv_bound: int -> t -> interval
+    (* Get all variables that equal to a given SV *)
+    val get_eq_class: int -> t -> IntSet.t
   end
 
 
@@ -465,8 +486,7 @@ module type DOM_VALSET =
  **)
 module type DOM_MEM_LOW =
   sig
-    (** Name *)
-    val module_name: string
+    include INTROSPECT
     (** Type of abstract values *)
     type t
     (** Domain initialization to a set of inductive definitions *)
@@ -475,6 +495,8 @@ module type DOM_MEM_LOW =
     val inductive_is_allowed: string -> bool
     (** Fixing sets of keys *)
     val sve_sync_bot_up: t -> t * svenv_mod
+    (* Sanity check *)
+    val sanity_sv: IntSet.t -> t -> bool
     (** Lattice elements *)
     (* Bottom element *)
     val bot: t
@@ -569,6 +591,7 @@ module type DOM_MEM_LOW =
  **)
 module type DOM_MEM_EXPRS =
   sig
+    include INTROSPECT
     (** Type of abstract values *)
     type t
     (** Domain initialization to a set of inductive definitions *)
@@ -577,6 +600,8 @@ module type DOM_MEM_EXPRS =
     val inductive_is_allowed: string -> bool
     (** Fixing sets of keys *)
     val sve_sync_bot_up: t -> t * svenv_mod
+    (* Sanity check *)
+    val sanity_sv: IntSet.t -> t -> bool
     (** Lattice elements *)
     (* Bottom element *)
     val bot: t
@@ -609,13 +634,13 @@ module type DOM_MEM_EXPRS =
     (* Condition test *)
     val guard: bool -> int texpr -> t -> t list
     (* Checking that a constraint is satisfied *)
-    val sat: int texpr -> t -> bool (* FBR: candidate for check: Constraint of int texpr *)
+    val sat: int texpr -> t -> bool
     (* Creation of the memory for a variable *)
     val create_mem_var: typ -> t -> int * t
     (* Removal of the memory for a variable *)
     val delete_mem_var: int -> t -> t (* takes SV representing address *)
     (* memory alloc/free *)
-    val memory: int_mem_operand -> t -> t list
+    val memory: int_mem_op -> t -> t list
     (** Set domain *)
     (* generate / delete set variables *)
     val gen_setvar: string -> t -> int * t
@@ -632,9 +657,7 @@ module type DOM_MEM_EXPRS =
 (** Signature of the env+shape domain *)
 module type DOM_ENV =
   sig
-    (** Name *)
-    (* For timing tags *)
-    val module_name: string
+    include INTROSPECT
     (** Type of abstract values *)
     type t
     (* Bottom element *)
@@ -650,7 +673,7 @@ module type DOM_ENV =
     (* Garbage collection *)
     val gc: t -> t
     (** Management of variables *)
-    val unary_op: Opd2.unary_operand -> t -> t
+    val unary_op: env_op -> t -> t
     (* encode graph *)
     val encode: int -> var list -> t -> renamed_path list *  PairSetSet.t * int
     (** Comparison and Join operators *)
@@ -662,7 +685,8 @@ module type DOM_ENV =
     (* Join and widening *)
     val join:  hint_be option -> (var lint_be) option
       -> t * join_ele -> t * join_ele -> t
-    val widen: hint_be option -> (var lint_be) option -> t -> t -> t
+    val widen: hint_be option -> (var lint_be) option
+      -> t * join_ele -> t * join_ele -> t
     val directed_weakening: hint_be option -> t -> t -> t
     (* Unary abstraction, a kind of relaxed canonicalization operator *)
     val local_abstract: hint_ue option -> t -> t
@@ -674,7 +698,7 @@ module type DOM_ENV =
     (* Checking that a constraint is satisfied; returns over-approx sat *)
     val sat: var texpr -> t -> bool
     (* Memory alloc/free *)
-    val memory: var_mem_operand -> t -> t list
+    val memory: var_mem_op -> t -> t list
     (** Set domain *)
     (* Guard and sat functions for set properties *)
     val assume: state_log_form -> t -> t
@@ -695,8 +719,11 @@ module type DOM_ENV =
 (** Signature of the disjunction domain *)
 module type DOM_DISJ =
   sig
+    include INTROSPECT
     (* Abstract elements, with or without disjunctions *)
     type t
+    (* Disjunction size *)
+    val disj_size: t -> int
     (* Bottom element *)
     val bot: t
     val is_bot: t -> bool
@@ -727,7 +754,7 @@ module type DOM_DISJ =
     val sat: var texpr -> t -> bool
     (** Set domain *)
     (* Adding / removing set variables *)
-    val unary_op: Opd3.unary_operand -> t -> t
+    val unary_op: unary_op -> t -> t
     (* Guard and sat functions for set properties *)
     val assume: state_log_form -> t -> t
     val check:  state_log_form -> t -> bool
@@ -749,16 +776,24 @@ module type DOM_DISJ =
     val get_stats: t -> int
   end
 
-module type GRAPH_ENCODE = 
+module type GRAPH_ENCODE =
   sig
+    include INTROSPECT
     type encoded_graph_edges = renamed_path list
     type encoded_graph = encoded_graph_edges * PairSetSet.t * int
     val can_widen: encoded_graph -> encoded_graph -> bool
     val encode: int -> namer -> graph -> encoded_graph
     val join: encoded_graph -> encoded_graph -> encoded_graph option
+    val widen: encoded_graph -> encoded_graph -> encoded_graph
     val pp_encoded_graph:
+      int -> string list -> graph -> namer -> string -> out_channel -> unit
+    val pp_precisely_encoded_graph:
       int -> string list -> graph -> namer -> string -> out_channel -> unit
     val reduce_to_seg: abs_graph -> abs_graph
     val string_of_renamed_paths: encoded_graph_edges -> string
     val to_string: abs_graph_arg option -> string
+    (* the following are for unit tests *)
+    exception Cannot_join
+    val is_included_any: step list -> step list -> bool
+    val join_paths: renamed_path -> renamed_path -> renamed_path option
   end

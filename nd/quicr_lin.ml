@@ -39,73 +39,13 @@
  *  - combine
  *)
 
+open Lib
+open Data_structures
+
 module Log =
   Logger.Make(struct let section = "nd_quicl" and level = Log_level.DEBUG end)
 
-(** Maps and Sets with printers *)
-module type OrderedType =
-  sig
-    include Set.OrderedType
-    val t_2str: t -> string
-  end
-module type SET =
-  sig
-    include Set.S
-    val t_2str: string -> t -> string
-  end
-module type MAP =
-  sig
-    include Map.S
-    val t_2str: string -> ('a -> string) -> 'a t -> string
-  end
-module SetMake = functor (O: OrderedType) ->
-  struct
-    include Set.Make( O )
-    let t_2str (sep: string) (t: t): string =
-      let b = ref true in
-      fold
-        (fun i acc ->
-          let locsep = if !b then "" else sep in
-          b := false;
-          Printf.sprintf "%s%s%s" acc locsep (O.t_2str i)
-        ) t ""
-  end
-module MapMake = functor (O: OrderedType) ->
-  struct
-    include Map.Make( O )
-    let t_2str (sep: string) (f_2str: 'a -> string) (t: 'a t): string =
-      let b = ref true in
-      fold
-        (fun i x acc ->
-          let locsep = if !b then "" else sep in
-          b := false;
-          Printf.sprintf "%s%s%s => %s" acc locsep (O.t_2str i) (f_2str x)
-        ) t ""
-  end
-module IntOrd =
-  struct
-    type t = int
-    let compare = (-)
-    let t_2str = string_of_int
-  end
-module IntMap =
-  struct
-    include MapMake(IntOrd)
-    let of_list l =
-      List.fold_left (fun acc (k, v) -> add k v acc) empty l
-  end
-module IntSet = SetMake(IntOrd)
-
 (* Printing maps and sets *)
-let gen_set_2str (c: string) (f: int -> string) (s: IntSet.t): string =
-  let _, str =
-    (IntSet.fold
-       (fun i (b, acc) ->
-         false, Printf.sprintf "%s%s%s" acc (if b then "" else c) (f i)
-       ) s (true, "")) in
-  str
-let set_setv_2str = gen_set_2str ", " (Printf.sprintf "S[%d]")
-let set_sv_2str = gen_set_2str ", " (Printf.sprintf "N[%d]")
 let pp_set_syms (c: string) (pp_sym: Format.formatter -> int -> unit)
     (ch: Format.formatter) (s: IntSet.t): unit =
   let _ =
@@ -115,7 +55,6 @@ let pp_set_syms (c: string) (pp_sym: Format.formatter -> int -> unit)
         false
       ) s true in
   ( )
-
 
 
 (** Module abbrevs *)

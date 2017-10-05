@@ -12,10 +12,11 @@
  ** Francois Berenger, 26/07/2016 *)
 
 (* available colors *)
-type t = Black | Red | Green | Yellow | Blue | Magenta | Cyan | White | Default
+type t =
+  | Reset
+  | Bold
+  | Black | Red | Green | Yellow | Blue | Magenta | Cyan | White
+  | Default
 
 (* corresponding string for an ANSI terminal *)
 val to_string: t -> string
-
-(* string to reset color of an ANSI terminal *)
-val reset: string

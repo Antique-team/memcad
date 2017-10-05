@@ -46,7 +46,7 @@ type formal_int_arg = [
   | `Fa_var_new of int (* new variable *)
   | `Fa_par_int of int (* integer type parameter *) ]
 type formal_set_arg = [
-  | `Fa_var_new of int (* new variable *)
+  | `Fa_var_new of int (* new set variable *)
   | `Fa_par_set of int (* set type parameter *) ]
 type formal_arith_arg = [ (* pointer or integer *)
   | `Fa_this           (* main parameter *)
@@ -83,8 +83,9 @@ type hform = heapatom list (* separating conjunction *)
 (** Pur formulas, expressions, etc *)
 (* set expression (very limited for now; to extend later) *)
 type sexpr =
-  | Se_var of formal_set_arg (* a set repr. by a variable *)
-  | Se_uplus of formal_set_arg * formal_arith_arg (* X \uplus { y } *)
+  | Se_var of formal_set_arg                (* a set repr. by a variable *)
+  | Se_uplus of formal_set_arg list * formal_arith_arg (* X \uplus { y } *)
+  | Se_union of formal_set_arg list * formal_arith_arg (* X \cup Y *)
 (* arith expression *)
 type aexpr =
   | Ae_cst of int
@@ -99,11 +100,21 @@ type sform =
 type aform =
   | Af_equal of aexpr * aexpr
   | Af_noteq of aexpr * aexpr
+  | Af_sup of aexpr * aexpr
+  | Af_supeq of aexpr * aexpr
+(* path expression *)
+type pathstr =
+  | Pe_epsilon                     (* empty string *)
+  | Pe_seg of Offs.t list          (* star pattern access path *)
+  | Pe_single of Offs.t list       (* single step access path *)
+(* path formula *)
+type apath = formal_ptr_arg * pathstr * formal_ptr_arg
 (* pure formula *)
 type pformatom =
   | Pf_alloc of int   (* size allocated bytes from root pointer *)
   | Pf_set of sform   (* set predicates *)
   | Pf_arith of aform (* arithmethic predicates *)
+  | Pf_path of apath  (* access path predicates *)
 type pform = pformatom list (* conjunction *)
 
 
@@ -116,7 +127,9 @@ type ir_kind =
 (* Rule of an inductive definition *)
 type irule =
     { (** Components of the rule *)
-      ir_num:  int;           (* number of new nodes *)
+      ir_num:  int;           (* number of new SVs *)
+      ir_nnum: IntSet.t;      (* number of new int SVs *)
+      ir_snum: IntSet.t;      (* number of new SETVs *)
       ir_typ:  ntyp IntMap.t; (* types of the new variables *)
       ir_heap: hform;         (* heap part *)
       ir_pure: pform;         (* pure part *)
@@ -125,7 +138,8 @@ type irule =
       ir_uptr: IntSet.t;      (* unused ptr parameters *)
       ir_uint: IntSet.t;      (* unused int parameters *)
       ir_uset: IntSet.t;      (* unused set parameters *)
-      ir_unone: bool;         (* true iff it uses no parameter at all *) }
+      ir_unone: bool;         (* true iff it uses no parameter at all *)
+      ir_cons: aform option;  (* guard condition of this rule *) }
 
 
 (** General inductive definition properties to be found by analysis *)
@@ -142,6 +156,44 @@ type pars_rec =
       pr_int:        par_rec IntMap.t ;
       (* set parameter field (const/head/add) *)
       pr_set:        Set_sig.set_par_type IntMap.t; }
+
+
+(* The type of parameters of an inductive definition, that can be
+ * used in the weakening of inductive edges *)
+type set_op =
+  | Uplus
+  | Union
+type wk_typ = [
+  | `Eq                         (* a_l = a_r *)
+  | `Non                        (* a_l has no relation with a_r *)
+  | `Leq                        (* a_l \leq a_r *)
+  | `Geq                        (* a_l \geq a_r *)
+  (* a_l = a_r for inductive edge, for segments,
+   * \alpha(a_l) *= \beta(a_l') and \alpha(a_r) *= \beta(a_r'),
+   * a_l = a_l' + x and a_r = a_r' + x *)
+  | `Add
+  (* additive type for set parameters *)
+  | `SAdd of set_op]
+type ptr_wk_typ = [
+  | `Eq
+  | `Non]
+type int_wk_typ = [
+  | `Eq
+  | `Non
+  | `Leq
+  | `Geq
+  | `Add]
+type set_wk_typ = [
+  | `Eq
+  | `Non
+  | `SAdd of set_op]
+type pars_wk_typ =
+  { (* weaken type for pointer parameters *)
+    ptr_typ:  ptr_wk_typ IntMap.t ;
+    (* weaken type for integer parameters *)
+    int_typ:  int_wk_typ IntMap.t ;
+    (* weaken type for set parameters *)
+    set_typ:  set_wk_typ IntMap.t; }
 
 
 (** Inductive definitions *)
@@ -163,17 +215,29 @@ type ind =
        * the next inductive call *)
       i_dirs:    Offs.OffSet.t;
       (* offset which may lead to same ind. def *)
-      i_may_self_dirs: Offs.OffSet.t; 
+      i_may_self_dirs: Offs.OffSet.t;
       i_pr_pars: IntSet.t;       (* set of parameters for prev fields *)
       i_fl_pars: int IntMap.t;   (* parameter => field storing it *)
       i_pr_offs: Offs.OffSet.t;  (* set of prev fields *)
       i_list:    (int * int) option; (* next off+size for list like defs *)
 
+      (* constraints of inductive definition parameters, such as, i=0, i!=0,
+       * this constraints could be used to perform reductions, like,
+       *  i=0 ==> E = \emptyset *)
+      i_rules_cons:  (aform * aform list * sform list) list;
       (* behavior of inductive definition parameters:
        *  - ptr parameters may be constant
-       *  - int and set parameters may be constnat or additive
-       *)
-      i_pkind:   pars_rec;    }
+       *  - int and set parameters may be constant or additive *)
+      i_pkind:   pars_rec;
+      (* behavior of inductive definition parameters:
+       *  - a ptr parameter may reach another ptr parameter following
+       * a path *)
+      i_ppath: apath list ;
+      (* weaken type of inductive definition parameters *)
+      i_pars_wktyp:  pars_wk_typ;
+      (* weaken type of parameters of inductive definition emp rule*)
+      i_emp_pars_wktyp: pars_wk_typ;
+    }
 
 
 (** Parsing of inductive definitions *)

@@ -67,17 +67,20 @@ type le_state =
       ls_stop_l:    int Aa_sets.t option ;
       (* Right remainder, excluded due to hint => left *)
       ls_excl_l:    l_call IntMap.t ;
-      (* Optional "end of segment node", to inhibit rules from that point *)
-      ls_end_seg:   IntSet.t; }
+      (* Optional "no empty unfold SVs", to inhibit unfold non empty *)
+      ls_no_unf0:   IntSet.t ;
+      (* Optional "end of segment SVs", to inhibit rules from these SVs *)
+      ls_end_seg:   IntSet.t ; }
 (* Pretty-printing of a configuration *)
 let pp_le_state (ls: le_state): string =
   let config_sep: string = "------------------------------------------\n" in
-  Printf.sprintf "%sLeft:\n%s\nRight:\n%sInjection:\n%sSet Inject:\n%s\n%s"
+  Printf.sprintf
+    "%sLeft:\n%s\nRight:\n%sInjection:\n%sSet Inj:\n%s\n\nSet_cons:\n%s\n%s"
     config_sep (lmem_2stri " " ls.ls_cur_l) (lmem_2stri " " ls.ls_cur_r)
     (Graph_utils.Nemb.ne_full_2stri "  " ls.ls_cur_i)
     (Set_utils.Semb.ne_full_2stri "  " ls.ls_cur_si)
+    (gen_list_2str "" Set_utils.set_cons_2str ";" ls.ls_setctr_r)
     config_sep
-
 
 (** Utilities *)
 
@@ -517,7 +520,10 @@ and is_le_unfold
     (il: int) (ir: int) (ls: le_state): le_state =
   if !Flags.flag_debug_is_le_list then
     Log.force "IsLe triggerring unfolding<%b>" hint_empty;
-  let l_mat = List_mat.unfold ir ls.ls_cur_r in
+  let l_mat =
+    (* if only non empty unfold allowed, do selective unfolding *)
+    let only_non_emp = IntSet.mem ir ls.ls_no_unf0 in
+    List_mat.unfold ir only_non_emp ls.ls_cur_r in
   if !Flags.flag_debug_is_le_list then
     Log.force "IsLe performed unfolding: %d" (List.length l_mat);
   let els =
@@ -581,6 +587,7 @@ let gen_is_le
     (emp_both: bool)        (* whether both arguments should be fully emptied *)
     (stop: int Aa_sets.t option) (* optional stop nodes *)
     (xl: lmem)              (* left input *)
+    (nou0: IntSet.t)        (* no unfold 0 *)
     (es: IntSet.t)          (* segment end(s), if any *)
     (pl: n_cons -> bool)    (* satisfiability, in the left argument *)
     (sl: set_cons -> bool)  (* satisfiability, left arg, set constraints *)
@@ -607,6 +614,7 @@ let gen_is_le
               ls_emp_both  = emp_both;
               ls_stop_l    = stop;
               ls_excl_l    = IntMap.empty;
+              ls_no_unf0   = nou0;
               ls_end_seg   = es; } in
   try
     if not !very_silent_mode then
@@ -631,7 +639,7 @@ let is_le
     (* injection from right set var into left set var *)
     (s_r: Graph_sig.node_emb)
     : is_le_ym =
-  let res = gen_is_le true None xl IntSet.empty pl sl xr r s_r in
+  let res = gen_is_le true None xl IntSet.empty IntSet.empty pl sl xr r s_r in
   match res with
   | None -> `Ilr_not_le
   | Some ls ->
@@ -642,16 +650,17 @@ let is_le
 
 (** Partial inclusion checking function, used for join *)
 let is_le_weaken_check
-    (xl: lmem)           (* left input *)
-    (es: IntSet.t)       (* segment end(s), if any *)
-    (pl: n_cons -> bool) (* satisfiability, in the left argument *)
-    (sl: set_cons -> bool) (* satisfiability, left arg, set constraints *)
-    (xr: lmem)           (* right input *)
+    (xl: lmem)              (* left input *)
+    (nou0: IntSet.t)        (* no unfold 0 *)
+    (es: IntSet.t)          (* segment end(s), if any *)
+    (pl: n_cons -> bool)    (* satisfiability, in the left argument *)
+    (sl: set_cons -> bool)  (* satisfiability, left arg, set constraints *)
+    (xr: lmem)              (* right input *)
     (r: Graph_sig.node_emb) (* injection from right into left *)
     (* injection from right setvar into left set var *)
     (svar_r: Graph_sig.node_emb)
     : List_sig.is_le_weaken_check =
-  let res = gen_is_le false None xl es pl sl xr r svar_r in
+  let res = gen_is_le false None xl nou0 es pl sl xr r svar_r in
   match res with
   | None -> `Ilr_not_le
   | Some ls ->
@@ -663,6 +672,7 @@ let is_le_weaken_check
 let is_le_weaken_guess
     ~(stop: int Aa_sets.t option) (* optional stop nodes *)
     (xl: lmem)           (* left input *)
+    (nou0: IntSet.t)        (* no unfold 0 *)
     (es: IntSet.t)       (* segment end(s), if any *)
     (pl: n_cons -> bool) (* satisfiability, in the left argument *)
     (sl: set_cons -> bool) (* satisfiability, left arg, set constraints *)
@@ -671,7 +681,7 @@ let is_le_weaken_guess
     (* injection from right setvar into left set var *)
     (svar_r: Graph_sig.node_emb)
     : List_sig.is_le_weaken_guess =
-  let res = gen_is_le false stop xl es pl sl xr r svar_r in
+  let res = gen_is_le false stop xl nou0 es pl sl xr r svar_r in
   match res with
   | None -> `Ilr_not_le
   | Some ls ->

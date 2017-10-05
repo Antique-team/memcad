@@ -30,7 +30,7 @@ let abs_hist_2str (ah: abs_hist): string =
   Printf.sprintf "[%s]" (gen_list_2str "" abs_hist_atom_2str "::" ah)
 
 (** Comparison *)
-let loc_compare: loc -> loc -> int = (-)
+let loc_compare: loc -> loc -> int = Pervasives.compare
 let h_unfold_compare u0 u1 =
   match u0, u1 with
   | Uguard, Uguard | Uassign, Uassign | Uunfold, Uunfold -> 0

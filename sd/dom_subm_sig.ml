@@ -27,6 +27,7 @@ open Nd_sig
  **  - it is lifted to a value domain in dom_val_subm *)
 module type SUBMEM_SIG =
   sig
+    include INTROSPECT
     (* Sub-memory abstraction: description of one sub-memory *)
     type t
 

@@ -47,11 +47,16 @@ let get_tmp_dim () =
 let reset_tmp_dim () =
   tmp_dim := 3
 
-
+let global_namer: sv_namer ref = ref IntMap.empty
 
 (** Module construction *)
-module Make_Maya = functor (Dv: DOM_VALUE) ->
+module Make_Maya = functor (Dv: DOM_VALSET) ->
   (struct
+    let module_name = "dom_val_maya"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s"
+        module_name Dv.module_name (Dv.config_2str ())
+
     (* The type of a variable *)
     type sclset =
       | AlExist     (* Always More or equal than one value *)
@@ -67,6 +72,9 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
     (* Avatars of a variable *)
     let op_dim (var: int) =
       real_dim + (var * 4), real_dim + (var * 4) + 1
+
+    let orig_dim (dim: int) =
+      (dim - real_dim ) / 4
 
     (* Dim of size information of a variable *)
     let size_dim (var: int) =
@@ -188,6 +196,26 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
           (* The type of each dimension *)
           t_type:  sclset IntMap.t; }
 
+    let var_is_non_empty (var: int) (x: t): bool =
+      not (is_set_may_empty (IntMap.find var x.t_type))
+
+    let get_namer (name: sv_namer) (x: t): unit =
+      let var_str key =
+        if IntMap.mem key name then IntMap.find key name
+        else Pervasives.string_of_int key in
+      let nname =
+        IntMap.fold
+          (fun key s cal ->
+            let l,r = op_dim key in
+            let size = size_dim key in
+            if is_scalar s then IntMap.add l (var_str key) cal
+            else
+              let cal = IntMap.add size ((var_str key)^"#num") cal in
+              let cal = IntMap.add r ((var_str key)^"(l)") cal in
+              IntMap.add l ((var_str key)^"(u)") cal
+          ) x.t_type IntMap.empty in
+      global_namer := nname
+
     (** Pretty-printing *)
     let t_2stri (name: sv_namer) (ind: string) (x: t) =
       let var_str key =
@@ -255,18 +283,18 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
     let recov_dim (ldim: int) (rdim: int) (tnum: Dv.t): Dv.t =
       let tnum =
         Dv.guard true (Nc_cons (Tcons1.EQ,Ne_var ldim,Ne_var rdim)) tnum in
-      let tnum = Dv.add_node util_dim tnum in
+      let tnum = Dv.sv_add util_dim tnum in
       let tnum =
         Dv.guard true (Nc_cons (Tcons1.SUPEQ,Ne_var util_dim,Ne_csti 0)) tnum in
       let tnum =
         Dv.assign rdim (Ne_bin (Texpr1.Add,Ne_var rdim,Ne_var util_dim)) tnum in
-      let tnum = Dv.rem_node util_dim tnum in
-      let tnum = Dv.add_node util_dim tnum in
+      let tnum = Dv.sv_rem util_dim tnum in
+      let tnum = Dv.sv_add util_dim tnum in
       let tnum =
         Dv.guard true (Nc_cons (Tcons1.SUPEQ,Ne_var util_dim,Ne_csti 0)) tnum in
       let tnum =
         Dv.assign ldim (Ne_bin (Texpr1.Sub,Ne_var ldim,Ne_var util_dim)) tnum in
-      let tnum = Dv.rem_node util_dim tnum in
+      let tnum = Dv.sv_rem util_dim tnum in
       bound_by_infity true ldim rdim tnum
 
     (* Restore all variables in an expression *)
@@ -284,7 +312,7 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
       let ldim,rdim = op_dim id in
       let num =
         Dv.guard true (Nc_cons (Tcons1.EQ,Ne_var ldim,Ne_var rdim)) num in
-      Dv.forget rdim num
+      Dv.sv_forget rdim num
 
     (* Reset the size of a variable *)
     let reset_size_op (id: int) (s: sclset) (x: t): t =
@@ -327,12 +355,14 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
             t_num  = reduce_dim id x.t_num }
         else x
 
+    let is_var_in (var: int) (x: t) : bool =
+      IntMap.mem var x.t_type
     (* Get the size information of a variable *)
     let size_of_var (var: int) (x: t): int * int option =
       let s_of_var = IntMap.find var x.t_type in
       assert(is_set s_of_var);
       if is_set_sum s_of_var then
-        let intv = Dv.bound_variable (size_dim var) x.t_num in
+        let intv = Dv.sv_bound (size_dim var) x.t_num in
         let low =
           match intv.intv_inf with
           | Some a when a >= 0 -> a
@@ -370,7 +400,7 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
       else
         let s = IntMap.find id x.t_type in
         let dims = dims_of_var id s in
-        let nnum = IntSet.fold Dv.rem_node dims x.t_num in
+        let nnum = IntSet.fold Dv.sv_rem dims x.t_num in
         { t_num  = nnum;
           t_type = IntMap.remove id x.t_type }
 
@@ -379,17 +409,17 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
       let num,ss =
         if isset then
           let s = sclset_of_interval true low up in
-          let tnum = Dv.add_node ldim (Dv.add_node rdim x.t_num) in
+          let tnum = Dv.sv_add ldim (Dv.sv_add rdim x.t_num) in
           let is_emp = if is_set_empty s then false else true in
           let nnum = bound_by_infity is_emp ldim rdim tnum in
           let s_dim = size_dim id in
-          let nnum = Dv.add_node s_dim nnum in
+          let nnum = Dv.sv_add s_dim nnum in
           let nnum =
             let lcons,rcons = cons_of_interval low up s_dim in
             Dv.guard true lcons (Dv.guard true rcons nnum) in
           nnum, s
         else
-          let nnum = Dv.add_node ldim x.t_num in
+          let nnum = Dv.sv_add ldim x.t_num in
           let s =  sclset_of_interval false low up in
           nnum, s in
       { t_num  = num;
@@ -409,13 +439,13 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
       let s = IntMap.find var x.t_type in
       if is_set_may_empty s then
         let ldim,rdim = op_dim var in
-        let lbound = Dv.bound_variable ldim x.t_num in
-        let rbound = Dv.bound_variable rdim x.t_num in
+        let lbound = Dv.sv_bound ldim x.t_num in
+        let rbound = Dv.sv_bound rdim x.t_num in
         { intv_inf = rbound.intv_inf;
           intv_sup = lbound.intv_sup }
       else
         let ldim, _ = op_dim var in
-        Dv.bound_variable ldim x.t_num
+        Dv.sv_bound ldim x.t_num
 
     (* Reset the size of a scalar variable *)
     let scalar_to_single (var: int) (x: t): t =
@@ -443,7 +473,7 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
             ) expr in
         let sdim_var = size_dim var in
         let nnum = Dv.assign sdim_var expr x.t_num in
-        let intv = Dv.bound_variable sdim_var nnum in
+        let intv = Dv.sv_bound sdim_var nnum in
         let low =
           match intv.intv_inf with
           | Some a when a >= 0-> a
@@ -625,10 +655,11 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
 
     (* Drop a set of dimensions *)
     let drop_dims (set: IntSet.t) (num: Dv.t): Dv.t =
-      IntSet.fold Dv.rem_node set num
+      IntSet.fold Dv.sv_rem set num
 
     (* General implementation of guard *)
     let rec guard (is_s: bool) (typ: bool) (cons: n_cons) (x: t): t =
+      reset_tmp_dim ();
       match cons with
       | Nc_rand -> x
       | Nc_bool true -> x
@@ -657,19 +688,43 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
             | Tcons1.DISEQ,false ->
                 let x =
                   guard is_s true (Nc_cons (Tcons1.SUPEQ,expr1,expr2)) x in
-                guard is_s true (Nc_cons (Tcons1.SUPEQ,expr2,expr1)) x
+                let x =
+                  guard is_s true (Nc_cons (Tcons1.SUPEQ,expr2,expr1)) x in
+                if is_s then
+                  let nexpr1 = var_subs true expr1 x.t_type in
+                  let nexpr2 = var_subs true expr2 x.t_type in
+                  let do_eq ( ) =
+                    let num =
+                      Dv.guard true
+                        (Nc_cons (Tcons1.EQ, nexpr1, nexpr2)) x.t_num in
+                    { x with t_num = num } in
+                  begin
+                    match expr1, expr2 with
+                    | Ne_var v0, Ne_var v1 ->
+                        if var_is_non_empty v0 x
+                            && var_is_non_empty v1 x then do_eq ( )
+                        else x
+                    | Ne_var v0, Ne_csti c0
+                    | Ne_csti c0, Ne_var v0 ->
+                        if  var_is_non_empty v0 x then do_eq ( )
+                        else x
+                    | _ -> x
+                  end else x
             | Tcons1.EQ,false
             | Tcons1.DISEQ,true ->
                 let guard_sub (ty: bool) (tx: t) =
                   let nexpr1 = var_subs ty expr1 tx.t_type  in
                   let nexpr2 = var_subs (not ty) expr2 tx.t_type  in
                   let num1 =
-                    Dv.guard ty (Nc_cons (Tcons1.SUP, nexpr1, nexpr2))
+                    Dv.guard true (Nc_cons (Tcons1.SUP, nexpr1, nexpr2))
                       tx.t_num in
                   let num2 =
-                    Dv.guard ty (Nc_cons (Tcons1.SUP, nexpr2, nexpr1))
+                    Dv.guard true (Nc_cons (Tcons1.SUP, nexpr2, nexpr1))
                       tx.t_num in
                   let numa = Dv.upper_bnd Jjoin num1 num2 in
+                  let numa =
+                    Dv.guard true
+                      (Nc_cons (Tcons1.DISEQ, nexpr2, nexpr1)) numa in
                   { tx with t_num = numa } in
                 let guard_sub_w (ty: bool) (tx: t) =
                   let nexpr1,anum,aset =
@@ -677,9 +732,9 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
                   let nexpr2,anum,aset =
                     expand_subs (not ty) expr2 tx.t_type anum aset in
                   let num1 =
-                    Dv.guard ty (Nc_cons (Tcons1.SUP, nexpr1, nexpr2)) anum in
+                    Dv.guard true (Nc_cons (Tcons1.SUP, nexpr1, nexpr2)) anum in
                   let num2 =
-                    Dv.guard ty (Nc_cons (Tcons1.SUP, nexpr2, nexpr1)) anum in
+                    Dv.guard true (Nc_cons (Tcons1.SUP, nexpr2, nexpr1)) anum in
                   let anum = Dv.upper_bnd Jjoin num1 num2 in
                   let anum = drop_dims aset anum in
                   { tx with t_num = anum } in
@@ -693,10 +748,9 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
      * is Single, it cannot be Empty in post-condition *)
     let rec guard_s (typ: bool) (cons: n_cons) (x: t): t =
       guard true typ cons x
-  
+
     (* Guard, weak version  *)
     let rec guard_w (typ: bool) (cons: n_cons) (x: t): t =
-      reset_tmp_dim ();
       guard false typ cons x
 
     (** Checks a constraint is satisfied (i.e., attempts to prove it) *)
@@ -718,19 +772,30 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
                 let nexpr1 = var_subs false expr1 x.t_type in
                 let nexpr2 = var_subs false expr2 x.t_type in
                 Dv.sat x.t_num (Nc_cons (Tcons1.EQ,nexpr1,nexpr2))
-            | Tcons1.DISEQ->
-                (sat_s x (Nc_cons (Tcons1.SUP,expr1,expr2)) ||
-                sat_s x (Nc_cons (Tcons1.SUP,expr2,expr1)))
+            | Tcons1.DISEQ ->
+                let nexpr1 = var_subs true expr1 x.t_type in
+                let nexpr2 = var_subs true expr2 x.t_type in
+                Dv.sat x.t_num (Nc_cons (op, nexpr1, nexpr2)) ||
+                sat_s x (Nc_cons (Tcons1.SUP,expr1,expr2)) ||
+                sat_s x (Nc_cons (Tcons1.SUP,expr2,expr1))
             | Tcons1.EQMOD _ ->
                 false
           else
             false
 
+    (* Get all variables that equal to the current one *)
+    let get_eq_class (i: int) (x: t): IntSet.t =
+      if var_is_non_empty i x then
+        let iset = Dv.get_eq_class (fst (op_dim i)) x.t_num in
+        IntSet.fold (fun key -> IntSet.add (orig_dim key)) iset IntSet.empty
+      else
+        IntSet.empty
+
     (* Weak sat *)
     let sat_w (x: t) (cons: n_cons) =
       reset_tmp_dim ();
       match cons with
-      | Nc_rand -> Log.fatal_exn "Nc_rand case in sat_w" 
+      | Nc_rand -> Log.fatal_exn "Nc_rand case in sat_w"
       | Nc_bool b-> b
       | Nc_cons (op, expr1, expr2) ->
           if (is_linear expr1) && (is_linear expr2)
@@ -770,14 +835,14 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
           let tmp_dim_t = get_tmp_dim () in
           let tmp_dim_f = get_tmp_dim () in
           let anum =
-            Dv.add_node tmp_dim_t (Dv.add_node tmp_dim_f anum) in
+            Dv.sv_add tmp_dim_t (Dv.sv_add tmp_dim_f anum) in
           let anum = Dv.assign tmp_dim_t exprt anum in
           let anum = Dv.assign tmp_dim_f exprf anum in
           let anum = drop_dims aset anum in
           let anum = Dv.assign ldim (Ne_var tmp_dim_t) anum in
           let anum = Dv.assign rdim (Ne_var tmp_dim_f) anum in
           let anum =
-            Dv.rem_node tmp_dim_t (Dv.rem_node tmp_dim_f anum) in
+            Dv.sv_rem tmp_dim_t (Dv.sv_rem tmp_dim_f anum) in
           let anum = recov_dim ldim rdim anum in
           let anum = recov_expr expr x.t_type anum in
           let s_dim = size_dim id in
@@ -786,14 +851,14 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
               Dv.guard true
                 (Nc_cons (Tcons1.SUPEQ,Ne_var s_dim,Ne_csti 0))
                 (Dv.guard true (Nc_cons (Tcons1.SUPEQ,Ne_csti 0,Ne_var s_dim))
-                   (Dv.forget s_dim anum)) in
+                   (Dv.sv_forget s_dim anum)) in
             { t_num  = anum;
               t_type = IntMap.add id ns x.t_type }
         else
           let nexpr,anum,aset =
             expand_subs true expr x.t_type  x.t_num IntSet.empty in
           let anum =
-            if is_set_may_empty s_of_id then Dv.forget rdim anum
+            if is_set_may_empty s_of_id then Dv.sv_forget rdim anum
             else anum in
           let ns = sclset_of_interval isset 1 (Some 1) in
           let anum = bound_by_infity true ldim ldim
@@ -820,7 +885,7 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
             expand_subs false expr x.t_type  anum aset in
           let tmp_dim_t = get_tmp_dim () in
           let tmp_dim_f = get_tmp_dim () in
-          let anum = Dv.add_node tmp_dim_t (Dv.add_node tmp_dim_f anum) in
+          let anum = Dv.sv_add tmp_dim_t (Dv.sv_add tmp_dim_f anum) in
           let anum = Dv.assign tmp_dim_t exprt anum in
           let anum = Dv.assign tmp_dim_f exprf anum in
           let anum = drop_dims aset anum in
@@ -835,7 +900,7 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
                   (Nc_cons (Tcons1.EQ,Ne_var tmp_dim_t,Ne_var tmp_dim_f))
                   anum in
               let tnum =
-                Dv.rem_node tmp_dim_f tnum in
+                Dv.sv_rem tmp_dim_f tnum in
               Dv.compact ldim tmp_dim_t tnum in
           let anum = recov_expr expr x.t_type anum in
           let x = { x with t_num = anum} in
@@ -846,13 +911,13 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
           let nexpr,anum,aset =
             expand_subs true expr x.t_type  x.t_num IntSet.empty in
           let tmp_dim_t = get_tmp_dim () in
-          let anum = Dv.add_node tmp_dim_t anum in
+          let anum = Dv.sv_add tmp_dim_t anum in
           let anum = Dv.assign tmp_dim_t nexpr anum in
           let anum = Dv.compact ldim tmp_dim_t anum in
           let anum =
             if is_set_may_empty  id_size then
               let tmp_dim_f = get_tmp_dim () in
-              let tnum = Dv.add_node tmp_dim_f anum in
+              let tnum = Dv.sv_add tmp_dim_f anum in
               let tnum = Dv.assign tmp_dim_f nexpr tnum in
               Dv.compact rdim tmp_dim_f tnum
             else anum in
@@ -901,32 +966,31 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
      * does not change, actually, this function is a hack way which saves
      * the cost of asserting that expression could not be empty *)
     let update_subs_elt (id: int) (expr: n_expr) (x: t): t =
-    ljc_debug "update_subs_elt is called\n";
-    reset_tmp_dim ();
-    let id_size = IntMap.find id x.t_type in
-    if is_set_empty id_size
-       || is_set_sum id_size
-       || is_scalar_exist id_size then
-      let x = update_add id expr x in
-      { x with t_type = IntMap.add id id_size x.t_type }
-    else
-      let ldim,_ = op_dim id in
-      if is_expr_may_empty expr x then
-        let exprt,anum,aset =
-          expand_subs true expr x.t_type x.t_num IntSet.empty in
-        let exprf,anum,aset = expand_subs false expr x.t_type anum aset in
-        let anum = Dv.assign ldim exprt anum in
-        let anum =
-          Dv.guard true (Nc_cons (Tcons1.EQ,Ne_var ldim,exprf)) anum in
-        let anum = drop_dims aset anum in
-        let anum = recov_expr expr x.t_type anum in
-        { x with t_num = anum }
+       reset_tmp_dim ();
+      let id_size = IntMap.find id x.t_type in
+      if is_set_empty id_size || is_set_sum id_size
+          || is_scalar_exist id_size then
+        let x = update_add id expr x in
+        { x with t_type = IntMap.add id id_size x.t_type }
       else
-        let nexpr,anum,aset =
-          expand_subs true expr x.t_type  x.t_num IntSet.empty in
-        let anum = bound_by_infity true ldim ldim (Dv.assign ldim nexpr anum) in
-        let anum = drop_dims aset anum in
-        { x with t_num = anum }
+        let ldim,_ = op_dim id in
+        if is_expr_may_empty expr x then begin
+          let exprt,anum,aset =
+            expand_subs true expr x.t_type x.t_num IntSet.empty in
+          let exprf,anum,aset = expand_subs false expr x.t_type anum aset in
+          let anum = Dv.assign ldim exprt anum in
+          let anum =
+            Dv.guard true (Nc_cons (Tcons1.EQ,Ne_var ldim,exprf)) anum in
+          let anum = drop_dims aset anum in
+          let anum = recov_expr expr x.t_type anum in
+          { x with t_num = anum } end
+        else
+          let nexpr,anum,aset =
+            expand_subs true expr x.t_type  x.t_num IntSet.empty in
+          let anum =
+            bound_by_infity true ldim ldim (Dv.assign ldim nexpr anum) in
+          let anum = drop_dims aset anum in
+          { x with t_num = anum }
 
     (* Copy the information from a variable to another *)
     let expand (oid: int) (nid: int) (x: t): t =
@@ -952,7 +1016,7 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
           { nm_map    = IntMap.singleton old (frh,IntSet.empty);
             nm_rem    = IntSet.empty;
             nm_suboff = fun _ -> false; } in
-        Dv.symvars_srename OffMap.empty rename_map x  in
+        Dv.symvars_srename OffMap.empty rename_map None x in
       let oldim,ordim = op_dim oid in
       let nldim,nrdim = op_dim nid in
       let osdim = size_dim oid in
@@ -977,11 +1041,11 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
       { t_type = IntMap.filter (fun key _ -> IntSet.mem key vars) x.t_type;
         t_num = Dv.symvars_filter dims x.t_num }
 
-    (* Forget the informaiton of a varialbe except its existence *)
-    let forget (var: int) (x: t): t =
+    (* Forget the information about an SV *)
+    let sv_forget (var: int) (x: t): t =
       let s =  (IntMap.find var x.t_type) in
       let dims = dims_of_var var s in
-      { x with t_num = IntSet.fold Dv.forget dims x.t_num }
+      { x with t_num = IntSet.fold Dv.sv_forget dims x.t_num }
 
     (* Merge the informaiton of two variables to one *)
     let compact (l: int) (r: int) (x: t): t =
@@ -992,8 +1056,11 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
       let rsdim = size_dim r in
       match is_set ls, is_set rs with
       | false, false ->
+          let tnum = Dv.assign lldim (Ne_var rldim) x.t_num in
+          let tnum = Dv.upper_bnd Jjoin x.t_num tnum in
+          let tnum = Dv.sv_rem rldim tnum in
           { t_type = IntMap.add l AlExist (IntMap.remove r x.t_type);
-            t_num  = Dv.compact lldim rldim x.t_num }
+            t_num  = tnum }
       | true, true ->
           begin
             if is_set_empty rs then rem_node r x
@@ -1003,20 +1070,31 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
                   l (Ne_bin (Texpr1.Add,Ne_var l, Ne_var r)) x in
               let x = {x with t_type = IntMap.remove r x.t_type} in
               let ls = IntMap.find l x.t_type in
-              let nn = Dv.rem_node rsdim x.t_num in
+              let nn = Dv.sv_rem rsdim x.t_num in
               match is_set_may_empty ls,is_set_may_empty rs with
               | false,false ->
-                  let nn = Dv.compact lldim rldim nn in
-                  let nn = Dv.rem_node rrdim nn in
+                  let nnn = Dv.assign lldim (Ne_var rldim) nn in
+                  let nn = Dv.upper_bnd Jjoin nn nnn in
+                  let nn = Dv.sv_rem rldim nn in
+                  (** atttenion  *)
+                  (* you cannt use compact since there is a bug here.
+                      with case test-slist1.c *)
+                   let nn = Dv.sv_rem rrdim nn in
                   { x with t_num = nn }
               | true,true ->
-                  let nn = Dv.compact lldim rldim nn in
-                  let nn = Dv.compact lrdim rrdim nn in
+                  let nnn = Dv.assign lldim (Ne_var rldim) nn in
+                  let nn = Dv.upper_bnd Jjoin nn nnn in
+                  let nn = Dv.sv_rem rldim nn in
+                  let nnn = Dv.assign lrdim (Ne_var rrdim) nn in
+                  let nn = Dv.upper_bnd Jjoin nn nnn in
+                  let nn = Dv.sv_rem rrdim nn in
                   { x with t_num = nn }
               | false,true ->
                   let nn = collapse_dim r nn in
-                  let nn = Dv.compact lldim rldim nn in
-                  let nn = Dv.rem_node rrdim nn in
+                  let nnn = Dv.assign lldim (Ne_var rldim) nn in
+                  let nn = Dv.upper_bnd Jjoin nn nnn in
+                  let nn = Dv.sv_rem rldim nn in
+                  let nn = Dv.sv_rem rrdim nn in
                   { x with t_num = nn }
               | true,false -> Log.fatal_exn "unexpected case in compact"
           end
@@ -1053,16 +1131,16 @@ module Make_Maya = functor (Dv: DOM_VALUE) ->
             let rlow, rup = size_of_var key orx in
             match lup, rup with
             | None , Some b -> olx,orx,false
-            | Some a, Some b when a > b -> olx,orx,false
+            | Some a, Some b when a > b -> olx, orx, false
             | _, _ ->
                 let tlx = assert_non_empty key olx in
                 let trx = assert_non_empty key orx in
                 let rem_size tkey ts tx: t =
                   if is_set_sum ts then
-                    { tx with t_num = Dv.rem_node (size_dim tkey) tx.t_num}
+                    { tx with t_num = Dv.sv_rem (size_dim tkey) tx.t_num}
                   else tx in
                 rem_size key ls tlx, rem_size key rs trx, flag in
-      let nlx, nrx, flag = IntMap.fold synchronize lx.t_type (lx,rx,true) in
+      let nlx, nrx, flag = IntMap.fold synchronize lx.t_type (lx, rx, true) in
       if flag then Dv.is_le nlx.t_num nrx.t_num (fun i j -> false)
       else false
   end: DOM_MAYA)

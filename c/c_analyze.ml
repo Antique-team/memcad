@@ -334,7 +334,7 @@ module Make = functor (M: DOM_C) -> functor (P: PRE_ANALYSIS) ->
     (* Analysis of variable declarations *)
     let a_decl (ct: ctxt) (v: c_var) (x: t): t =
       if ct.ct_currec then Log.fatal_exn "rec-call: variable creation";
-      M.unary_op x (Opd3.Add_var (tr_c_var v))
+      M.unary_op x (UO_env (EO_add_var (tr_c_var v)))
 
     (* Analysis of blocks entries and exits *)
     let a_block_in (ct: ctxt) (x: t): t =
@@ -360,7 +360,8 @@ module Make = functor (M: DOM_C) -> functor (P: PRE_ANALYSIS) ->
       (* Logs and outputs *)
       show_sep ();
       if !Flags.very_silent_mode then
-        Log.info "ITER: at point %d(%d)" s.csl !step
+        Log.info "ITER: at point %d(%d): %d disjuncts" s.csl !step
+          (M.disj_size x)
       else
         begin
           let status =
@@ -388,7 +389,7 @@ module Make = functor (M: DOM_C) -> functor (P: PRE_ANALYSIS) ->
             x
           else
             (* 1. dump the return variable *)
-            let x0 = M.unary_op x Opd3.Add_no_return_var in
+            let x0 = M.unary_op x (UO_ret None) in
             (* 2. call the procedure *)
             let x0 = a_proc_call s.csl false ct pc x0 in
             (* 3. restore the previous return variable *)
@@ -403,7 +404,7 @@ module Make = functor (M: DOM_C) -> functor (P: PRE_ANALYSIS) ->
           else
             (* 1. create the return variable *)
             let tl = tr_c_lval lv in
-            let x0 = M.unary_op x (Opd3.Add_return_var (snd tl)) in
+            let x0 = M.unary_op x (UO_ret (Some (snd tl))) in
             (* 2. call the procedure *)
             let x0 = a_proc_call s.csl true ct pc x0 in
             if Flags.flag_debug_funcalls && not !very_silent_mode then
@@ -489,6 +490,8 @@ module Make = functor (M: DOM_C) -> functor (P: PRE_ANALYSIS) ->
           M.unary_flow_op FO_branch_break x
       | Cscontinue ->
           M.unary_flow_op FO_branch_continue x
+      | Csexit ->
+          M.bot x
       | Cs_memcad com ->
           begin
             match com with
@@ -553,7 +556,7 @@ module Make = functor (M: DOM_C) -> functor (P: PRE_ANALYSIS) ->
                 a_check_setexprs  s.csl ls x
             | Mc_decl_setvars ss ->
                 List.fold_left (fun acc y ->
-                  M.unary_op acc (Opd3.Add_setvar (tr_c_setvar y))
+                  M.unary_op acc (UO_env (EO_add_setvar (tr_c_setvar y)))
                 ) x ss
           end
       | Csassert c ->
@@ -579,10 +582,10 @@ module Make = functor (M: DOM_C) -> functor (P: PRE_ANALYSIS) ->
       | Csalloc (l, e) ->
           let tl = tr_c_lval l in
           let te = tr_c_expr e in
-          M.unary_op x (Opd3.Memory (Allocate (tl, te)))
+          M.unary_op x (UO_mem (MO_alloc (tl, te)))
       | Csfree l ->
           let tl = tr_c_lval l in
-          M.unary_op x (Opd3.Memory (Deallocate tl))
+          M.unary_op x (UO_mem (MO_dealloc tl))
     and a_stat_list (ct: ctxt) (b: c_block) (x: t): t =
       match b with
       | [ ] -> x

@@ -21,6 +21,8 @@ void main( ){
     if( cond ){ // insert
       tree m;
       m = malloc( 20 );
+      if( m == 0 )
+        exit( 0 );
       m->h = h;
       if( cond ){ // insert left
         m->l = c->l;

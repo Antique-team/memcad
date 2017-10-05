@@ -21,6 +21,8 @@ module Dom_num_nb_timing = functor (Dn: DOM_NUM_NB) ->
   (struct 
     module T = Timer.Timer_Mod( struct let name = "Apron" end )
     type t = Dn.t
+    let module_name = "dom_num_nb_timing"
+    let config_2str = T.app1 "Apron.config_2str" Dn.config_2str
     let top = Dn.top
     let is_bot = T.app1 "Apron.is_bot" Dn.is_bot
     let bound_variable = T.app2 "Apron.bound_variable" Dn.bound_variable
@@ -28,7 +30,7 @@ module Dom_num_nb_timing = functor (Dn: DOM_NUM_NB) ->
     let expand = T.app3 "Apron.expand" Dn.expand
     let compact = T.app3 "Apron.compact" Dn.compact
     let meet = T.app2 "Apron.meet" Dn.meet
-    let forget = T.app2 "Apron.forget" Dn.forget
+    let sv_forget = T.app2 "Apron.forget" Dn.sv_forget
     let simplify_n_expr = T.app1 "Apron.simplify_n_expr" Dn.simplify_n_expr
     let sat = T.app2 "Apron.sat" Dn.sat
     let assign = T.app3 "Apron.assign" Dn.assign
@@ -42,12 +44,15 @@ module Dom_num_nb_timing = functor (Dn: DOM_NUM_NB) ->
     let add_node = T.app2 "Apron.add_node" Dn.add_node
     let rem_node = T.app2 "Apron.rem_node" Dn.rem_node
     let t_2stri = T.app3 "Apron.t_2stri" Dn.t_2stri
+    let get_eq_class = T.app2 "get_eq_class" Dn.get_eq_class
   end: DOM_NUM_NB)
 
 (** Timing support for set domains *)
 module Dom_set_timing = functor (S: DOMSET) ->
   (struct
     module T = Timer.Timer_Mod( struct let name = "SET" end )
+    let module_name = "dom_set_timing"
+    let config_2str = T.app1 "config_2str" S.config_2str
     type t = S.t
     let bot = S.bot
     let is_bot = T.app1 "is_bot" S.is_bot
@@ -66,9 +71,8 @@ module Dom_set_timing = functor (S: DOMSET) ->
     let upper_bnd = T.app2 "upper_bnd" S.upper_bnd
     let set_guard = T.app2 "set_guard" S.set_guard
     let set_sat = T.app2 "set_sat" S.set_sat
-    let forget = T.app2 "forget" S.forget
+    let sv_forget = T.app2 "sv_forget" S.sv_forget
     let symvars_srename = T.app4 "symvars_srename" S.symvars_srename
     let sve_sync_top_down = T.app2 "sve_sync_top_down" S.sve_sync_top_down
     let symvars_filter = T.app3 "symvars_filter" S.symvars_filter
   end: DOMSET)
-

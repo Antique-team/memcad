@@ -11,6 +11,10 @@ void main( ){
   list k ;
   lp0 = malloc( 4 );
   lp1 = malloc( 4 );
+  if( lp0 == 0 )
+    exit( 0 );
+  if( lp1 == 0 )
+    exit( 0 );
   {
     list l ;
     _memcad( "add_inductive( l, list )" );

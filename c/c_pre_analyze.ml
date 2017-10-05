@@ -369,10 +369,11 @@ module Gen_pre_analysis = functor (D: DOM_LIVENESS) ->
           let read = D.merge_out_read ls.lv_cur se in
           { ls with lv_cur = read }
       | Csbreak
-      | Cscontinue ->
+      | Cscontinue
+      | Csexit ->
           (* the liveness pre-analysis is not sound wrt brancing statements *)
           Log.warn
-            "liveness analysis, possibly unsound result: break/continue";
+            "liveness analysis, possibly unsound result: break/continue/exit";
           ls
       | Cs_memcad mc ->
           begin
@@ -414,8 +415,8 @@ module Gen_pre_analysis = functor (D: DOM_LIVENESS) ->
             | Mc_check_segment (lv, _, oip, lv_e, _, oip_e) ->
                 let read = read_it oip lv in
                 let read_e = read_it oip_e lv_e in
-                let read = D.read_merge ls.lv_cur read in
-                { ls with lv_cur = D.merge_out_read read read_e }
+                let read = D.read_merge read read_e in
+                { ls with lv_cur = D.merge_out_read ls.lv_cur read }
             | Mc_sel_merge l ->
                 ls
             | Mc_force_live l ->
@@ -514,7 +515,14 @@ module Materialization =
         { t_cur: state;
           t_statm: string;
           t_acc: postState; }
- 
+
+    let binding (pro: VarSet.t * VarSet.t) (f: var -> int)
+        : IntSet.t * IntSet.t =
+      let get_id (vs: VarSet.t ): IntSet.t  =
+        VarSet.fold (fun v a -> IntSet.add (f v) a) vs IntSet.empty in
+      let ls, rs = pro in
+      get_id ls, get_id rs
+
     let empty =
       { t_cur   = VarMap.empty;
         t_statm = "";
@@ -532,13 +540,52 @@ module Materialization =
               (state_2str tv) (state_2str fv) in
       cur_stat^cur_str^acc_str
 
+    let resolve (x: t): VarSet.t * VarSet.t =
+      match x.t_acc with
+      | Single post ->
+          let l =
+            VarMap.fold
+              (fun var stat acc ->
+                if VarMap.mem var post then
+                  let pstat = VarMap.find var post in
+                  match stat,pstat with
+                  | WriteAssign, _ -> acc
+                  | _, _ -> VarSet.add var acc
+                else
+                  acc
+              ) x.t_cur VarSet.empty in
+          l, VarSet.empty
+      | Branch (pl,pr) ->
+          VarMap.fold
+            (fun var stat (acl,acr) ->
+              let acl,acr =
+                if VarMap.mem var pl then
+                  let pstat = VarMap.find var pl in
+                  match stat, pstat with
+                  | ReadTest, WriteAssign ->
+                      VarSet.add var acl, VarSet.add var acr
+                  | ReadTest, _ ->
+                      VarSet.add var acl, acr
+                  | _, _ -> Log.fatal_exn "unexpected case in resolve"
+                else acl, acr in
+              if VarMap.mem var pr then
+                let pstat = VarMap.find var pr in
+                match stat,pstat with
+                | ReadTest, WriteAssign ->
+                    VarSet.add var acl, VarSet.add var acr
+                | ReadTest, _ -> acl, VarSet.add var acr
+                | _,_ -> Log.fatal_exn "unexpected case in resolve"
+              else
+                acl,acr
+            ) x.t_cur (VarSet.empty, VarSet.empty)
+
     let rec read_lv (lv: c_lval) (pre: VarSet.t): VarSet.t =
       match lv.clk with
       | Clfield (c_lv,_) -> read_lv c_lv pre
       | Clindex (_,c_ex) ->
           begin
             match c_ex.cek with
-            | Celval {clk = (Clvar cv);clt = _}->
+            | Celval { clk = (Clvar cv); clt = _ } ->
                 VarSet.add (tr_c_var cv) pre
             | _ -> pre
           end
@@ -563,19 +610,22 @@ module Materialization =
             | _ -> Log.fatal_exn "index is not a pure variable"
           end
       | _ -> VarSet.empty,VarSet.empty
-    
-    let merge (cur: state) (acc: postState): state =
-      let visit_merge (v1: visit) (v2: visit) : visit = 
-        match v1,v2 with
-        | WriteAssign, _ -> WriteAssign
-        | _,WriteAssign -> WriteAssign
-        | a,b -> a in
-      let atom_merge key v1 v2  = 
-        match v1,v2 with
-        | None,Some iv -> Some iv
-        | Some iv1,Some iv2 -> Some (visit_merge iv1 iv2)
-        | Some iv, None -> Some iv
-        | None, None -> None in
+
+    let visit_merge (v1: visit) (v2: visit): visit =
+      match v1,v2 with
+      | WriteAssign, _ -> WriteAssign
+      | _, WriteAssign -> WriteAssign
+      | a, b -> a
+
+    let atom_merge (key: VarMap.key) (v1: visit option) (v2: visit option)
+        : visit option =
+      match v1,v2 with
+      | None,Some iv -> Some iv
+      | Some iv1,Some iv2 -> Some (visit_merge iv1 iv2)
+      | Some iv, None -> Some iv
+      | None, None -> None
+
+    let self_merge (cur: state) (acc: postState): state =
       let post =
         match acc with
         | Single s -> s 
@@ -585,24 +635,31 @@ module Materialization =
     let map_update (vs: VarSet.t) (vm: visit VarMap.t) (v: visit) =
       VarSet.fold (fun ele acc -> VarMap.add ele v acc) vs vm
 
-    let equal (l: t) (r: t): bool = 
+    (* todo : this function need to be revised *)
+    let merge (l: t) (r: t): t = 
       let visit_equal a b =
         match a,b with
         | ReadAssign,ReadAssign
-        | ReadTest,ReadAssign
+        | ReadTest,ReadTest
         | WriteAssign,WriteAssign -> true
         | _ -> false in
-      (VarMap.equal visit_equal l.t_cur r.t_cur) &&
-      (match l.t_acc,r.t_acc with
-      | Single la,Single ra -> VarMap.equal visit_equal la ra 
-      | Branch (la1,la2), Branch (ra1,ra2) ->
-          VarMap.equal visit_equal la1 ra1 && VarMap.equal visit_equal la2 ra2
-      | _ -> false)
+      (* Format.printf "l is %s, r is %s"  (t_2str l) (t_2str r); *)
+      assert (VarMap.equal visit_equal l.t_cur r.t_cur);
+      let acc =
+        match l.t_acc,r.t_acc with
+        | Single la,Single ra -> Single (VarMap.merge atom_merge la ra)
+        | Branch (la1,la2), Branch (ra1,ra2) ->
+            Branch (VarMap.merge atom_merge la1 ra1,
+                    VarMap.merge atom_merge la2 ra2)
+        | _ -> l.t_acc in
+      { t_cur   = l.t_cur;
+        t_statm = l.t_statm;
+        t_acc   = acc; }
 
     let assign (lv: c_lval) (ex: c_expr) (x: t): t =
       let read_array = read_ex ex VarSet.empty in
       let write_var,write_array = write_lv lv in
-      let npost = merge x.t_cur x.t_acc in
+      let npost = self_merge x.t_cur x.t_acc in
       let npost = VarSet.fold VarMap.remove write_var npost in
       let n_cur = map_update read_array VarMap.empty ReadAssign in
       let n_cur = map_update write_array n_cur WriteAssign in
@@ -612,14 +669,14 @@ module Materialization =
 
     let guard (ex:c_expr) (x1: t) (x2: t): t =
       let read_array = read_ex ex VarSet.empty in
-      let post1 = merge x1.t_cur x1.t_acc in
-      let post2 = merge x2.t_cur x2.t_acc in
+      let post1 = self_merge x1.t_cur x1.t_acc in
+      let post2 = self_merge x2.t_cur x2.t_acc in
       { t_cur   = map_update read_array VarMap.empty ReadTest;
         t_statm = (c_expr_2str ex);
         t_acc   = Branch (post1,post2); }
       
     let decl (c: c_var) (x: t): t =
-      let post = merge x.t_cur x.t_acc in
+      let post = self_merge x.t_cur x.t_acc in
       let post = VarMap.remove (tr_c_var c) post in
       { t_cur   = VarMap.empty;
         t_statm = Printf.sprintf "decl %s" (c_var_2str c);
@@ -629,14 +686,14 @@ module Materialization =
       assign lv ex x
 
     let free (lv: c_lval) (x: t): t = 
-      let post = merge x.t_cur x.t_acc in
+      let post = self_merge x.t_cur x.t_acc in
       { t_cur   = VarMap.empty;
         t_statm = Printf.sprintf "free %s" (c_lval_2str lv);
         t_acc   = Single post; }
       
     let assertion (ex: c_expr) (x: t): t = 
       let read_array = read_ex ex VarSet.empty in
-      let npost = merge x.t_cur x.t_acc in
+      let npost = self_merge x.t_cur x.t_acc in
       let n_cur = map_update read_array VarMap.empty ReadAssign in
       { t_cur   = n_cur;
         t_statm = Printf.sprintf "assertion: %s" (c_expr_2str ex);
@@ -644,14 +701,14 @@ module Materialization =
 
     (* could be more precise by analyze the arguments of function calls *)
     let pcall (c: c_call) (f: c_fun) (x: t): t = 
-      let post = merge x.t_cur x.t_acc in
+      let post = self_merge x.t_cur x.t_acc in
       { t_cur   = VarMap.empty;
         t_statm = Printf.sprintf "pcall %s" (c_expr_2str c.cc_fun);
         t_acc   = Single post;}
       
     let fcall (lv:c_lval) (c: c_call) (f: c_fun) (x: t): t =
       let write_var,write_array = write_lv lv in
-      let npost = merge x.t_cur x.t_acc in
+      let npost = self_merge x.t_cur x.t_acc in
       let npost = VarSet.fold VarMap.remove write_var npost in
       let n_cur = map_update write_array VarMap.empty WriteAssign in
       { t_cur   = n_cur;
@@ -659,7 +716,6 @@ module Materialization =
         t_acc   = Single npost; }
  
     let return (oe: c_expr option) (x: t) : t =
-      let npost = merge x.t_cur x.t_acc in
       let n_cur =
         match oe with
         | None -> VarMap.empty
@@ -668,10 +724,11 @@ module Materialization =
             map_update read_array VarMap.empty ReadAssign in    
       { t_cur   = n_cur;
         t_statm ="return";
-        t_acc   = Single npost; }
+        (* Attention, we could be more precise *)
+        t_acc   = Single VarMap.empty; }
   
     let memcad (mem: c_memcad_com) (x: t) : t = 
-      let post = merge x.t_cur x.t_acc in
+      let post = self_merge x.t_cur x.t_acc in
       { t_cur   = VarMap.empty;
         t_statm = "memcad";
         t_acc   = Single post; }
@@ -683,7 +740,7 @@ module Materialization =
 (** TODO XR => JL: add comments to these definitions *)
 (** Functor to construct the pre-analysis *)
 module Gen_path_sensitive_pre_analysis 
-    (D: DOM_PRE_PROPERTY): PRE_PATH_SENSITIVE_ANALYSIS with type elt = D.t = 
+    (D: DOM_PRE_PROPERTY): PRE_PATH_SENSITIVE_ANALYSIS with type elt = D.t =
   struct
     (* Analysis result:
      *   stmt -> set of variables that are "live" *
@@ -709,13 +766,8 @@ module Gen_path_sensitive_pre_analysis
           acc^ele_string
         ) x.t_acc "Materialization result is:"
 
-    (* Extraction of live variables *)
-    let pro_at (l: c_loc) (x: t): D.t =
-      try IntMap.find l x.t_acc
-      with Not_found -> D.empty 
-
     (* The "use" pre-analysis *)
-    let rec pre_stat (dhead: D.t)  (ppost: t) (dtail: D.t) (s: c_stat): t =
+    let rec pre_stat (dhead: D.t) (ppost: t) (dtail: D.t) (s: c_stat): t =
       let collect_state (line: int) (cur: D.t) (x: t): t = 
         { x with
           t_cur = cur;
@@ -725,7 +777,7 @@ module Gen_path_sensitive_pre_analysis
         match l ,r with
         | None, Some d    -> Some d
         | Some d, None    -> Some d
-        | Some d1,Some d2 -> assert(D.equal d1 d2); Some d1
+        | Some d1,Some d2 -> Some (D.merge d1 d2);
         | None,None       -> Log.fatal_exn "ocaml mistake in Map.merge" in
       match s.csk with
       | Csdecl d -> 
@@ -767,6 +819,8 @@ module Gen_path_sensitive_pre_analysis
           collect_state s.csl dtail ppost
       | Cscontinue ->
           collect_state s.csl dhead ppost
+      | Csexit ->
+          ppost
       | Cs_memcad mc ->
           collect_state s.csl (D.memcad mc ppost.t_cur) ppost
       | Csassert ex ->
@@ -786,6 +840,8 @@ module Gen_path_sensitive_pre_analysis
       let acc = pre_block D.empty (empty p) D.empty f.cf_body in
       Log.info "OK!";
       acc
+    let mat_resolve (x: t): (VarSet.t * VarSet.t) IntMap.t =
+      IntMap.map D.resolve x.t_acc
   end
 
 
@@ -924,15 +980,18 @@ let rec live_stat (oc: StringSet.t) (ls: live_status) (s: c_stat): live_status =
       let read = VarSet.union se ls.lv_cur in
       { ls with lv_cur = read }
   | Csbreak
-  | Cscontinue ->
+  | Cscontinue
+  | Csexit->
       (* the liveness pre-analysis is not sound wrt brancing statements *)
       Log.warn
-        "liveness analysis may not return a sound result: break or continue";
+        "liveness analysis may not return a sound result: break/continue/exit";
       ls
   | Cs_memcad mc ->
       begin
         let read_it oip lv =
-          let read = read_all (vread_lval lv) in
+          let lexp = { cek = Celval lv;
+                       cet = Ctptr (Some lv.clt) } in
+          let read = read_all (vread_expr lexp) in
           match oip with
           | None -> read
           | Some ip ->
@@ -941,7 +1000,9 @@ let rec live_stat (oc: StringSet.t) (ls: live_status) (s: c_stat): live_status =
                   (fun acc -> function
                      | Cmp_const _ -> acc
                      | Cmp_lval v ->
-                         VarSet.union (read_all (vread_lval v)) acc
+                         let lexp = { cek = Celval lv;
+                                      cet = Ctptr (Some lv.clt) } in
+                         VarSet.union (read_all (vread_expr lexp)) acc
                   ) read l in
               f read ip.mc_pptr in
         match mc with

@@ -16,10 +16,14 @@ void main( ){
   volatile int rand ;
 
   l = malloc( 8 );
+  if( l == 0 )
+    exit( 0 );
   l -> n = null ;
   l -> id = rand;
   
   t = malloc( 12 );
+  if( t == 0 )
+    exit( 0 );
   t -> l = null ;
   t -> r = null ;
   t -> d = rand ;

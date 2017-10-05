@@ -104,7 +104,12 @@ let svenv_2stri (ind: string) (sv: svenv_mod): string =
   let fset = PSet.t_2str ", " string_of_int in
   Printf.sprintf "%s{ Add: %s\n%s  Rem: %s\n%s  Mod: %s }\n"
     ind (fmap sv.svm_add) ind (fset sv.svm_rem) ind (fset sv.svm_mod)
-(* removal of an SV *)
+(* add and removal of an SV *)
+let svenv_add (i: int) (nt: ntyp) (sv: svenv_mod): svenv_mod =
+  assert (not (PSet.mem i sv.svm_rem));
+  assert (not (PMap.mem i sv.svm_add));
+  assert (not (PSet.mem i sv.svm_mod));
+  { sv with svm_add = PMap.add i nt sv.svm_add }
 let svenv_rem (i: int) (sv: svenv_mod): svenv_mod =
   assert (not (PMap.mem i sv.svm_add));
   assert (not (PSet.mem i sv.svm_mod));

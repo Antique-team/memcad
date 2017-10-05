@@ -14,6 +14,8 @@ void main( ){
   while( i < 10 ){
     elist *c;
     c = malloc ( 8 );
+    if( c == 0 )
+      exit( 0 );
     c->data = 0;
     if (l != null) {
       elist *tmp;

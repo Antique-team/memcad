@@ -25,12 +25,14 @@ module type NODE =
     val to_string: IntSet.t -> t -> string
   end
 
+type args = nid list * nid list * nid list
+
 module type EDGE =
   sig
     type t =
       | Empty of nid
-      | Inductive of string * nid * nid list
-      | Segment of string * nid * nid list * Offs.OffSet.t * nid * nid list
+      | Inductive of string * nid * args
+      | Segment of string * nid * args * Offs.OffSet.t * nid * args
       | Points_to of (nid * Offs.t * nid * Offs.t) list
     val of_node: node -> t
     val list_offsets: t list -> IntSet.t IntMap.t

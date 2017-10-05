@@ -42,6 +42,9 @@ let full_debug = true
  *  - a local environment *)
 module Submem =
   (struct
+    let module_name = "dom_subm_graph"
+    let config_2str (): string =
+      "" (* leaf module *)
     (* A sub-memory encloses:
      *  - a graph to describe the sub-memory contents
      *  - a bi-directional index binding global keys and local ones
@@ -552,14 +555,22 @@ module Submem =
                   Log.force "Dropping offset %s" (Offs.t_2str off);
                 accr, acci, acce, accd
           ) x0.t_env (Nrel.empty, 0, Bi_fun.empty, OffMap.empty) in
-      let g_init = init_graph_from_roots true nrel.n_pi x0.t_graph x1.t_graph in
+      let g_init =
+        init_graph_from_roots true nrel.n_pi IntMap.empty
+          x0.t_graph x1.t_graph in
       let sat0, sat1 = make_sat nsat0 x0, make_sat nsat1 x1 in
       (* Trigger the join in the underlying *)
-      let g, rel, inst0, inst1 =
+      let g, rel, inst0, inst1, sinst0, sinst1, ninst0, ninst1 =
         Graph_join.join true
-          (tr_join_arg sat0 (x0.t_graph, ext_graph None None)) sat0  
-          (tr_join_arg sat1 (x1.t_graph, ext_graph None None)) sat1 
-          None None nrel true g_init in
+          (tr_join_arg sat0 (x0.t_graph, ext_graph None None)) sat0
+          (fun s -> false)
+          (tr_join_arg sat1 (x1.t_graph, ext_graph None None)) sat1
+          (fun s -> false)
+          None None nrel Nrel.empty true g_init in
+      assert (sinst0 = Inst_utils.setv_inst_empty);
+      assert (sinst1 = Inst_utils.setv_inst_empty);
+      assert (ninst0 = Inst_utils.sv_inst_empty);
+      assert (ninst1 = Inst_utils.sv_inst_empty);
       (* Compute a new index and a new relation *)
       let index, accrel, accsn, acci = (* also add max int *)
         Nrel.fold
@@ -577,8 +588,7 @@ module Submem =
           ) rel (Bi_fun.empty_inj, accrel, accsn, acci) in
       (* Produce a result, assuming no instantiation to do *)
       let f_check ins =
-        assert (ins.ins_expr = IntMap.empty
-                  && ins.ins_fold = IntMap.empty) in
+        assert (ins.ins_fold = IntMap.empty) in
       f_check inst0; f_check inst1;
       let x =
         let stride =
@@ -612,7 +622,8 @@ module Submem =
           ) x0.t_env Aa_maps.empty in
       let le_res =
         Graph_is_le.is_le ~submem: true x0.t_graph
-          None (make_sat main_sat0 x0) x1.t_graph env in
+          None (make_sat main_sat0 x0) (fun _ -> false)
+          x1.t_graph env Aa_maps.empty in
       match le_res with
       | None -> false
       | Some _ -> true (* should we forward any information ??? *)
@@ -626,7 +637,8 @@ module Submem =
       assert (ind.i_ppars = 0 && ind.i_ipars = 0 && ind.i_spars = 0);
       let ie = { ie_ind  = ind;
                  ie_args = { ia_ptr = [];
-                             ia_int = [] } } in
+                             ia_int = [];
+                             ia_set = []; } } in
       (* retrieving offset, and building injection and graph to compare *)
       let src =
         try Bi_fun.image off x.t_env
@@ -642,11 +654,14 @@ module Submem =
       (* comparison and extraction of the result *)
       let r =
         Graph_is_le.is_le_partial None false ~submem:true x.t_graph None
-          IntSet.empty sat g inj in
+          IntSet.empty sat (fun _ -> false) g inj Aa_maps.empty in
       match r with
       | Ilr_not_le | Ilr_le_seg _ | Ilr_le_ind _ -> false
-      | Ilr_le_rem (_, _, emb, inst) ->
-          assert (inst = IntMap.empty);
+      | Ilr_le_rem (_, _, emb, sinst, nset, sv_inst, cons) ->
+          assert (sinst = IntMap.empty);
+          assert (nset = IntSet.empty);
+          assert (cons = [ ]);
+          assert (sv_inst = Inst_utils.sv_inst_empty);
           true
 
     (** Write inside the sub-memory *)
@@ -669,4 +684,5 @@ module Submem =
       | Gr_no_info -> x
       | _ -> (* might be possible to do something here to improve precision *)
           Log.info "submem-guard: other result"; x
+
   end: SUBMEM_SIG)

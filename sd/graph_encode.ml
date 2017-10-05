@@ -32,7 +32,13 @@ module L = BatList
 module Log =
   Logger.Make(struct let section = "g_encode" and level = Log_level.DEBUG end)
 
+(*$}*) (* end code injection for unit tests *)
+
 module Graph_encode: GRAPH_ENCODE = struct
+
+  let module_name = "graph_encode"
+  let config_2str (): string =
+    "" (* leaf module *)
 
   let get_uid_exn (namer: namer) (id: int): int =
     snd (namer id)
@@ -127,7 +133,11 @@ module Graph_encode: GRAPH_ENCODE = struct
       let string_of_offset o =
         Printf.sprintf "o%d" (Offs.to_int o) in
       match s with
-      | Baby_segment _ -> failwith "string_of_steps: baby segment"
+      | Baby_segment offsets->
+        ("baby_seg:"
+         ^ "=("
+         ^ (Lib.gen_list_2str "" string_of_offset "|" offsets)
+         ^ ")*")
       | Offset o -> string_of_offset o
       | Segment (seg_name, offsets) ->
         ("seg:"
@@ -147,7 +157,33 @@ module Graph_encode: GRAPH_ENCODE = struct
       ) steps;
     Buffer.add_char buff ']';
     Buffer.contents buff
-
+      
+  let string_of_node_steps (steps: (step*int) list): string =
+    let string_of_step (s: step): string =
+      let string_of_offset o =
+        Printf.sprintf "o%d" (Offs.to_int o) in
+      match s with
+      | Baby_segment _ -> failwith "string_of_steps: baby segment"
+      | Offset o -> string_of_offset o
+      | Segment (seg_name, offsets) ->
+        ("seg:"
+         ^ seg_name
+         ^ "=("
+         ^ (Lib.gen_list_2str "" string_of_offset "|" offsets)
+         ^ ")*")
+    in
+    let buff = Buffer.create 80 in
+    Buffer.add_char buff '[';
+    let started = ref false in
+    L.iter
+      (fun (s, id) ->
+         if !started then Buffer.add_string buff "; "
+         else started := true;
+         Buffer.add_string buff (Printf.sprintf "(%s, %d)" (string_of_step s) id)
+      ) steps;
+    Buffer.add_char buff ']';
+    Buffer.contents buff
+  
   (* If there is at most one segment:
    *   extend the segment in the path (if any) to the maximum
    *   by folding at its extremities or return the path as is.
@@ -170,19 +206,15 @@ module Graph_encode: GRAPH_ENCODE = struct
   (*      "compress_path: several segments and unfoldable offsets: %s" *)
   (*      (string_of_steps path)) *)
 
-  (* try to extend the segment to the maximum.
-   * Return (Some seg) in case it can. None in case some of the offsets at the
-   * left or the right of the segment cannot be folded back into the segment *)
-  let seg_extend_max (path: step list): step option =
+  (* tell if 'path' can be folded into a single segment;
+   * at least one segment must already be in 'path' *)
+  let can_fold_to_seg (path: step list): bool =
     match split_path path with
     | No_segment offsets -> assert(false)
     | One_segment (before_seg, seg, after_seg) ->
-      if can_fold seg before_seg && can_fold seg after_seg
-      then Some seg
-      else None
+      can_fold seg before_seg && can_fold seg after_seg
     | Several_segments (offsets, seg) ->
-      if can_fold seg offsets then Some seg
-      else failwith "seg_extend_max: several segments and unfoldable offsets"
+      can_fold seg offsets
 
   (* PairSet with specific to_string and join *)
   module PairSet = struct
@@ -205,9 +237,10 @@ module Graph_encode: GRAPH_ENCODE = struct
 
   type encoded_graph_edges = renamed_path list
 
+  (*${*) (* injection of code for unit tests *)
   (* compute the common prefix between ll and lr; it is returned reversed
      also, the common prefix stops at the first segment occurrence
-     common_prfx_l1_l2, l1_rest, l2_rest = extract_common_prefix l1 l2 *)
+     common_prfx_l1_l2_reversed, l1_rest, l2_rest = extract_common_prefix_rev l1 l2 *)
   let extract_common_prefix_rev ll lr =
     let rec loop acc l1 l2 = match l1, l2 with
       | [], _ | _, [] -> (acc, l1, l2)
@@ -216,6 +249,24 @@ module Graph_encode: GRAPH_ENCODE = struct
         else loop (x :: acc) xs ys
     in
     loop [] ll lr
+
+  (* compute common suffix
+   * ll_before, lr_before, common_sfx = extract_common_suffix ll lr *)
+  let extract_common_suffix ll lr =
+    let ll_rev = List.rev ll in
+    let lr_rev = List.rev lr in
+    let res, l1_rest_rev, l2_rest_rev = extract_common_prefix_rev ll_rev lr_rev in
+    (List.rev l1_rest_rev, List.rev l2_rest_rev, res)
+  (*$}*) (* end injection of code for unit tests *)
+  (*$inject
+    let o1 = Offset (Offs.of_int 1);;
+    let o2 = Offset (Offs.of_int 2);;
+    let o3 = Offset (Offs.of_int 3);;
+    let o4 = Offset (Offs.of_int 4);;
+  *)
+  (*$T
+    extract_common_suffix [o4;o3;o2;o1] [o3;o4;o2;o1] = ([o4;o3], [o3;o4], [o2;o1])
+  *)
 
   (* return true if (lpath <= rpath) or (rpath <= lpath) *)
   let is_included_any (lpath: step list) (rpath: step list): bool =
@@ -255,7 +306,8 @@ module Graph_encode: GRAPH_ENCODE = struct
     | Some src, Some dst ->
       if lpath' = rpath' then Some (src, lpath', dst) (* 1) equal paths *)
       else
-        let common, lpath, rpath = extract_common_prefix_rev lpath' rpath' in
+        let common_prfx, lpath, rpath = extract_common_prefix_rev lpath' rpath' in
+        let lpath, rpath, common_sfx = extract_common_suffix lpath rpath in
         let loffs_before_seg, lseg', loffs_after_seg =
           match split_path lpath with
           | No_segment offsets -> (offsets, None, [])
@@ -274,31 +326,21 @@ module Graph_encode: GRAPH_ENCODE = struct
         in
         match lseg', rseg' with
         | None, None -> None (* not any segment *)
-        | Some lseg, None ->
+        | Some lseg, None -> (* segment only in left path *)
           assert(roffs_after_seg = []);
-          if roffs_before_seg = [] then
-            begin match seg_extend_max lpath with
-              | None -> None
-              | Some _ -> Some (src, List.rev_append common [lseg], dst)
-            end
-          else if can_fold lseg roffs_before_seg then
-            let lpath' = unsplit_path loffs_before_seg lseg loffs_after_seg in
+          if can_fold_to_seg lpath && can_fold lseg roffs_before_seg then
             (* segment added to the right *)
-            Some (src, List.rev_append common lpath', dst)
-          else None
-        | None, Some rseg ->
+            Some (src, List.rev_append common_prfx (lseg :: common_sfx), dst)
+          else
+            None
+        | None, Some rseg -> (* segment only in right path *)
           assert(loffs_after_seg = []);
-          if loffs_before_seg = [] then
-            begin match seg_extend_max rpath with
-              | None -> None
-              | Some _ -> Some (src, List.rev_append common [rseg], dst)
-            end
-          else if can_fold rseg loffs_before_seg then
-            let rpath' = unsplit_path roffs_before_seg rseg roffs_after_seg in
+          if can_fold_to_seg rpath && can_fold rseg loffs_before_seg then
             (* segment added to the left *)
-            Some (src, List.rev_append common rpath', dst)
-          else None
-        | Some lseg, Some rseg ->
+            Some (src, List.rev_append common_prfx (rseg :: common_sfx), dst)
+          else
+            None
+        | Some lseg, Some rseg -> (* segments on both sides *)
           if lseg <> rseg then None (* different segments *)
           else
             try
@@ -321,30 +363,29 @@ module Graph_encode: GRAPH_ENCODE = struct
                   if las = ras then las
                   else raise Cannot_join in
               let unsplit = unsplit_path before_seg lseg after_seg in
-              Some (src, List.rev_append common unsplit, dst)
+              Some (src, List.rev_append common_prfx (unsplit @ common_sfx), dst)
             with Cannot_join -> None
-  (*$}*) (* end code injection for unit tests *)
   (*$inject
     let rpath steps =
     let a = PairSet.of_list [(0,0)] in
     let b = PairSet.of_list [(1,0)] in
     (a, steps, b)
     let t lsteps rsteps =
-    join_paths (rpath lsteps) (rpath rsteps)
+    Graph_encode.join_paths (rpath lsteps) (rpath rsteps)
     let f x =
     Some (rpath x)
     let o12 = Offset (Offs.of_int 12);;
     let o8  = Offset (Offs.of_int  8);;
     let seg = Segment ("seg", [Offs.of_int 12; Offs.of_int 8]);;
   *)
-  (*$T is_included_any
-    is_included_any [o12]     [seg] = true
-    is_included_any [o12;o12] [seg] = true
-    is_included_any [o12]     [o8]  = false
-    is_included_any []        []    = true
-    is_included_any []        [seg] = true
-    is_included_any [o12]     []    = false
-    is_included_any [seg]     []    = true
+  (*$T
+    Graph_encode.is_included_any [o12]     [seg] = true
+    Graph_encode.is_included_any [o12;o12] [seg] = true
+    Graph_encode.is_included_any [o12]     [o8]  = false
+    Graph_encode.is_included_any []        []    = true
+    Graph_encode.is_included_any []        [seg] = true
+    Graph_encode.is_included_any [o12]     []    = false
+    Graph_encode.is_included_any [seg]     []    = true
   *)
 
   (* unit tests for join_paths; tests can be extracted using the qtest software *)
@@ -397,6 +438,21 @@ module Graph_encode: GRAPH_ENCODE = struct
          Buffer.add_string buff "\n"
       ) sorted;
     Buffer.contents buff
+      
+  let string_of_renamed_path_02 (src, steps, dst) =
+    Printf.sprintf "(%d, %s, %d)" src (string_of_node_steps steps) dst
+
+  let string_of_renamed_paths_02
+      (rpaths: (int * (step * int) list * int) list): string =
+    let strings = L.rev_map string_of_renamed_path_02 rpaths in
+    let sorted = L.sort String.compare strings in
+    let buff = Buffer.create 80 in
+    L.iter
+      (fun s ->
+         Buffer.add_string buff s;
+         Buffer.add_string buff "\n"
+      ) sorted;
+    Buffer.contents buff
 
   type path = int * step list * int
 
@@ -411,7 +467,7 @@ module Graph_encode: GRAPH_ENCODE = struct
       ) all_nodes []
 
   (* WARNING complexity = O(n); change this one day if the method is adopted *)
-  let delete_node (nid: int) (edges: path list): path list =
+  let delete_node (nid: int) (edges: 'a list): 'a list =
     let node_is_dst, node_is_src, rest =
       L.fold_left
         (fun ((acc1, acc2, acc3) as acc) ((src_node, offsets, dst_node) as x) ->
@@ -485,6 +541,13 @@ module Graph_encode: GRAPH_ENCODE = struct
       else (* there is a shorter one *)
         find_shortest_path paths
 
+  let rm_dups already_seen x acc =
+    if Hashtbl.mem already_seen x then
+      acc
+    else
+      let () = Hashtbl.add already_seen x () in
+      x :: acc
+
   (* encoding used to predict if the join of two graphs should work:
    * only paths between variables' content are kept; they are also
    * "contracted", i.e. following several times the same field/offset of a struct
@@ -493,10 +556,11 @@ module Graph_encode: GRAPH_ENCODE = struct
   let encode (disj_num: int) (namer: namer) (g: graph): encoded_graph =
     let all_nodes = get_all_nodes g in
     let named_var_nodes = IntSet.filter (is_named_var namer) all_nodes in
-    let var_content_nodes =
+    let var_content_nodes = (* successors of named_var_nodes *)
       IntSet.fold (fun elt acc ->
           IntSet.union acc (succs elt g)
         ) named_var_nodes IntSet.empty in
+    (* named_var_nodes which are not var_content_nodes *)
     let only_nv_nodes = IntSet.diff named_var_nodes var_content_nodes in
     let renamer =
       retrieve_renaming_data namer g var_content_nodes named_var_nodes in
@@ -513,14 +577,6 @@ module Graph_encode: GRAPH_ENCODE = struct
     (* contract offset lists, rename vc_nodes and
        remove edges starting by a only nv_node *)
     let already_seen = Hashtbl.create 11 in
-    let rm_dups x acc =
-      if Hashtbl.mem already_seen x then
-        acc
-      else
-        begin
-          Hashtbl.add already_seen x ();
-          x :: acc
-        end in
     let unsorted =
       L.fold_left
         (fun acc (src, offs, dst) ->
@@ -532,7 +588,7 @@ module Graph_encode: GRAPH_ENCODE = struct
                acc (* path to self is not kept: only paths between distinct
                     * variables are informative *)
              else
-               rm_dups (src', offs, dst') acc
+               rm_dups already_seen (src', offs, dst') acc
         ) [] paths in
     let shortest_paths_only =
       let same_src_dst =
@@ -546,12 +602,106 @@ module Graph_encode: GRAPH_ENCODE = struct
       in
       List.flatten (List.map shortest_path_filter same_src_dst) in
     (* we use string ordering to order paths *)
-    let to_sort =
-      L.map (fun p -> (string_of_renamed_path p, p)) shortest_paths_only in
     let sorted =
-      L.sort (fun (str1, _p1) (str2, _p2) -> String.compare str1 str2) to_sort in
-    (L.map snd sorted, named_nodes, disj_num)
+      L.sort (fun p1 p2 ->
+          String.compare (string_of_renamed_path p1) (string_of_renamed_path p2)
+        ) shortest_paths_only in
+    (sorted, named_nodes, disj_num)
 
+  (* collect direct and undirect predecessors of some 'nodes' in graph 'g' *)
+  let collect_preds (g: graph) (nodes: IntSet.t): IntSet.t =
+    let rec collect to_visit visited =
+      if IntSet.is_empty to_visit then
+        visited
+      else
+        let current, others = IntSet.pop_min to_visit in
+        let visited' = IntSet.add current visited in
+        let nexts = get_predecessors_of_node current g in
+        let nexts' = IntSet.diff (IntSet.union nexts others) visited' in
+        collect nexts' visited'
+    in
+    collect nodes IntSet.empty
+
+  (* some more simplification steps of the graph - by Huisong *)
+  let further_precise_encode (edges: path list) (var_nodes: IntSet.t): node_path list =
+    let init, all_nodes =
+      L.fold_left (fun (acc, nodes) (src, path, dst) ->
+          let ele =
+            match path with
+            | [h] -> (src, [(h, dst)], dst)
+            | _ -> Log.fatal_exn "more than one step" in
+          (ele :: acc, IntSet.add src (IntSet.add dst nodes))
+        ) ([], IntSet.empty) edges in
+    (* only named variable nodes are kept *)
+    let with_reflexive_edges =
+      IntSet.fold (fun ele acc ->
+          if IntSet.mem ele var_nodes then
+            acc
+          else
+            delete_node ele acc
+        ) all_nodes init in
+    (* filter out reflexive edges *)
+    List.filter (fun (src, _path, dst) ->
+        src <> dst
+      ) with_reflexive_edges
+
+
+  (* a more precise encoding trial*) (* FBR: rename this to simplify_graph *)
+  let precise_encode (disj_num: int) (namer: namer) (root_vars: StringSet.t)
+      (g: graph) =
+    let all_nodes = get_all_nodes g in
+    let is_rootvar id =
+      if is_named_var namer id then
+        let name, _ = namer id in
+        StringSet.mem name root_vars
+      else false in
+    let named_var_nodes = IntSet.filter (is_rootvar) all_nodes in
+    let var_content_nodes = (* successors of named_var_nodes *)
+      IntSet.fold (fun elt acc ->
+          IntSet.union acc (succs elt g)
+        ) named_var_nodes IntSet.empty in
+    let nodes_to_keep = successors_only root_vars g namer in
+    let to_delete_nodes =
+      (* we want to keep only nodes which are vc_nodes or their
+       * (even undirect) predecessors *)
+      let vc_node_or_pred = collect_preds g var_content_nodes in
+      let vc_node_or_pred = IntSet.inter vc_node_or_pred nodes_to_keep in
+      IntSet.diff all_nodes vc_node_or_pred in
+    (* graph encoding: remove all nodes to delete and create paths *)
+    let init = edges_of_graph g all_nodes in
+    let paths =
+      IntSet.fold (fun elt acc -> delete_node elt acc) to_delete_nodes init in
+    (* contract offset lists *)
+    let already_seen = Hashtbl.create 11 in
+    let unsorted =
+      L.fold_left (fun acc (src, offs, dst) ->
+          (* path to self is not kept: only paths between distinct
+           * variables are informative *)
+          if src = dst then acc
+          else rm_dups already_seen (src, offs, dst) acc
+        ) [] paths in
+    let shortest_paths_only =
+      let same_src_dst =
+        BatList.group (fun (src0, _, dst0) (src1, _, dst1) ->
+            Pervasives.compare (src0, dst0) (src1, dst1)
+          ) unsorted
+      in
+      List.flatten (List.map shortest_path_filter same_src_dst) in
+    (* we use string ordering to order paths; makes debugging easier *)
+    let to_string (src, steps, dst) =
+      Printf.sprintf "(%d, %s, %d)" src (string_of_steps steps) dst in
+    let sorted =
+      L.sort (fun p1 p2 ->
+          String.compare (to_string p1) (to_string p2)
+        ) shortest_paths_only in
+    let sorted =
+      further_precise_encode sorted (IntSet.union named_var_nodes
+                                       var_content_nodes)  in
+    (sorted, all_nodes, disj_num)
+
+
+   
+      
   (* export an encoded shape graph to graphviz' dot format *)
   let encoded_graph_to_dot
       ((edges, nodes, _disj): encoded_graph) (out: out_channel): unit =
@@ -579,6 +729,26 @@ module Graph_encode: GRAPH_ENCODE = struct
       ) edges;
     Printf.fprintf out "}\n"
 
+  (* export a simplified graph to graphviz dot format *)
+  let simplified_graph_to_dot edges (out: out_channel): unit =
+    (* collect all node ids *)
+    let nodes =
+      List.fold_left (fun acc (src, path, dst) ->
+          IntSet.add src (IntSet.add dst acc)
+        ) IntSet.empty edges in
+    Printf.fprintf out "digraph g {\n\
+                        graph [ rankdir = \"LR\" ];\n";
+    (* output nodes *)
+    IntSet.iter (fun i ->
+        Printf.fprintf out "\"%d\" [label=\"%d\"];\n" i i
+      ) nodes;
+    (* output edges *)
+    List.iter (fun (src, path, dst) ->
+        Printf.fprintf out
+          "\"%d\" -> \"%d\" [label=\"%s\"];\n" src dst (string_of_node_steps path)
+      ) edges;
+    Printf.fprintf out "}\n"
+
   let pp_encoded_graph
       (disj: int)
       (vars: string list)
@@ -592,6 +762,21 @@ module Graph_encode: GRAPH_ENCODE = struct
     let (enc_paths, enc_nodes, disj_num) as encoded = encode disj namer g' in
     Lib.with_out_file enc_dot_fn (encoded_graph_to_dot encoded);
     Printf.fprintf out "%s" (string_of_renamed_paths enc_paths)
+
+    let pp_precisely_encoded_graph
+      (disj: int)
+      (vars: string list)
+      (g: graph)
+      (namer: namer)
+      (enc_dot_fn: string)
+      (out: out_channel): unit =
+    let root_vars = StringSet.of_list vars in
+    (* let nodes_to_keep = successors_only root_vars g namer in *)
+    (* let g' = filter_nodes nodes_to_keep g in *)
+    let enc_paths, _enc_nodes, _disj_num = precise_encode disj namer root_vars
+        g in
+    Lib.with_out_file enc_dot_fn (simplified_graph_to_dot enc_paths);
+    Printf.fprintf out "%s" (string_of_renamed_paths_02 enc_paths)
 
   (** partition algorithm used for selection widening for now,
    ** need to be improve later *)
@@ -928,6 +1113,7 @@ module Graph_encode: GRAPH_ENCODE = struct
              (fun st ->
                 match st with
                 | Segment _ -> true
+                | Baby_segment _ -> true
                 | _ -> false
              ) p
         ) g in
@@ -984,11 +1170,11 @@ module Graph_encode: GRAPH_ENCODE = struct
     (* join the common nodes in both side *)
     let out_nodes = same_nodes left_name right_name in
     (* collect the other nodes in left side and right side *)
-    let lnodes_left = PairSetSet.diff left_name out_nodes  in
+    let _lnodes_left = PairSetSet.diff left_name out_nodes  in
     let rnodes_left = PairSetSet.diff right_name out_nodes in
     try
       (* deal with left empty, right segment *)
-      let out, right, lnodes_left = emp_seg lnodes_left right in
+      (* let out, right, lnodes_left = emp_seg lnodes_left right in *)
       (* (\* nodes in paths *\) *)
       let res_re, _ =
         List.fold_left
@@ -1017,8 +1203,15 @@ module Graph_encode: GRAPH_ENCODE = struct
                ) ||
                (List.exists
                   (fun (ps, pp, pd) ->
-                     PairSet.equal ele (PairSet.union ps pd) 
-                  ) 
+                     if PairSet.equal ele (PairSet.union ps pd) then
+                       not (List.exists (fun (s, p, d) ->
+                           (PairSet.equal s ps) &&
+                           not (PairSet.equal d pd)
+                         ) left
+                         )
+                     else
+                       false
+                  )
                   left
                )
             ) rnodes_left
@@ -1026,14 +1219,96 @@ module Graph_encode: GRAPH_ENCODE = struct
       in
       if not !Flags.very_silent_mode then
         begin
-          Pr.printf "left_widen(D=%d):%s\n"   left_disj (string_of_renamed_paths left);
-          Pr.printf "right_widen(D=%d):%s\n" right_disj (string_of_renamed_paths right);
-          Pr.printf "res:%b;\n" res;
+          Log.debug "left_widen(D=%d):%s"   left_disj (string_of_renamed_paths left);
+          Log.debug "right_widen(D=%d):%s" right_disj (string_of_renamed_paths right);
+          Log.debug "res:%b" res;
         end;
       res
     with
     | Invalid_argument _ -> false
 
+
+
+    
+  let seg_intro (pp: step list): step list =
+    let offs =
+      List.fold_left (fun acc ele ->
+          match ele with
+          | Offset o -> (IntSet.add (Offs.to_int o) acc)
+          | Segment (_, offs) ->
+            List.fold_left (fun acc o ->
+                IntSet.add (Offs.to_int o) acc
+              ) acc offs
+          | Baby_segment offs ->
+            List.fold_left (fun acc o ->
+                IntSet.add (Offs.to_int o) acc
+              ) acc offs
+        ) IntSet.empty pp in
+    let offs = IntSet.fold (fun ele acc -> (Offs.of_int ele)::acc) offs [] in
+    [Baby_segment offs]
+
+  (* compare two paths, used for group disjuntions in widening *)
+  let rec widen_path (sl: step list) (sr: step list): step list =
+    match sl, sr with
+    | [], [] -> []
+    | (Offset ofl)::tl, (Offset ofr)::tr ->
+      if ofl = ofr then
+        (Offset ofl)::(widen_path tl tr)
+      else
+        seg_intro (sl@sr)
+    | _ -> seg_intro (sl@sr)
+        
+    
+  
+  let widen ((left , left_name , left_disj ): encoded_graph)
+      ((right, right_name, right_disj): encoded_graph): encoded_graph =
+    let old_left = left in
+    let out_nodes = same_nodes left_name right_name in
+    let out_edges, left =
+      List.fold_left
+        (fun (acc_edges, left) (ps, pp, pd) ->
+           if PairSetSet.mem (PairSet.union ps pd) left_name then
+             let pp = seg_intro pp in
+             (ps, pp, pd)::acc_edges, left
+           else
+             try
+               let rps, rpp, rpd = List.find (fun (s, p, d) ->
+                   (PairSet.subset s ps || PairSet.subset ps s)
+                   && (PairSet.subset d pd || PairSet.subset pd d) 
+                 ) left in
+               let left =
+                 List.filter (fun (s, p, d) ->
+                     not ((PairSet.subset s ps || PairSet.subset ps s)
+                          && (PairSet.subset d pd || PairSet.subset pd d))
+                   ) left in
+               let join_res = join_paths (ps, pp, pd) (rps, rpp, rpd) in
+               match join_res with
+               | None ->
+                 let rs, rd = PairSet.inter rps ps, PairSet.inter rpd pd in
+                 (rs, widen_path pp rpp, rd)::acc_edges, left
+               | Some res -> res::acc_edges, left
+             with Not_found -> acc_edges, left
+        ) ([], left) right in
+    let out_edges =
+      List.fold_left (fun acc_edges (ps, pp, pd) ->
+          if PairSetSet.mem (PairSet.union ps pd) right_name then
+            (ps, seg_intro pp, pd)::acc_edges
+          else acc_edges
+        ) out_edges left in
+    let out_nodes =
+      List.fold_left (fun acc_nodes (ps, _, pd) ->
+          PairSetSet.add ps (PairSetSet.add pd out_nodes) 
+        ) out_nodes out_edges in
+    if not !Flags.very_silent_mode then
+      begin
+        Log.debug "left_widen(D=%d):\n%s"   left_disj (string_of_renamed_paths old_left);
+        Log.debug "right_widen(D=%d):\n%s" right_disj (string_of_renamed_paths right);
+        Log.debug "out_widen:\n %s" (string_of_renamed_paths out_edges);
+        end;
+    (out_edges, out_nodes, -1)
+    
+      
+  
   let to_string (ag: abs_graph_arg option): string =
     match ag with
     | None -> "None"
@@ -1046,20 +1321,68 @@ module Graph_encode: GRAPH_ENCODE = struct
             Printf.sprintf "{%s, %s, %s}\n %s" sc_str pth_str dt_str acc
           ) "\n" absg
 
+  (* unit tests: type 'make jptest' to extract and run them *)
+  (*$inject
+    let rpath steps =
+    let a = PairSet.of_list [(0,0)] in
+    let b = PairSet.of_list [(1,0)] in
+    (a, steps, b)
+    let t lsteps rsteps =
+    Graph_encode.join_paths (rpath lsteps) (rpath rsteps)
+    let f x =
+    Some (rpath x)
+    let o12 = Offset (Offs.of_int 12);;
+    let o8  = Offset (Offs.of_int  8);;
+    let seg = Segment ("seg", [Offs.of_int 12; Offs.of_int 8]);;
+  *)
+  (*$T
+    Graph_encode.is_included_any [o12]     [seg] = true
+    Graph_encode.is_included_any [o12;o12] [seg] = true
+    Graph_encode.is_included_any [o12]     [o8]  = false
+    Graph_encode.is_included_any []        []    = true
+    Graph_encode.is_included_any []        [seg] = true
+    Graph_encode.is_included_any [o12]     []    = false
+    Graph_encode.is_included_any [seg]     []    = true
+  *)
+  (* tests for join_paths *)
+  (*$T
+    (* t means test *) \
+    t [o12;seg;o12] [ o8;seg;o12] = f [    seg;o12] (* left  diff folded into segment *)
+    t [o12;seg;o12] [o12;seg; o8] = f [o12;seg    ] (* right diff folded into segment *)
+    t [o12;seg;o12] [o12;seg;o12] = f [o12;seg;o12] (* some segs but no diff *)
+    t [    seg;o12] [o12;seg    ] = f [    seg    ] (* delta on both sides folded *)
+    t [ o8;seg    ] [ o8        ] = f [ o8;seg    ] (* seg intro detected for right member *)
+    t [    seg; o8] [ o8        ] = f [    seg; o8]
+    t [ o8;o12    ] [ o8;o12    ] = f [ o8;o12    ] (* no diff and no segs *)
+    t [ o8;seg; o8] [   seg     ] = f [    seg    ]
+    t [seg; o8;seg] [ o8        ] = f [    seg    ]
+    t [ o8;seg    ] [           ] = f [    seg    ] (* needed to correct bug 01 *)
+    t [    seg; o8] [           ] = f [    seg    ] (* needed to correct bug 01 *)
+    t [o12;o12;seg] [      o8   ] = f [    seg    ] (* bug 02 detected by HS *)
+  *)
 end
 
 module Graph_encode_timing =
   functor (D: GRAPH_ENCODE) ->
     (struct
       module T = Timer.Timer_Mod( struct let name = "Graph_encode" end )
+      let module_name = "graph_encode_timing"
+      let config_2str = T.app1 "config_2str" D.config_2str
       type encoded_graph_edges = D.encoded_graph_edges
       type encoded_graph = D.encoded_graph
       let can_widen = T.app2 "can_widen" D.can_widen
       let encode = T.app3 "encode" D.encode
       let join = T.app2 "join" D.join
+      let widen = T.app2 "widen" D.widen
       let pp_encoded_graph = T.app6 "pp_encoded_graph" D.pp_encoded_graph
+      let pp_precisely_encoded_graph =
+        T.app6 "pp_precisely_encoded_graph" D.pp_precisely_encoded_graph
       let reduce_to_seg = T.app1 "reduce_to_seg" D.reduce_to_seg
       let string_of_renamed_paths =
         T.app1 "string_of_renamed_paths" D.string_of_renamed_paths
       let to_string = T.app1 "to_string" D.to_string
+      (* the following are for unit tests *)
+      exception Cannot_join
+      let is_included_any = T.app2 "is_included_any" D.is_included_any
+      let join_paths = T.app2 "join_paths" D.join_paths
     end: GRAPH_ENCODE)

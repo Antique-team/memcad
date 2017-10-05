@@ -7,5 +7,5 @@ void main( ){
   _memcad( "set_assume( b $in E )" );
   a = a + 1;
   _memcad ( "set_check ( b $in F)" );
+  _memcad("output_dot(a | SUCC)");
 }
-

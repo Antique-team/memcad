@@ -100,7 +100,7 @@ let cstri_read_aform (a: aform) (new_vars: id list) (s: cstr_indcall): cstr =
       let nx = cstri_get_formal_arg new_vars s (x :> formal_arg)  
       and ny = cstri_get_formal_arg new_vars s (y :> formal_arg) in
       add_eq nx ny s.cstri_cstr 
-  | Af_equal _ | Af_noteq _ -> s.cstri_cstr
+  | Af_equal _ | Af_noteq _ | Af_sup _ | Af_supeq _ -> s.cstri_cstr
 
 let cstri_read_cell (c: cell) (new_vars: id list) (s: cstr_indcall): cstr = 
   let dst = cstri_get_formal_arg new_vars s (c.ic_dest :> formal_arg)  
@@ -140,7 +140,7 @@ let cstrs_read_aform (a: aform) (new_vars: id list) (s: cstr_segcall): cstr =
       let nx = cstrs_get_formal_arg new_vars s (x :> formal_arg) 
       and ny = cstrs_get_formal_arg new_vars s (y :> formal_arg) in
       add_eq nx ny s.cstrs_cstr 
-  | Af_equal _ | Af_noteq _ -> s.cstrs_cstr
+  | Af_equal _ | Af_noteq _ | Af_sup _ | Af_supeq _ -> s.cstrs_cstr
 
 let cstrs_read_cell (c: cell) (new_vars: id list) (s: cstr_segcall): cstr = 
   let dst = cstrs_get_formal_arg new_vars s (c.ic_dest :> formal_arg)
@@ -235,7 +235,8 @@ let ind_apply_rule (nb_ipars: int) (nb_ppars: int) (ir: irule)
         match pform_atom with
         | Pf_arith a ->
             { s_res with cstri_cstr = cstri_read_aform a news s_res }
-        | Pf_set _ | Pf_alloc _ -> s_res (* can't deal with that *))
+        | Pf_set _ | Pf_alloc _ | Pf_path _->
+            s_res (* can't deal with that *))
       s_res ir.ir_pure in
   if !flag_ind_analysis_verbose = Print_all then 
     Log.info "Result apply rule:\n%s" (cstr_2stri "\t" s_res.cstri_cstr);
@@ -423,7 +424,7 @@ let seg_apply_rule (iname: string) (nb_ipars: int) (nb_ppars: int)
       (fun t pform_atom -> 
         match pform_atom with
         | Pf_arith a -> { t with cstrs_cstr = cstrs_read_aform a news t }
-        | Pf_set _ | Pf_alloc _ -> t (* can't deal with that *)
+        | Pf_set _ | Pf_alloc _ | Pf_path _ -> t (* can't deal with that *)
       ) t ir.ir_pure in
   (* dealing self calls *)
   let self_cstri = ind_preds_find iname in

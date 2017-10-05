@@ -14,6 +14,8 @@ void main( ){
   wlist r ;
   _memcad( "add_inductive( l, lo_wpcst, [ | | ] )" );
   r = malloc( 8 );
+  if( r == 0 )
+    exit( 0 );
   r->wl = l->wl;
   r->wi = l->wi;
   if( r->wl != null ){

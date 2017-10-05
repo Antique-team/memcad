@@ -21,6 +21,8 @@ void main( ){
   // check
   _memcad( "check_inductive( q, list )" );
   q = malloc( 8 );
+  if( q == 0 )
+    exit( 0 );
   q -> next = NULL;
   q -> data = t - z;
   // check

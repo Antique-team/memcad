@@ -16,6 +16,7 @@ rule token = parse
                             V_string str }
 | "@ll"                   { T_all }
 | "#list"                 { T_list }
+| "#tvl"                  { T_tvl }
 | '^'                     { T_and }
 | '*'                     { T_star }
 | ','                     { T_comma }

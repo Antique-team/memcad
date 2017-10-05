@@ -166,7 +166,11 @@ let rec c_exprk_2str (e: c_exprk): string =
         Printf.sprintf "%s %s %s"
           (aux_add e0.cek) (c_binop_2str b) (aux_mult e1.cek)
     | e -> aux_mult e
-  and aux_shift e = aux_add e
+  and aux_shift = function
+    | Cebin (((Cbbslft | Cbbsrgh) as b), e0, e1) ->
+        Printf.sprintf "%s %s %s"
+          (aux_shift e0.cek) (c_binop_2str b) (aux_add e1.cek)
+    | e -> aux_add e
   and aux_relational = function
     | Cebin (Cbge | Cbgt | Cble | Cblt as b, e0, e1) ->
         Printf.sprintf "%s %s %s"
@@ -337,6 +341,8 @@ let rec c_stat_2stri (ind: string) (s: c_stat): string =
       Printf.sprintf "%sbreak;\n" ind
   | Cscontinue ->
       Printf.sprintf "%scontinue;\n" ind
+  | Csexit ->
+      Printf.sprintf "exit(_);\n"
   | Cs_memcad c ->
       Printf.sprintf "%s_memcad( \"%s\" );\n" ind (c_memcad_2stri c)
   | Csassert e ->
@@ -685,12 +691,12 @@ let c_prog_apply_type_op (f: c_type -> c_type) (p: c_prog): c_prog =
         Mc_add_inductive (do_c_lval l, s, Option.map do_c_memcad_iparams a)
     | Mc_add_segment (l, s, a, le, se, ae) ->
         Mc_add_segment (do_c_lval l, s, Option.map do_c_memcad_iparams a,
-                        do_c_lval le, s, Option.map do_c_memcad_iparams ae)
+                        do_c_lval le, se, Option.map do_c_memcad_iparams ae)
     | Mc_check_inductive (l, s, a) ->
         Mc_check_inductive (do_c_lval l, s, Option.map do_c_memcad_iparams a)
     | Mc_check_segment (l, s, a, le, se, ae) ->
         Mc_check_segment (do_c_lval l, s, Option.map do_c_memcad_iparams a,
-                          do_c_lval le, s, Option.map do_c_memcad_iparams ae)
+                          do_c_lval le, se, Option.map do_c_memcad_iparams ae)
     | Mc_unfold l -> Mc_unfold (do_c_lval l)
     | Mc_unfold_bseg l -> Mc_unfold_bseg (do_c_lval l)
     | Mc_sel_merge l -> Mc_sel_merge (preprocess_c_vars l)
@@ -723,7 +729,7 @@ let c_prog_apply_type_op (f: c_type -> c_type) (p: c_prog): c_prog =
     | Cswhile (e0, b1, o) -> Cswhile (do_c_expr e0, do_c_block b1, o)
     | Csreturn (Some e) -> Csreturn (Some (do_c_expr e))
     | Csreturn None
-    | Csbreak | Cscontinue -> s
+    | Csbreak | Cscontinue | Csexit -> s
     | Cs_memcad mc -> Cs_memcad (do_c_memcad_com mc)
     | Csassert e -> Csassert (do_c_expr e)
     | Csalloc (l, e) -> Csalloc (do_c_lval l, do_c_expr e)

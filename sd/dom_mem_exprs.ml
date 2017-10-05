@@ -44,6 +44,11 @@ let debug_mod = false
 (** The build functor *)
 module DBuild = functor (D: DOM_MEM_LOW) ->
   (struct
+    let module_name = "dom_mem_build"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s"
+        module_name D.module_name (D.config_2str ())
+
     (** Type of abstract values *)
     type t = D.t (* same as layer below; this layer aims at factoring code *)
 
@@ -55,6 +60,7 @@ module DBuild = functor (D: DOM_MEM_LOW) ->
 
     (** Fixing sets of keys *)
     let sve_sync_bot_up: t -> t * svenv_mod = D.sve_sync_bot_up
+    let sanity_sv (s: IntSet.t) (x: t): bool = D.sanity_sv s x
 
     (** Lattice elements *)
     (* Bottom element *)
@@ -438,9 +444,9 @@ module DBuild = functor (D: DOM_MEM_LOW) ->
     let delete_mem_var: int -> t -> t = D.cell_delete ~free:false ~root:true
 
     (* Allocation *)
-    let memory (op: int_mem_operand) (x: t): t list =
+    let memory (op: int_mem_op) (x: t): t list =
       match op with
-      | Allocate (lv, ex) ->
+      | MO_alloc (lv, ex) ->
           let lv_sz = sizeof_typ (snd lv) in
           assert (lv_sz = abi_ptr_size);
           (* 1. evaluate left value *)
@@ -459,12 +465,12 @@ module DBuild = functor (D: DOM_MEM_LOW) ->
                  let nc, x = D.sv_add_fresh Ntaddr attr x in
                  (* write the cell, corresponding to the allocated zone *)
                  let x =
-                   D.cell_create (nc, Offs.zero) (Offs.to_size (Offs.of_n_expr sz))
-                     Ntraw x in
+                   D.cell_create (nc, Offs.zero)
+                     (Offs.to_size (Offs.of_n_expr sz)) Ntraw x in
                  D.cell_write Ntaddr on_addr lv_sz (Ne_var nc) x
               ) l_sz in
           List.map_flatten f l_lv
-      | Deallocate lv ->
+      | MO_dealloc lv ->
           (* 1. read l-value *)
           let l_lv = rd_tlval "" x lv in
           (* 2. materialize the deallocated cells *)
@@ -550,7 +556,8 @@ module DBuild = functor (D: DOM_MEM_LOW) ->
            ic_pars = ind_pars }
 
     (** Check and assume constructions *)
-    let prep_log_form (s: string) (x: t) (op: memh_log_form): meml_log_form * t =
+    let prep_log_form (s: string) (x: t) (op: memh_log_form)
+        : meml_log_form * t =
       match op with
       | SL_set sp ->
           let err_msg = "set_"^s^": requires further unfolding" in
@@ -585,9 +592,12 @@ module Dom_mem_exprs_timing = functor (D: DOM_MEM_EXPRS) ->
   (struct
     module T = Timer.Timer_Mod( struct let name = "Mem_exprs" end )
     type t = D.t
+    let module_name = "dom_mem_exprs_timing"
+    let config_2str = T.app1 "config_2str" D.config_2str
     let init_inductives = T.app2 "init_inductives" D.init_inductives
     let inductive_is_allowed = T.app1 "ind_is_allowed"D.inductive_is_allowed
     let sve_sync_bot_up = T.app1 "sve_sync_bot_up" D.sve_sync_bot_up
+    let sanity_sv: IntSet.t -> t -> bool = T.app2 "sanity_sv" D.sanity_sv
     let bot = D.bot
     let is_bot = T.app1 "is_bot" D.is_bot
     let top = T.app1 "top" D.top

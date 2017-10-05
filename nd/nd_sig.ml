@@ -64,6 +64,7 @@ type 'a node_mapping =
 (** Signature of the numerical domain, without a bottom element *)
 module type DOM_NUM_NB =
   sig
+    include INTROSPECT
     type t
     (* Bottom element (might be detected) *)
     val is_bot: t -> bool
@@ -91,18 +92,23 @@ module type DOM_NUM_NB =
     (** Summarizing dimensions related operations *)
     val expand: int -> int -> t -> t
     val compact: int -> int -> t -> t
+    (** Conjunction *)
     val meet: t -> t -> t
-    val forget: int -> t -> t
+    (** Drop information on an SV *)
+    val sv_forget: int -> t -> t
     (** Export of range information *)
     val bound_variable: int -> t -> interval
     (** Extract the set of all SVs *)
     val get_svs: t -> IntSet.t
+    (** Extract all SVs that are equal to a given SV *)
+    val get_eq_class: int -> t -> IntSet.t
   end
 
 
 (** Signature of the numerical domain, with a bottom element *)
 module type DOM_NUM =
   sig
+    include INTROSPECT
     type t
     (* Bottom element *)
     val bot: t
@@ -131,10 +137,14 @@ module type DOM_NUM =
     (** Summarizing dimensions related operations *)
     val expand: int -> int -> t -> t
     val compact: int -> int -> t -> t
-    val meet: t -> t -> t (* XR: what is meet doing ? *)
-    val forget: int -> t -> t
+    (** Conjunction of two inputs  *)
+    val meet: t -> t -> t
+    (** Forget the information on a dimension *)
+    val sv_forget: int -> t -> t
     (** Export of range information *)
     val bound_variable: int -> t -> interval
     (** Extract the set of all SVs *)
     val get_svs: t -> IntSet.t
+    (** Extract all SVs that are equal to a given SV *)
+    val get_eq_class: int -> t -> IntSet.t
   end

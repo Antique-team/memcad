@@ -34,6 +34,8 @@ void main( ){
     // insert in q
     q0 = q;
     q = malloc( 8 ) ;
+    if( q == 0 )
+      exit( 0 );
     q -> next = q0 ;
     q -> data = y ;
   } else {

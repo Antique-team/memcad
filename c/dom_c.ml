@@ -40,6 +40,10 @@ let log msg =
  *  - possibly branchings at a later point (e.g., break) *)
 module Dom_C = functor (D: DOM_DISJ) ->
   (struct
+    let module_name = "dom_c"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s"
+        module_name D.module_name (D.config_2str ())
     type flow_ctxt = Fc_fun | Fc_loop
     type stack_tok =
         { st_fname:  string ; (* name of the callee *)
@@ -105,14 +109,15 @@ module Dom_C = functor (D: DOM_DISJ) ->
         t_outcnt = x.t_outcnt + 1;
         t_u      = { x.t_u with
                      f_direct = f x.t_u.f_direct } }
+    (* used for join and widen *)
     let map2_ontop (f: D.t -> D.t -> D.t)
         (l0: D.t list) (l1: D.t list): D.t list =
       match l0, l1 with
       | [ ], [ ] -> [ ]
+      | [ ], l | l, [ ] -> l
       | x0 :: u0, x1 :: u1 ->
           assert (u0 == u1);
           f x0 x1 :: u0
-      | _, _ -> Log.fatal_exn "map2_ontop: empty vs non empty"
 
     (* Bottom element *)
     let bot (x: t): t = { x with t_u = { f_direct = D.bot;
@@ -120,6 +125,9 @@ module Dom_C = functor (D: DOM_DISJ) ->
                                          f_break  = [];
                                          f_cont   = []; } }
     let is_bot (x: t): bool = D.is_bot x.t_u.f_direct
+
+    (* Disjunction size *)
+    let disj_size (x: t): int = D.disj_size x.t_u.f_direct
 
     (* Top element, with provided set of roots *)
     let top (p: c_prog): t =
@@ -142,12 +150,12 @@ module Dom_C = functor (D: DOM_DISJ) ->
     (* External output *)
     let ext_output (o: output_format) (base: string) (x: t): t =
       D.ext_output o (Printf.sprintf "%s-N%d" base x.t_outcnt) x.t_u.f_direct;
-      { x with t_outcnt = x.t_outcnt + 1; }
+      { x with t_outcnt = x.t_outcnt + 1 }
 
     (* management of (set) variables *)
-    let rec unary_op (x: t) (op: Opd3.unary_operand): t =
+    let rec unary_op (x: t) (op: unary_op): t =
       match op with
-      | Opd3.Add_var v ->
+      | UO_env (EO_add_var v) ->
           let nscopes =
             match x.t_scopes with
             | [ ] -> Log.fatal_exn "add_var: empty_scopes"
@@ -159,7 +167,7 @@ module Dom_C = functor (D: DOM_DISJ) ->
             t_scopes = nscopes ;
             t_outcnt = x.t_outcnt + 1;
             t_u      = flows_map_all f x.t_u }
-      | Opd3.Add_setvar v ->
+      | UO_env (EO_add_setvar v) ->
           let nscopes =
             match x.t_set_scopes with
             | [ ] -> Log.fatal_exn "add setvar: empty_scopes"
@@ -170,19 +178,19 @@ module Dom_C = functor (D: DOM_DISJ) ->
             t_set_scopes = nscopes ;
             t_outcnt     = x.t_outcnt + 1;
             t_u          = flows_map_all (D.unary_op op) x.t_u }
-      | Opd3.Add_return_var typ ->
+      | UO_ret (Some typ) ->
           (* Creation of a return variable *)
           let vret = { v_name = "#return" ;
                        v_id   = get_retvar_id ( );
                        v_typ  = typ } in
-          { (unary_op x (Opd3.Add_var vret)) with
+          { (unary_op x (UO_env (EO_add_var vret))) with
             t_outcnt = x.t_outcnt + 1;
             t_retvar = Some vret }
-      | Opd3.Add_no_return_var ->
+      | UO_ret None ->
           { x with
             t_outcnt = x.t_outcnt + 1;
             t_retvar = None }
-      | Opd3.Remove_var v ->
+      | UO_env (EO_del_var v) ->
           let nscopes =
             match x.t_scopes with
             | [ ] -> Log.fatal_exn "rem_var: empty_scopes"
@@ -193,7 +201,7 @@ module Dom_C = functor (D: DOM_DISJ) ->
             t_scopes = nscopes ;
             t_outcnt = x.t_outcnt + 1;
             t_u      = flows_map_all (D.unary_op op) x.t_u }
-      | Opd3.Remove_setvar v ->
+      | UO_env (EO_del_setvar v) ->
           let nscopes =
             match x.t_set_scopes with
             | [ ] -> Log.fatal_exn "rem setvar: empty_scopes"
@@ -204,8 +212,7 @@ module Dom_C = functor (D: DOM_DISJ) ->
             t_set_scopes = nscopes ;
             t_outcnt     = x.t_outcnt + 1;
             t_u          = flows_map_all (D.unary_op op) x.t_u }
-      | Opd3.Memory (Allocate (_, _))
-      | Opd3.Memory (Deallocate _) ->
+      | UO_mem (MO_alloc _ | MO_dealloc _) ->
           lift_dir (D.unary_op op) x
 
     let assume (x: t) (op: state_log_form): t =
@@ -400,13 +407,13 @@ module Dom_C = functor (D: DOM_DISJ) ->
             if !Flags.flag_debug_scopes then
               Log.force "destroy_scope removes var %s"
                 (Ast_utils.var_2str v);
-            D.unary_op (Opd3.Remove_var v) acc) c u in
+            D.unary_op (UO_env (EO_del_var v)) acc) c u in
       SvarSet.fold
         (fun v acc ->
           if !Flags.flag_debug_scopes then
             Log.force "destroy_scope removes set var %s"
               v.s_name;
-          D.unary_op (Opd3.Remove_setvar v) acc) s u
+          D.unary_op (UO_env (EO_del_setvar v)) acc) s u
 
     (* Dig up a series of scopes *)
     let aux_destroy_scopes (fc, n) (vs, ss) (u: D.t): D.t =
@@ -430,7 +437,8 @@ module Dom_C = functor (D: DOM_DISJ) ->
       match x.t_retvar with
       | None      -> { x with t_retvar = x_pre.t_retvar }
       | Some vret ->
-          { (unary_op x (Opd3.Remove_var vret)) with t_retvar = x_pre.t_retvar }
+          { (unary_op x (UO_env (EO_del_var vret))) with
+            t_retvar = x_pre.t_retvar }
     (* Assign to the return variable *)
     let assign_to_return (loc: location) (ex: var texpr) (x: t): t list =
       match x.t_retvar with
@@ -493,14 +501,14 @@ module Dom_C = functor (D: DOM_DISJ) ->
                 if !Flags.flag_debug_scopes then
                   Log.force "out_scope removes var %s"
                     (Ast_utils.var_2str v);
-                unary_op acc (Opd3.Remove_var v)) c x in
+                unary_op acc (UO_env (EO_del_var v))) c x in
           let x =
             SvarSet.fold
               (fun v acc ->
                 if !Flags.flag_debug_scopes then
                   Log.force "out_scope removes set var %s"
                     v.s_name;
-                unary_op acc (Opd3.Remove_setvar v)
+                unary_op acc (UO_env (EO_del_setvar v))
               ) s x in
           { x with
             t_scopes     = u;
@@ -639,4 +647,5 @@ module Dom_C = functor (D: DOM_DISJ) ->
         List.fold_left (fun acc u -> acc + D.get_stats u) 0 x.t_u.f_break in
       { Statistics.as_dir_disjuncts   = D.get_stats x.t_u.f_direct;
         Statistics.as_break_disjuncts = nbreaks; }
+
   end: DOM_C)

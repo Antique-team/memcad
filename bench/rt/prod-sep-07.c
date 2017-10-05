@@ -36,6 +36,8 @@ void main( ){
     // check
     _memcad( "check_inductive( q, list )" );
     q0 = malloc( 8 );
+    if( q0 == 0 )
+      exit( 0 );
     q0 -> next = q;
     q0 -> data = z + x1 * x2 - x3 * x4 + x5;
     q = q0;

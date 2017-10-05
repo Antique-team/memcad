@@ -11,6 +11,17 @@
  **       basic declarations of data structures
  ** Xavier Rival, 2011/05/19 *)
 
+(** Interface to introspect the abstract domain configuration *)
+module type NAME = sig
+  val module_name: string
+end
+module type CONFIG_2STR = sig
+  val config_2str: unit -> string
+end
+module type INTROSPECT = sig
+  include NAME
+  include CONFIG_2STR
+end
 
 (** Tuples *)
 let fst3 (a, _, _) = a
@@ -40,6 +51,7 @@ module type OrderedType =
 module type SET =
   sig
     include Set.S
+    val to_list: t -> elt list
     val t_2str: string -> t -> string
   end
 module type MAP =
@@ -51,10 +63,14 @@ module type MAP =
     val find_err: string -> key -> 'a t -> 'a
     val find_val: 'a -> key -> 'a t -> 'a
     val find_comp: (unit -> 'a) -> key -> 'a t -> 'a
+    (* Union, for compatibility *)
+    val union: (key -> 'a -> 'a -> 'a option) -> 'a t -> 'a t -> 'a t
   end
 module SetMake = functor (O: OrderedType) ->
   struct
     include Set.Make( O )
+    let to_list (t: t): elt list =
+      fold (fun a acc -> a :: acc) t [ ]
     let t_2str (sep: string) (t: t): string =
       let b = ref true in
       fold
@@ -91,6 +107,21 @@ module MapMake = functor (O: OrderedType) ->
       try find k t with Not_found -> v
     let find_comp (f: unit -> 'a) (k: key) (t: 'a t): 'a =
       try find k t with Not_found -> f ( )
+    let keys (m: 'a t): key list =
+      List.map fst (bindings m)
+    let values (m: 'a t): 'a list =
+      List.map snd (bindings m)
+    (* Union, for compatibility *)
+    let union f m0 m1 =
+      fold
+        (fun k x0 acc ->
+          if mem k m1 then
+            let x1 = find k m1 in
+            match f k x0 x1 with
+            | Some x -> add k x acc
+            | None   -> raise (MapErr "union=>none")
+          else add k x0 acc
+        ) m0 m1
   end
 
 
@@ -98,7 +129,7 @@ module MapMake = functor (O: OrderedType) ->
 module IntOrd =
   struct
     type t = int
-    let compare = (-)
+    let compare = Pervasives.compare
     let t_2str = string_of_int
   end
 module StringOrd =

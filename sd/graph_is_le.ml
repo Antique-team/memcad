@@ -18,11 +18,15 @@ open Graph_sig
 open Ind_sig
 open Nd_sig
 open Sv_sig
+open Inst_sig
 
+open Set_sig
 open Gen_dom
 open Gen_is_le
 
 open Graph_utils
+open Set_utils
+open Inst_utils
 
 
 (** Error report *)
@@ -38,6 +42,8 @@ type le_state =
       ls_cur_l:    graph ;
       ls_cur_r:    graph ;
       ls_cur_i:    node_embedding ; (* current right to left mapping *)
+      (* Mapping from right SETVs into left SETVs *)
+      ls_cur_si:   setv_embedding;
       (** Iteration strategy *)
       (* Pending rules (given as pairs of node names) *)
       ls_rules:    rules ; (* instances of rules pending application *)
@@ -46,13 +52,19 @@ type le_state =
       (** Underlying domain constraints *)
       (* Satisfiability *)
       ls_sat_l:    (n_cons -> bool) ;
+      ls_setsat_l: (set_cons -> bool) ;
+      (* new constraints on fresh symbolic variables of left *)
+      ls_ctr_l:    n_cons list ;     (* constraints on fresh SVs *)
+      ls_fsvs_l:   IntSet.t;         (* fresh SVs *)
+      ls_inst_l:   n_expr IntMap.t;
       (* Accumulation of constraints *)
       ls_ctr_r:    n_cons list ;
-      (* Instantiable nodes in the right argument (i.e., inclusion checking
-       *  should infer to what they can be mapped) *)
-      ls_inst_r:   IntSet.t ;
-      (* Constraints collected on instantiable nodes *)
-      ls_inst_ctr: n_expr IntMap.t ;
+      ls_setctr_r: set_cons list ;
+      (* used for future guess_cons instantiation *)
+      ls_iseg_r: seg_edge list ;
+      (* collect the fresh node and their arguments introduced
+       * on the right side in rules seg-seg, seg-ind *)
+      ls_fresh_seg_r: ind_edge IntMap.t ;
       (** Termination of the inclusion checking *)
       (* Whether we only need to empty both graphs or only the left graph *)
       ls_emp_both: bool ;
@@ -74,10 +86,20 @@ type le_state =
 (* Pretty-printing of a configuration *)
 let pp_le_state (ls: le_state): string =
   let config_sep: string = "------------------------------------------\n" in
-  Printf.sprintf "%sLeft:\n%sRight:\n%sInjection:\n%s\n%s\n"
-    config_sep (graph_2stri " " ls.ls_cur_l) (graph_2stri " " ls.ls_cur_r)
-    (Nemb.ne_full_2stri "  " ls.ls_cur_i) config_sep
-
+  let s0 =
+    Printf.sprintf "%sLeft:\n%sRight:\n%sInjection:\n%sSet Inject:\n%s\n"
+      config_sep (graph_2stri " " ls.ls_cur_l) (graph_2stri " " ls.ls_cur_r)
+      (Nemb.ne_full_2stri "  " ls.ls_cur_i)
+      (Set_utils.Semb.ne_full_2stri "  " ls.ls_cur_si)
+  and s1 =
+    Printf.sprintf "N_cons:\n%s\nSet_cons:\n%s\nN_cons_l:\n%s\nN_fresh_svs_l:\n%s\nN_inst_l:\n%s\n%s\n "
+      (gen_list_2str "" Nd_utils.n_cons_2str ";" ls.ls_ctr_r)
+      (gen_list_2str "" Set_utils.set_cons_2str ";" ls.ls_setctr_r)
+      (gen_list_2str "" Nd_utils.n_cons_2str ";" ls.ls_ctr_l)
+      (IntSet.t_2str ";" ls.ls_fsvs_l)
+      (IntMap.t_2str "\n" Nd_utils.n_expr_2str ls.ls_inst_l)
+      config_sep in
+  s0 ^ s1
 
 (** Management of the set of applicable rules *)
 (* Collecting applicable rules at a graph node *)
@@ -135,20 +157,17 @@ let fix_map_id (msg: string) (ls: le_state) (il: nid) (ir: nid): le_state =
     if oil = il then ls
     else
       (* in the case of equal *)
-      if ls.ls_sat_l (Nc_cons (Apron.Tcons1.EQ, Ne_var il, Ne_var oil)) then ls 
-      else
-        begin
-          if !Flags.flag_debug_is_le_shape then
-            Log.force "about to fail: %b (%d)"
-              (IntSet.mem ir ls.ls_inst_r) (IntSet.cardinal ls.ls_inst_r);
-          raise (Le_false
-                   (Printf.sprintf "fix_map[%s] (%d,%d->%d)" msg ir il oil))
-        end
+    if IntSet.mem il ls.ls_fsvs_l then
+      let cs = Nc_cons (Apron.Tcons1.EQ, Ne_var il, Ne_var oil) in
+      { ls with ls_ctr_l = cs :: ls.ls_ctr_l }
+    else if
+      ls.ls_sat_l (Nc_cons (Apron.Tcons1.EQ, Ne_var il, Ne_var oil)) then ls
+    else
+      raise (Le_false (Printf.sprintf "fix_map[%s] (%d,%d->%d)" msg ir il oil))
   with
   | Not_found ->
-    collect_rules_node_st il ir
-      { ls with
-        ls_cur_i = Nemb.add ir il ls.ls_cur_i }
+      collect_rules_node_st il ir
+        { ls with ls_cur_i = Nemb.add ir il ls.ls_cur_i }
 let fix_map_args (msg: string)
     (ls: le_state) (al: nid list) (ar: nid list): le_state =
   if List.length al != List.length ar then
@@ -161,9 +180,89 @@ let fix_map_pargs (msg: string)
 let fix_map_iargs (msg: string)
     (ls: le_state) (al: ind_args) (ar: ind_args): le_state =
   fix_map_args (Printf.sprintf "%s,int" msg) ls al.ia_int ar.ia_int
+let fix_map_sargs (msg: string)
+    (ls: le_state) (al: ind_args) (ar: ind_args): le_state =
+  if List.length al.ia_set != List.length ar.ia_set then
+    Log.fatal_exn "fix_map_args[%s], lengths differ" msg;
+  try
+    List.fold_left2
+      (fun ls r l ->
+        { ls with
+          ls_cur_si = Set_utils.Semb.add r l ls.ls_cur_si; }
+      ) ls ar.ia_set al.ia_set
+  with Invalid_argument _ ->
+    Log.fatal_exn "mapdir_ind_setpars: arguments not match"
+
+let wkind_map_int_arg (msg: string) (ls: le_state) (ty: int_wk_typ)
+    (il: nid) (ir: nid): le_state =
+  let f ir ls =
+    try
+      Nemb.find ir ls.ls_cur_i, ls
+    with
+      Not_found ->
+        let ill, g = sv_add_fresh Ntint Nnone ls.ls_cur_l in
+        ill, { ls with
+               ls_cur_l = g;
+               ls_fsvs_l = IntSet.add ill ls.ls_fsvs_l;
+               ls_cur_i = Nemb.add ir ill ls.ls_cur_i } in
+  match ty with
+  | `Eq -> fix_map_id msg ls il ir
+  | `Non -> if Nemb.mem ir ls.ls_cur_i then ls else snd (f ir ls)
+  | `Leq ->
+      let ill, ls = f ir ls in
+      let ctr = Nc_cons (Apron.Tcons1.SUPEQ, Ne_var ill, Ne_var il) in
+      { ls with ls_ctr_l = ctr :: ls.ls_ctr_l }
+  | `Geq ->
+      let ill, ls = f ir ls in
+      let ctr = Nc_cons (Apron.Tcons1.SUPEQ, Ne_var il, Ne_var ill) in
+      { ls with ls_ctr_l = ctr :: ls.ls_ctr_l }
+  | `Add -> fix_map_id msg ls il ir
+
+let wkind_map_int_args (msg: string) (ls: le_state)
+    (tys: int_wk_typ IntMap.t) (ils: nid list) (irs: nid list)
+    : le_state =
+  let _, ls =
+    List.fold_left2
+      (fun (index, ls) il ir ->
+        let ls = wkind_map_int_arg msg ls (IntMap.find index tys) il ir in
+        index+1, ls
+      ) (0, ls) ils irs in
+  ls
+
+let wkind_map_set_arg (msg: string) (ls: le_state) (ty: set_wk_typ)
+    (il: nid) (ir: nid): le_state =
+  match ty with
+  | `Eq | `SAdd _ ->
+    { ls with
+      ls_cur_si = Set_utils.Semb.add ir il ls.ls_cur_si; }
+  | `Non ->
+    let ill, g = setv_add_fresh false None ls.ls_cur_l in
+    { ls with
+      ls_cur_l = g ;
+      ls_cur_si =Set_utils.Semb.add ir ill ls.ls_cur_si }
+
+let wkind_map_set_args (msg: string) (ls: le_state)
+    (tys: set_wk_typ IntMap.t) (ils: nid list) (irs: nid list)
+  : le_state =
+  let _, ls =
+    List.fold_left2 (fun (index, ls) il ir ->
+        let ls =
+          wkind_map_set_arg msg ls (IntMap.find index tys) il ir in
+        index+1, ls
+      ) (0, ls) ils irs in
+  ls
+
+let wkind_map_is_args (msg: string) (ls: le_state)
+    (tys: pars_wk_typ) (il: ind_args) (ir: ind_args)
+  : le_state =
+  wkind_map_set_args msg
+    (wkind_map_int_args msg ls tys.int_typ il.ia_int ir.ia_int )
+    tys.set_typ il.ia_set ir.ia_set
+
 let fix_map_all_args (msg: string)
     (ls: le_state) (al: ind_args) (ar: ind_args): le_state =
-  fix_map_iargs msg (fix_map_pargs msg ls al ar) al ar
+  fix_map_sargs msg
+    (fix_map_iargs msg (fix_map_pargs msg ls al ar) al ar) al ar
 
 (* Generate a fresh node, to be mapped with some given node *)
 let fresh_map_id (nt: ntyp) (il: int) (ls: le_state): int * le_state =
@@ -171,6 +270,13 @@ let fresh_map_id (nt: ntyp) (il: int) (ls: le_state): int * le_state =
   ir, { ls with
         ls_cur_r = g ;
         ls_cur_i = Nemb.add ir il ls.ls_cur_i }
+(* Generate a fresh set variable, to be mapped with some given set variable *)
+let fresh_map_sid (il: int) (ls: le_state): int * le_state =
+  let ir, g = setv_add_fresh false None ls.ls_cur_r in
+  ir, { ls with
+        ls_cur_r = g ;
+        ls_cur_si =Set_utils.Semb.add ir il ls.ls_cur_si }
+
 let fresh_map_args (nt: ntyp) (ill: int list)
     (ls: le_state): nid list * le_state =
   let lppars, inj, rg2 =
@@ -184,6 +290,76 @@ let fresh_map_args (nt: ntyp) (ill: int list)
   { ls with
     ls_cur_r = rg2 ;
     ls_cur_i = inj }
+
+let fresh_map_iargs (ill: int list) (ls: le_state)
+  : nid list * le_state =
+  let lipars, rg2 =
+    List.fold_left
+      (fun (acclr, accg) il ->
+        let nir, ngr = sv_add_fresh Ntint Nnone accg in
+        nir :: acclr, ngr
+      ) ([ ], ls.ls_cur_r) ill in
+  let ls =  { ls with ls_cur_r = rg2} in
+  let irr =  List.rev lipars in
+  irr, ls
+
+let fresh_map_sargs (ill: int list)
+    (ls: le_state): nid list * le_state =
+  let lspars, sinj, rg2 =
+    List.fold_left
+      (fun (acclr, acci, accg) il ->
+        let nir, ngr =
+          setv_add_fresh false None accg in
+        nir :: acclr, Set_utils.Semb.add nir il acci, ngr
+      ) ([ ], ls.ls_cur_si, ls.ls_cur_r) ill in
+  List.rev lspars,
+  { ls with
+    ls_cur_r = rg2 ;
+    ls_cur_si = sinj }
+
+let fresh_map_all_args (al: ind_args)  (ls: le_state)
+    : int list * int list * int list * le_state =
+  let lppars, ls = fresh_map_args Ntaddr al.ia_ptr ls in
+  let lipars, ls = fresh_map_iargs al.ia_int ls in
+  let lspars, ls = fresh_map_sargs al.ia_set ls in
+  lppars, lipars, lspars, ls
+
+let wkseg_iargs (msg: string) (l_sargs: ind_args) (l_dargs: ind_args)
+    (r_sargs: ind_args)
+    (r_dargs: ind_args) (ind: ind) (ls: le_state): le_state =
+  let do_nth_arg (index: int) (lsa: int) (lda: int) (rsa: int) (rda: int)
+      (wkt: int_wk_typ) (ls: le_state): le_state =
+    match wkt with
+    | `Eq -> fix_map_id msg (fix_map_id msg ls lsa rsa) lda rda
+    | `Non -> ls
+    | `Leq -> wkind_map_int_arg msg
+                (wkind_map_int_arg msg ls `Leq lsa rsa) `Geq lda rda
+    | `Geq -> wkind_map_int_arg msg
+                (wkind_map_int_arg msg ls `Geq lsa rsa) `Leq lda rda
+    | `Add ->
+        let isa, g = sv_add_fresh Ntint Nnone ls.ls_cur_l in
+        let ida, g = sv_add_fresh Ntint Nnone g in
+        let ctr = Nc_cons (Apron.Tcons1.EQ, Ne_var isa,
+                           Ne_bin (Apron.Texpr1.Add, Ne_var ida,
+                                   Ne_bin (Apron.Texpr1.Sub,
+                                           Ne_var lsa, Ne_var lda))) in
+        let ls =  { ls with
+                    ls_cur_l  = g;
+                    ls_fsvs_l = IntSet.add isa (IntSet.add ida ls.ls_fsvs_l);
+                    ls_ctr_l  = ctr :: ls.ls_ctr_l } in
+        fix_map_id msg (fix_map_id msg ls isa rsa) ida rda in
+  let rec do_args (index: int) (l_sargs: int list) (l_dargs: int list)
+      (r_sargs: int list)
+      (r_dargs: int list) (wk: int_wk_typ IntMap.t) (ls: le_state): le_state =
+    match l_sargs, l_dargs, r_sargs, r_dargs with
+    | [], [], [], [] -> ls
+    | lsa :: tl_s, lda :: tl_d, rsa :: tr_s, rda :: tr_d ->
+        let ls = do_nth_arg index lsa lda rsa rda (IntMap.find index wk) ls in
+        do_args (index+1) tl_s tl_d tr_s tr_d wk ls
+    | _ ->  Log.fatal_exn "fix_map_args[%s], lengths differ" msg; in
+  do_args 0 l_sargs.ia_int l_dargs.ia_int r_sargs.ia_int r_dargs.ia_int
+    ind.i_pars_wktyp.int_typ ls
+
 
 (* Enriching an algorithm state with the result of a unification *)
 let le_state_enrich (l: (int * int * int) list) (ls: le_state): le_state =
@@ -307,6 +483,12 @@ let apply_ind_ind (isl: int) (isr: int) (ls: le_state): le_state =
   match nl.n_e, nr.n_e with
   | Hind icl, Hind icr ->
       if Ind_utils.compare icl.ie_ind icr.ie_ind = 0 then
+        (* deal with integer and set parameters *)
+        let wk_type = compute_wk_type isl icl ls.ls_sat_l in
+        let ls =
+          wkind_map_is_args "ind-ind" ls wk_type
+            icl.ie_args icr.ie_args in
+        (* HSL: deal with pointer parameters with hacks *)
         let ls =
           (* fast ind-ind rule: if left ptr is null, tries to discharge
            * obligation, without matching parameters *)
@@ -326,7 +508,7 @@ let apply_ind_ind (isl: int) (isr: int) (ls: le_state): le_state =
             (* heap region in the left side is empty and all the empty rules
              * assert no information on all parameters => no matching ! *)
             ls
-          else fix_map_all_args "ind-ind" ls icl.ie_args icr.ie_args in
+          else fix_map_pargs "ind-ind" ls icl.ie_args icr.ie_args in
         { ls with
           ls_cur_l = ind_edge_rem isl ls.ls_cur_l;
           ls_cur_r = ind_edge_rem isr ls.ls_cur_r;
@@ -345,12 +527,9 @@ let apply_seg_seg (isl: int) (isr: int) (ls: le_state): le_state =
   let nr = node_find isr ls.ls_cur_r in
   match nl.n_e, nr.n_e with
   | Hseg s0, Hseg s1 ->
-      assert_no_int_arg "is_le,seg-seg(l,src)" s0.se_sargs ;
-      assert_no_int_arg "is_le,seg-seg(l,dst)" s0.se_dargs ;
-      assert_no_int_arg "is_le,seg-seg(r,src)" s1.se_sargs ;
-      assert_no_int_arg "is_le,seg-seg(r,dst)" s1.se_dargs ;
       if Ind_utils.compare s0.se_ind s1.se_ind = 0 then
         let ls = fix_map_pargs "seg_seg,src" ls s0.se_sargs s1.se_sargs in
+        let ls = fix_map_sargs "seg_seg,src" ls s0.se_sargs s1.se_sargs in
         (* default case: a*=b * G < a*=d * H   ==>   d*=b * G < H *)
         let default_seg_seg ( ) =
           (* segment gets consumed in the left argument;
@@ -360,11 +539,17 @@ let apply_seg_seg (isl: int) (isr: int) (ls: le_state): le_state =
           (* add a fresh (middle point) node in the right side graph *)
           let insrc, ls = fresh_map_id Ntaddr s0.se_dnode ls in
           (* add fresh nodes for the mapping of middle arguments *)
-          let lppars, ls = fresh_map_args Ntaddr s0.se_dargs.ia_ptr ls in
+          let lppars, lipars, lspars, ls =
+            fresh_map_all_args s0.se_dargs ls in
+          let se_args = { ia_ptr = lppars ;
+                          ia_int = lipars;
+                          ia_set = lspars; } in
+          let ls =
+            wkseg_iargs "seg_seg,int" s0.se_sargs s0.se_dargs s1.se_sargs
+              se_args s0.se_ind ls in
           (* build the fresh segment edge and add it to the right side graph *)
           let se = { se_ind   = s0.se_ind ;
-                     se_sargs = { ia_ptr = lppars ;
-                                  ia_int = (assert (s0.se_ind.i_ipars=0); [])};
+                     se_sargs = se_args;
                      se_dargs = s1.se_dargs ;
                      se_dnode = s1.se_dnode } in
           collect_rules_node_st s0.se_dnode insrc
@@ -372,31 +557,49 @@ let apply_seg_seg (isl: int) (isr: int) (ls: le_state): le_state =
               ls_cur_l = seg_edge_rem isl ls.ls_cur_l;
               ls_cur_r = seg_edge_add insrc se ls.ls_cur_r;
               ls_rem_l = IntSet.add isl ls.ls_rem_l;
+              ls_fresh_seg_r =
+              IntMap.add insrc { ie_ind  = s0.se_ind;
+                                 ie_args = se_args} ls.ls_fresh_seg_r;
               ls_rules = invalidate_rules isl isr Kseg Kseg ls.ls_rules } in
-          (* s1: right side, s0: left side *)
-          if Nemb.mem s1.se_dnode ls.ls_cur_i then
+        (* s1: right side, s0: left side *)
+        if Nemb.mem s1.se_dnode ls.ls_cur_i then
           (* case:  a*=b * G < a*=b * H   ==>   G < H *)
           (* attempts to match both segments and remove them completely *)
           let idl = Nemb.find s1.se_dnode ls.ls_cur_i in
           if idl = s0.se_dnode then
-          let ls = fix_map_pargs "seg_seg,dst" ls s0.se_dargs s1.se_dargs in
+            let ls = fix_map_pargs "seg_seg,dst" ls s0.se_dargs s1.se_dargs in
+            let ls = fix_map_sargs "seg_seg,dst" ls s0.se_dargs s1.se_dargs in
+            let ls = wkseg_iargs "seg_seg,int" s0.se_sargs s0.se_dargs
+                s1.se_sargs s1.se_dargs s0.se_ind ls in
             (* we can consume both segments in the same time *)
+            let ls_iseg_r =
+              if s1.se_dargs.ia_int = [] then ls.ls_iseg_r
+              else s1::ls.ls_iseg_r in
             { ls with
               ls_cur_l = seg_edge_rem isl ls.ls_cur_l;
               ls_cur_r = seg_edge_rem isr ls.ls_cur_r;
+              ls_iseg_r = ls_iseg_r;
               ls_rem_l = IntSet.add isl ls.ls_rem_l;
               ls_rules = invalidate_rules isl isr Kseg Kseg ls.ls_rules }
           else default_seg_seg ( )
-        else if IntMap.cardinal ls.ls_cur_l.g_g =
-          IntMap.cardinal ls.ls_cur_r.g_g then
+        else if IntMap.cardinal ls.ls_cur_l.g_g
+            = IntMap.cardinal ls.ls_cur_r.g_g then
+          let ls = fix_map_pargs "seg_seg,dst" ls s0.se_dargs s1.se_dargs in
+          let ls = fix_map_sargs "seg_seg,dst" ls s0.se_dargs s1.se_dargs in
+          let ls = wkseg_iargs "seg_seg,int" s0.se_sargs s0.se_dargs
+              s1.se_sargs s1.se_dargs s0.se_ind ls in
+          let ls_iseg_r =
+            if s1.se_dargs.ia_int = [] then ls.ls_iseg_r
+            else s1::ls.ls_iseg_r in
           collect_rules_node_st s0.se_dnode s1.se_dnode
             { ls with
               ls_cur_l = seg_edge_rem isl ls.ls_cur_l;
               ls_cur_r = seg_edge_rem isr ls.ls_cur_r;
+              ls_iseg_r = ls_iseg_r;
               ls_rem_l = IntSet.add isl ls.ls_rem_l;
-              ls_cur_i = Nemb.add s0.se_dnode s1.se_dnode ls.ls_cur_i; 
+              ls_cur_i = Nemb.add s0.se_dnode s1.se_dnode ls.ls_cur_i;
               ls_rules = invalidate_rules isl isr Kseg Kseg ls.ls_rules }
-        else 
+        else
           default_seg_seg ( )
       else Log.fatal_exn "rule seg-seg, applied to distinct inductives"
   | _, _ -> Log.fatal_exn "rule seg-seg, not applied to seg-seg"
@@ -407,29 +610,34 @@ let apply_seg_ind (isl: int) (isr: int) (ls: le_state): le_state =
   let nr = node_find isr ls.ls_cur_r in
   match nl.n_e, nr.n_e with
   | Hseg segl, Hind indr ->
-      assert_no_int_arg "seg-ind(l,src)" segl.se_sargs ;
-      assert_no_int_arg "seg-ind(l,dst)" segl.se_dargs ;
-      assert_no_int_arg "seg-ind(r)" indr.ie_args ;
       if Ind_utils.compare indr.ie_ind segl.se_ind = 0 then
         (* case: a*=b * G < a() * H   ==>   G < b() * H *)
         (* segment gets consumed in the left argument;
          * inductive gets split into a segment and an inductive in the right *)
-        let ls = fix_map_pargs "seg-ind,src" ls segl.se_sargs indr.ie_args in
-        (* remove the inductive edge being matched in the right side graph *)
-        let ls = { ls with ls_cur_r = ind_edge_rem isr ls.ls_cur_r } in
+        let ls = fix_map_pargs "seg_ind,src" ls segl.se_sargs indr.ie_args in
+        let ls = fix_map_sargs "seg_ind,src" ls segl.se_sargs indr.ie_args in
         (* add a fresh (middle point) node in the right side graph *)
         let insrc, ls = fresh_map_id Ntaddr segl.se_dnode ls in
         (* add fresh nodes for the mapping of pointer destination arguments *)
-        let lppars, ls = fresh_map_args Ntaddr segl.se_dargs.ia_ptr ls in
+        let lppars, lipars, lspars, ls = fresh_map_all_args segl.se_dargs ls in
+        let se_args = { ia_ptr = lppars ;
+                        ia_int = lipars;
+                        ia_set = lspars; } in
+        let ls =
+          wkseg_iargs "seg_ind,int" segl.se_sargs segl.se_dargs indr.ie_args
+            se_args segl.se_ind ls in
         (* build the fresh inductive edge and add it to the right side graph *)
         let ie =
           { ie_ind  = indr.ie_ind ;
             ie_args = { ia_ptr = lppars ;
-                        ia_int = (assert (indr.ie_ind.i_ipars = 0); [ ]) } } in
+                        ia_int = lipars;
+                        ia_set = lspars; } } in
         collect_rules_node_st segl.se_dnode insrc
           { ls with
             ls_cur_l = seg_edge_rem isl ls.ls_cur_l;
-            ls_cur_r = ind_edge_add insrc ie ls.ls_cur_r;
+            ls_cur_r = ind_edge_add insrc ie (ind_edge_rem isr ls.ls_cur_r);
+            ls_fresh_seg_r =
+            IntMap.add insrc ie ls.ls_fresh_seg_r;
             ls_rem_l = IntSet.add isl ls.ls_rem_l;
             ls_rules = invalidate_rules isl isr Kseg Kind ls.ls_rules }
       else Log.todo_exn "unhandled seg-ind case"
@@ -440,8 +648,6 @@ let apply_void_seg (isl: int) (isr: int) (ls: le_state): le_state =
   let nr = node_find isr ls.ls_cur_r in
   match nr.n_e with
   | Hseg s1 ->
-      assert_no_int_arg "emp-seg(src)" s1.se_sargs ;
-      assert_no_int_arg "emp-seg(dst)" s1.se_dargs ;
       let idr = s1.se_dnode in
       let ext_l =
         try Nemb.find idr ls.ls_cur_i
@@ -464,7 +670,21 @@ let apply_void_seg (isl: int) (isr: int) (ls: le_state): le_state =
                   if ias = iad then acc
                   else raise (Le_false "emp-seg, conflicting ptr par info")
             ) ls s1.se_sargs.ia_ptr s1.se_dargs.ia_ptr in
+        let setctr =
+          List.fold_left2
+            (fun acc iars iard ->
+              S_eq (S_var iars, S_var iard) :: acc
+            ) ls.ls_setctr_r
+            s1.se_sargs.ia_set s1.se_dargs.ia_set in
+        let intctr =
+          List.fold_left2
+            (fun acc iars iard ->
+              Nc_cons (Apron.Tcons1.EQ, Ne_var iars, Ne_var iard) :: acc
+            ) ls.ls_ctr_r
+            s1.se_sargs.ia_int s1.se_dargs.ia_int in
         { ls with
+          ls_setctr_r = setctr;
+          ls_ctr_r    = intctr;
           ls_cur_r = seg_edge_rem isr ls.ls_cur_r ;
           ls_rules = invalidate_rules isl isr Kemp Kseg ls.ls_rules }
       else (* segment not mapped into an empty region *)
@@ -501,8 +721,27 @@ let apply_stop_node_ind (isl: nid) (isr: nid) (ls: le_state): le_state=
               try Nemb.find i ls.ls_cur_i
               with Not_found -> Log.fatal_exn "stop-node: ptr par not mapped"
             ) icr.ie_args.ia_ptr in
+        (* mapping of the integer arguments *)
+        let iargs =
+          List.map
+            (fun i ->
+              if debug_module then
+                Log.debug "Trying to map %d" i;
+              try Nemb.find i ls.ls_cur_i
+              with Not_found -> Log.fatal_exn "stop-node: ptr par not mapped"
+            ) icr.ie_args.ia_int in
+        (* mapping of the set arguments*)
+        let sargs =
+          List.map
+            (fun i ->
+              if debug_module then
+                Log.debug "Trying to map %d" i;
+              try IntSet.choose (Set_utils.Semb.find i ls.ls_cur_si)
+              with Not_found -> Log.fatal_exn "stop-node: ptr par not mapped"
+            ) icr.ie_args.ia_set in
         let args = { ia_ptr = pargs ;
-                     ia_int = (assert (icr.ie_ind.i_ipars = 0); [ ]) } in
+                     ia_int = iargs ;
+                     ia_set = sargs } in
         let g0 = sv_add isl nr.n_t Nnone ls.ls_excl_l in
         let g1 =
           List.fold_left
@@ -519,7 +758,6 @@ let apply_stop_node_ind (isl: nid) (isr: nid) (ls: le_state): le_state=
       Log.todo_exn "apply_stop_node_ind: segment"
 
 
-
 (** Post inclusion check routine *)
 (* Checks whether a configuration is a success configuration *)
 let is_success (ls: le_state): le_state =
@@ -531,95 +769,90 @@ let is_success (ls: le_state): le_state =
   if (not ls.ls_emp_both || num_l = 0) && num_r = 0 then
     (* Inclusion established in the graph domain;
      * we now need to look at side predicates *)
-    let f_trans (cur_i: node_embedding) (i: int) =
-      try Nemb.find i cur_i
-      with
-      | Not_found ->
-          if debug_module then
-            Log.debug "renaming failed (is_le) %d" i;
-          raise (Le_false "is_success") in
-    if !Flags.flag_debug_is_le_shape then
-      begin
-        Log.force "Predicates to look at: %d" (List.length ls.ls_ctr_r);
-        List.iter
-          (fun p -> Log.force "  %s" (Nd_utils.n_cons_2str p))
-          ls.ls_ctr_r;
-      end;
-    (* Before trying to discharge all constraints, we rename them, and
-     * move out of the way those that cannot be fully renamed due to
-     * node instantiations being required *)
-    let renamed_l, non_renamed_r =
-      List.fold_left
-        (fun (accl, accr) ctr ->
-          if !Flags.flag_debug_is_le_shape then
-            Log.force "Constraints on the right nodes, to rename: %s"
-              (Nd_utils.n_cons_2str ctr);
-          try
-            Nd_utils.n_cons_map (f_trans ls.ls_cur_i) ctr :: accl, accr
-          with
-          | Le_false _ ->
-              if !Flags.flag_debug_is_le_shape then
-                Log.force "Renaming fails: %s" (Nd_utils.n_cons_2str ctr);
-              accl, ctr :: accr
-        ) ([ ], [ ]) (List.rev ls.ls_ctr_r) in
-    (* first: build maps for non-mapped variables according to the *
-     * equality constraints *)
-    let ls_cur_i =
-      List.fold_left
-        (fun (cur_i) ctr ->
-          match ctr with
-          | Nc_cons (Apron.Lincons1.EQ, Ne_var i, Ne_var j) ->
-              if !Flags.flag_debug_is_le_shape then
-                Log.force "trying to find a solution %d, %d" i j;
-              if (Nemb.mem i cur_i) && (not (Nemb.mem j cur_i)) then
-                Nemb.add j (Nemb.find i cur_i) cur_i
-              else if (Nemb.mem j cur_i) && (not (Nemb.mem i cur_i)) then
-                  Nemb.add i (Nemb.find j cur_i) cur_i
-              else cur_i
-          | _ ->
-              cur_i
-        ) ls.ls_cur_i non_renamed_r in
-    let ls = {ls with ls_cur_i = ls_cur_i} in
-    (* second: renaming non-renamed constraints according to the new map*)
-    let renamed_l, non_renamed_r =
-      List.fold_left
-        (fun (accl, accr) ctr ->
-          if !Flags.flag_debug_is_le_shape then
-            Log.force "Constraints on the right nodes, to rename: %s"
-              (Nd_utils.n_cons_2str ctr);
-          try
-            Nd_utils.n_cons_map (f_trans ls_cur_i) ctr :: accl, accr
-          with
-          | Le_false _ ->
-              if !Flags.flag_debug_is_le_shape then
-                Log.force "Renaming fails: %s" (Nd_utils.n_cons_2str ctr);
-              accl, ctr :: accr
-        ) (renamed_l, [ ])  non_renamed_r in
-    (* Check whether non_renamed can be extracted
-     * into a series of constraints, that can be "asserted"
-     * assertable constraints are of the form:  |i| = expr  where expr
-     * can be fully translated, and i is an instantiable variable *)
-    let instantiations =
+    (* first: collect unmapped sv from constraints on right side *)
+    let f_unmap (i: int) (acc: IntSet.t) =
+      if Nemb.mem i ls.ls_cur_i then acc else IntSet.add i acc in
+    let non_mapped_svs_r =
       List.fold_left
         (fun acc ctr ->
-          match ctr with
-          | Nc_cons (Apron.Lincons1.EQ, Ne_var i, exr) ->
-              if !Flags.flag_debug_is_le_shape then
-                Log.force "trying to find a solution %d, %b(%d,%s)" i
-                  (IntSet.mem i ls.ls_inst_r) (IntSet.cardinal ls.ls_inst_r)
-                  (intset_2str ls.ls_inst_r);
-              if IntSet.mem i ls.ls_inst_r then
-                let texr = Nd_utils.n_expr_map (f_trans ls.ls_cur_i) exr in
-                if not (IntMap.mem i acc) then
-                  begin
-                    if !Flags.flag_debug_is_le_shape then
-                      Log.force " -> relation is instantiable";
-                    IntMap.add i texr acc
-                  end
-                else raise (Le_false "node cannot be instantiated twice")
-              else raise (Le_false "non instantiable node")
-          | _ -> raise (Le_false "failed to find instantiable constraint")
-        ) ls.ls_inst_ctr non_renamed_r in
+          Nd_utils.n_cons_fold f_unmap ctr acc
+        ) IntSet.empty ls.ls_ctr_r in
+    (* for all the non mapped svs in right side, map them to generated fresh
+     * svs in left side *)
+    let ls =
+      IntSet.fold
+        (fun sv ls ->
+          let typ = (IntMap.find sv ls.ls_cur_l.g_g).n_t in
+          let il, g = sv_add_fresh typ Nnone ls.ls_cur_l in
+          { ls with
+            ls_cur_l  = g;
+            ls_fsvs_l = IntSet.add il ls.ls_fsvs_l;
+            ls_cur_i  = Nemb.add sv il ls.ls_cur_i }
+        ) non_mapped_svs_r ls in
+    (* now, rename all the constraints on right side (ls_ctr_r) to constraints
+     * on left side (ls_ctr_l) *)
+    let ls = List.fold_left (fun ls ctr ->
+        try
+          let ctr =
+            Nd_utils.n_cons_map (fun i -> Nemb.find i ls.ls_cur_i) ctr in
+          { ls with ls_ctr_l = ctr :: ls.ls_ctr_l }
+        with
+          Not_found -> Log.fatal_exn "nd_instantiation: non_complete sv map"
+      ) ls (List.rev ls.ls_ctr_r) in
+    let ls = {ls with ls_ctr_r = [];} in
+    if !Flags.flag_debug_is_le_shape then
+      begin
+        Log.force "Predicates to look at: %d" (List.length ls.ls_ctr_l);
+        List.iter
+          (fun p -> Log.force "  %s" (Nd_utils.n_cons_2str p))
+          ls.ls_ctr_l;
+        Log.force "Instantiable svs: %s"
+          (IntSet.t_2str ";" ls.ls_fsvs_l);
+        Log.force "Instantiated svs: %s"
+          (IntMap.t_2str "\n" Nd_utils.n_expr_2str ls.ls_inst_l);
+      end;
+    (* seperate constraints on left side into two parts: a part without
+       fresh svs, which should be proved satisfied and a part with fresh
+       svs, which can be should for instantiate fresh svs *)
+    let ctr_to_prove, ctr_to_inst = List.fold_left (fun (accp, acci) ctr ->
+        let no_freshsvs =
+          Nd_utils.n_cons_fold
+            (fun i acc -> if IntSet.mem i ls.ls_fsvs_l then false else acc)
+            ctr true in
+        if no_freshsvs then ctr::accp, acci
+        else accp, ctr::acci
+      )([], []) ls.ls_ctr_l in
+    let ls = {ls with ls_ctr_l = ctr_to_inst} in
+    (* instantiation fresh svs according to constraints on left side *)
+    let inst, ctr_to_prove1, ctr_to_inst =
+      nd_instantiation_eq ls.ls_ctr_l ls.ls_fsvs_l ls.ls_inst_l in
+    let ctr_to_prove = ctr_to_prove @ ctr_to_prove1 in
+    let ls = { ls with
+               ls_inst_l = inst;
+               ls_ctr_l  = ctr_to_inst } in
+    (* update node mapping and instantiation *)
+    let f_l2r (l: int) (j: int) (nm: node_embedding): node_embedding =
+      let r =
+        IntMap.fold (fun k e acc -> if e = l then IntMap.add k j acc else acc)
+          nm.n_img nm.n_img in
+      { nm with n_img = r } in
+    let e_l2r (l: int) (nm: node_embedding): int option =
+      let r = IntMap.filter (fun k e -> e = l) nm.n_img in
+      try Some (fst (IntMap.choose r))
+      with Not_found -> None in
+    let ls_cur_i =
+      IntMap.fold
+        (fun i e cur_i ->
+          match e with
+          | Ne_var j -> f_l2r i j cur_i
+          | _ ->
+              begin
+                match e_l2r i cur_i with
+                | None ->  cur_i
+                | Some j -> cur_i
+              end
+        ) inst ls.ls_cur_i in
+    let ls = { ls with ls_cur_i = ls_cur_i } in
     (* Discharging of proof obligations *)
     let l_rem =
       List.fold_left
@@ -630,7 +863,7 @@ let is_success (ls: le_state): le_state =
               (Nd_utils.n_cons_2str lctr) bres;
           if bres then acc
           else lctr :: acc
-        ) [ ] renamed_l in
+        ) [ ] ctr_to_prove in
     let l_rem =
       List.fold_left
         (fun acc lctr ->
@@ -647,8 +880,7 @@ let is_success (ls: le_state): le_state =
         ) [ ] l_rem in
     { ls with
       ls_ctr_r    = [ ] ; (* accumulator becomes empty *)
-      ls_success  = (List.length l_rem = 0) ;
-      ls_inst_ctr = instantiations }
+      ls_success  = (List.length l_rem = 0) ; }
   else (* Inclusion could not be established in the graph domain *)
     { ls with ls_success  = false }
 
@@ -730,7 +962,9 @@ and s_is_le_unfold
                 collect_rules_node_st il ir
                   { ls with
                     ls_cur_r = ur.ur_g ;
-                    ls_ctr_r = ur.ur_cons @ ls.ls_ctr_r } in
+                    ls_ctr_r = ur.ur_cons @ ls.ls_ctr_r;
+                    ls_setctr_r = ur.ur_setcons @ ls.ls_setctr_r;
+                  } in
               let ols = s_is_le_rec ls0 in
               let lsuccess = is_success ols in
               if lsuccess.ls_success then
@@ -765,6 +999,7 @@ let rec is_le_start (ls: le_state): le_state option =
   else
     (* inclusion does not hold, no relation to forward *)
     None
+
 (* The main function for inclusion testing
  *  - inst:
  *    the first argument allows for parameters be marked as instantiable
@@ -782,27 +1017,32 @@ let is_le_generic
     (es: IntSet.t)       (* segment end(s), if any *)
     (xl: graph)          (* left input *)
     (pl: n_cons -> bool) (* satisfiability, in the left argument *)
+    (spl: set_cons -> bool) (* set satisfiability, in the left argument *)
     (xr: graph)          (* right input *)
     (r: node_emb)        (* injection from right into left *)
+    (* injection from right set variables into left set variables *)
+    (s_r: Graph_sig.node_emb)
     : le_state option (* extended relation if inclusion proved *) =
   try
     (* Initialization *)
     let lh = Option.map (fun x -> x.hug_live) ho in
-    (* Current configuration *)
-    let instantiate =
-      match instantiable_nodes with
-      | None -> IntSet.empty
-      | Some s -> s in
     let ni = Nemb.init r in
+    let si = Set_utils.Semb.init s_r in
     let ils = { ls_cur_l    = xl ;
                 ls_cur_r    = xr ;
                 ls_cur_i    = ni ;
+                ls_cur_si   = si;
                 ls_rules    = rules_init emp_both es ni xl xr r ;
                 ls_rem_l    = IntSet.empty ;
                 ls_sat_l    = pl ;
+                ls_setsat_l = spl;
+                ls_ctr_l    = [ ];
+                ls_fsvs_l   = IntSet.empty;
+                ls_inst_l   = IntMap.empty;
+                ls_iseg_r   = [ ];
+                ls_fresh_seg_r = IntMap.empty;
                 ls_ctr_r    = [ ] ;
-                ls_inst_r   = instantiate ;
-                ls_inst_ctr = IntMap.empty ;
+                ls_setctr_r = [ ] ;
                 ls_success  = false ;
                 ls_emp_both = emp_both;
                 ls_hint_l   = lh;
@@ -832,9 +1072,160 @@ let is_le_generic
       None
 
 
+(* for some non-instantiated set variables, generate freash set variables
+ for instantiation *)
+let gen_fresh_inst (non_inst: IntSet.t) (inst: set_expr IntMap.t) (t: graph)
+    : set_expr IntMap.t * graph  * IntSet.t=
+  IntSet.fold
+    (fun e (inst, t, ns) ->
+      assert (not (IntMap.mem e inst));
+      let key, t = setv_add_fresh false None t in
+      IntMap.add e (S_var key) inst, t, IntSet.add key ns
+    ) non_inst (inst, t, IntSet.empty)
+
+(* split set constraints with fresh set variables *)
+let split_cons_fresh (setctr: set_cons list) (setv: IntSet.t)
+    : set_cons list * set_cons list =
+  List.fold_left
+    (fun (accs, acc_f) ele ->
+      if IntSet.inter setv (Set_utils.set_cons_setvs ele) = IntSet.empty then
+        ele :: accs, acc_f
+      else
+        accs, ele :: acc_f
+    ) ([], []) setctr
+
+(* instantiation of set variables in is_le  *)
+let set_instantiation (ls: le_state) (g: graph)
+    : le_state * set_expr IntMap.t *set_cons list * set_cons list * IntSet.t =
+  (* initialize instantiation of set variables from set mapping and
+   * generate equal set constraints that need to be proved *)
+  let inst, setcons_l = gen_eq_setctr ls.ls_cur_si in
+  (* first instantiation pass, which only produce new instantiation according
+   * to initialize instantiation, this pass will not generate fresh set
+   * variables on the left side *)
+  let inst, setcons = instantiate ls.ls_setctr_r inst ls.ls_cur_i.n_img in
+  (* compute a minimal set of non instantiated set variables,
+   * that instantiating them could lead to a complete instantiation*)
+  let non_inst = check_non_inst setcons inst in
+  (* map minimal  non instantiated set variables to fresh set variables in
+   * the left side *)
+  let inst, ls_cur_l, nset = gen_fresh_inst non_inst inst ls.ls_cur_l in
+  let ls = { ls with ls_cur_l = ls_cur_l } in
+  (* second instantiation pass, produce a complete instantiation and
+   * set constraints that need to be proved *)
+  let inst, setcons = instantiate setcons inst ls.ls_cur_i.n_img in
+  (* rename set constraints to the left side according to instantiation *)
+  let setcons_l1 = replace_cons setcons inst ls.ls_cur_i.n_img in
+  (* remove set variables from unfolding during inclusion checking*)
+  let inst = IntMap.filter (fun k _ -> Keygen.key_is_used g.g_setvkey k) inst in
+  let set_cons_l = setcons_l@setcons_l1 in
+  (* filter set constraints with fresh set variables as they cannot be
+   * proved, need further instantiation in joining *)
+  let set_cons_l, further_prove = split_cons_fresh set_cons_l nset in
+  ls, inst, set_cons_l, further_prove, nset
+
+(* guess constraints among set parameters and numerical parameters
+ * input graph *)
+let guess_cons (xl: graph) (ls: le_state): le_state =
+  if !Flags.flag_debug_is_le_shape then
+    Log.force "begin: Guess_cons";
+  let ls_iind_l =
+    List.map
+      (fun se ->
+        let id = Nemb.find se.se_dnode ls.ls_cur_i in
+        let ie =
+          let ptrs =
+            List.map (fun i -> Nemb.find i ls.ls_cur_i) se.se_dargs.ia_ptr in
+          let ints =
+            List.map (fun i -> Nemb.find i ls.ls_cur_i) se.se_dargs.ia_int in
+          let sets =
+            List.map (fun i -> IntSet.choose (Semb.find i ls.ls_cur_si))
+              se.se_dargs.ia_set in
+          { ie_ind  = se.se_ind;
+            ie_args = { ia_ptr = ptrs;
+                        ia_int = ints;
+                        ia_set = sets } } in
+        (id, ie)
+      ) ls.ls_iseg_r in
+  let merge_g (gi: graph) (go: graph): graph =
+    let g =
+      IntMap.fold
+        (fun id node acc ->
+          if IntMap.mem id acc then acc
+          else IntMap.add id node acc
+        ) go.g_g gi.g_g in
+    { gi with
+      g_nkey   = go.g_nkey;
+      g_g      = g;
+      g_svemod = go.g_svemod } in
+  let creat_g (id: int) (ie: ind_edge): graph =
+    let g0 = sv_add id Ntaddr Nnone (graph_empty xl.g_inds) in
+    let f_buildpars = List.fold_left (fun acc i -> IntSet.add i acc) in
+    let ia_nodes = f_buildpars IntSet.empty ie.ie_args.ia_int in
+    let pa_nodes = f_buildpars IntSet.empty ie.ie_args.ia_ptr in
+    let sa_nodes = f_buildpars IntSet.empty ie.ie_args.ia_set in
+    let g0 = IntSet.fold (fun i -> sv_add i Ntint Nnone) ia_nodes g0 in
+    let g0 = IntSet.fold (fun i -> sv_add i Ntaddr Nnone) pa_nodes g0 in
+    let g0 = IntSet.fold (fun i -> setv_add false i) sa_nodes g0 in
+    ind_edge_add id ie g0 in
+  let init_inj (id: int) (ie: ind_edge): node_embedding * setv_embedding =
+    let nm = Nemb.add id id Nemb.empty in
+    let nm =
+      List.fold_left (fun acc i -> Nemb.add i i acc) nm ie.ie_args.ia_ptr in
+    let nm =
+      List.fold_left (fun acc i -> Nemb.add i i acc) nm ie.ie_args.ia_int in
+    let sm =
+      List.fold_left
+        (fun acc i -> Semb.add i i acc) Semb.empty ie.ie_args.ia_set in
+    nm, sm in
+  List.fold_left
+    (fun ls (id, ie) ->
+      if ie.ie_args.ia_int = [] then ls
+      else
+        let ls_cur_i, ls_cur_si = init_inj id ie in
+        let ls_cur_l = merge_g xl ls.ls_cur_l in
+        let ls_cur_r = creat_g id ie in
+        let ls_a =
+          { ls with
+            ls_cur_l       = ls_cur_l;
+            ls_cur_r       = ls_cur_r;
+            ls_cur_i       = ls_cur_i;
+            ls_cur_si      = ls_cur_si;
+            ls_rules       = empty_rules;
+            ls_ctr_r       = [];
+            ls_setctr_r    = [];
+            ls_iseg_r      = [];
+            ls_fresh_seg_r = IntMap.empty;
+            ls_success     = false;
+            ls_emp_both    = false; } in
+        let ls_a = collect_rules_node_st id id ls_a in
+        match is_le_start ls_a with
+        | Some lls -> lls
+        | None -> ls
+    ) ls ls_iind_l
+
+let do_types (xr: graph) (ls: le_state): int_wk_typ IntMap.t =
+  (* type integer parameters on right graph *)
+  let type_iargs_r = type_iargs_g xr (fun ir -> Nemb.find ir ls.ls_cur_i) in
+  let type_iargs_l =
+    IntMap.fold
+      (fun ir wk acc ->
+        let il = Nemb.find ir ls.ls_cur_i in
+        if IntSet.mem il ls.ls_fsvs_l then
+          try IntMap.add il (merge_wktype (IntMap.find il acc) wk) acc
+          with Not_found -> IntMap.add il wk acc
+        else acc
+      ) type_iargs_r IntMap.empty in
+  IntMap.fold
+    (fun id ie acc ->
+      let wkt = seg_end_wkt ie.ie_ind.i_pars_wktyp.int_typ in
+      type_iargs_ie ie.ie_args wkt acc
+    ) ls.ls_fresh_seg_r type_iargs_l
+
+
 (* The main function for inclusion testing:
  * used for checking stabilization of abstract iterates
- * 
+ *
  *  - stop:
  *    allows to use the liveness analysis results in order to guide the
  *    weakening process
@@ -844,15 +1235,59 @@ let is_le
     (xl: graph)          (* left input *)
     (ho: hint_ug option) (* hint, the left argument ("stop" nodes) *)
     (pl: n_cons -> bool) (* satisfiability, in the left argument *)
+    (spl: set_cons -> bool) (* set satisfiability, in the left argument *)
     (xr: graph)          (* right input *)
     (r: node_emb)        (* injection from right into left *)
-    : (int IntMap.t) option (* extended relation if inclusion proved *) =
-  match is_le_generic None submem true ho IntSet.empty xl pl xr r with
+    (s_r: node_emb)        (* injection from right set vars into left *)
+    : (int IntMap.t       (* extended relation if inclusion proved *)
+         * set_expr IntMap.t (* instantiated constraints of SETVs *)
+         * sv_inst           (* sv instantiation  *)
+      ) option  =
+  match is_le_generic None submem true ho IntSet.empty xl pl spl xr r s_r with
   | None -> None
   | Some ls ->
-      if num_edges ls.ls_excl_l = 0 then
-        Some ls.ls_cur_i.n_img
-      else Log.fatal_exn "is_le did not completely consume right argument"
+    if num_edges ls.ls_excl_l = 0 then
+      let ls_r = guess_cons xl ls in
+      let ls = { ls with
+                 ls_ctr_l  = ls_r.ls_ctr_l;
+                 ls_fsvs_l = ls_r.ls_fsvs_l;
+                 ls_inst_l = ls_r.ls_inst_l } in
+      (* sv instantiation according to eq numerical constraints *)
+      let ie =
+        IntMap.fold (fun k _ acc -> IntSet.add k acc)
+          ls.ls_inst_l IntSet.empty in
+      let sv_inst =
+        { sv_inst_empty with
+          sv_fresh = ls.ls_fsvs_l;
+          sv_ie    = ie;
+          sv_eqs   = ls.ls_inst_l;
+          sv_cons  = ls.ls_ctr_l; } in
+      let sv_inst = sv_instantiation sv_inst ls.ls_sat_l in
+      let sv_inst = do_sv_inst_left_ctrs sv_inst ls.ls_sat_l in
+      let typed_fresh_svl = do_types xr ls in
+      let sv_inst =
+        typed_sv_instantiation sv_inst typed_fresh_svl ls.ls_sat_l in
+        assert (sv_inst.sv_cons = []);
+      if !Flags.flag_debug_is_le_shape then
+        Log.force "Instantiation of symbolic variables:\n%s"
+          (sv_inst_2stri "" sv_inst);
+      let ls = { ls with
+                 ls_inst_l = sv_inst.sv_eqs;
+                 ls_ctr_l = sv_inst.sv_cons } in
+      let ls, inst, set_cons_l, further_prove, fresh_setv =
+        set_instantiation ls xr in
+      if !Flags.flag_debug_is_le_shape then
+        Log.force "Instantiation of set variables:\n%s"
+          (IntMap.fold
+             (fun i sr acc ->
+               Printf.sprintf "%sS[%d]->%s\n" acc i
+                 (Set_utils.set_expr_2str sr)
+             ) inst "");
+      if List.for_all ls.ls_setsat_l set_cons_l
+          && further_prove = [] && fresh_setv = IntSet.empty then
+        Some (ls.ls_cur_i.n_img, inst, sv_inst)
+      else None
+    else Log.fatal_exn "is_le did not completely consume right argument"
 
 
 (* Partial inclusion test:
@@ -875,10 +1310,13 @@ let is_le_partial
     (ho: hint_ug option) (* hint, the left argument ("stop" nodes) *)
     (es: IntSet.t)       (* segment end(s), if any *)
     (pl: n_cons -> bool) (* satisfiability, in the left argument *)
+    (spl: set_cons -> bool) (* set satisfiability, in the left argument *)
     (xr: graph)          (* right input *)
     (r: node_emb)        (* injection from right into left *)
+    (s_r: node_emb)        (* injection from right set vars into left *)
     : is_le_res (* result, left remainder, and possibly right segment *) =
-  match is_le_generic instantiable_nodes submem false ho es xl pl xr r with
+  match
+    is_le_generic instantiable_nodes submem false ho es xl pl spl xr r s_r with
   | None -> Ilr_not_le
   | Some ls ->
       if search_ind then
@@ -913,21 +1351,42 @@ let is_le_partial
               end
       else
         begin
-          (* saturation of instantiation *)
+          (* sv instantiation according to eq numerical constraints *)
+          let ie =
+            IntMap.fold (fun k _ acc -> IntSet.add k acc) ls.ls_inst_l
+              IntSet.empty in
+          let sv_inst =
+            { sv_inst_empty with
+              sv_fresh = ls.ls_fsvs_l;
+              sv_ie    = ie;
+              sv_eqs   = ls.ls_inst_l;
+              sv_cons  = ls.ls_ctr_l; } in
+          let sv_inst  = sv_instantiation sv_inst ls.ls_sat_l in
           if !Flags.flag_debug_is_le_shape then
-            Log.force "Instantiation: %d of %d"
-              (IntSet.cardinal ls.ls_inst_r) (IntMap.cardinal ls.ls_inst_ctr);
-          let instmap =
-            IntSet.fold
-              (fun i acc ->
-                if IntMap.mem i acc then acc
-                else if Nemb.mem i ls.ls_cur_i then
-                  (* node that was not instantiated yet; look for a binding *)
-                  let il = Nemb.find i ls.ls_cur_i in
-                  (* if it was in the initial graph, keep it *)
-                  if node_mem il xl then IntMap.add i (Ne_var il) acc
-                  else (* otherwise, throw it... *) acc
-                else acc
-              ) ls.ls_inst_r ls.ls_inst_ctr in
-          Ilr_le_rem (ls.ls_cur_l, ls.ls_rem_l, ls.ls_cur_i.n_img, instmap)
+            Log.force "Instantiation of symbolic variables:\n%s"
+              (sv_inst_2stri "" sv_inst);
+          let ls = { ls with
+                     ls_inst_l = sv_inst.sv_eqs;
+                     ls_ctr_l  = sv_inst.sv_cons } in
+          let ls, inst, set_cons_l, further_prove, fresh_setv =
+            set_instantiation ls xr in
+          if !Flags.flag_debug_is_le_shape then
+            Log.force "Instantiation of set variables:\n%s"
+              (IntMap.fold
+                 (fun i sr acc ->
+                   Printf.sprintf "%sS[%d]->%s\n" acc i
+                     (Set_utils.set_expr_2str sr)
+                 ) inst "");
+          if !Flags.flag_debug_is_le_shape then
+            Log.force "Set predicates to prove:\n%s\n"
+              (gen_list_2str "" Set_utils.set_cons_2str ";" set_cons_l);
+          if !Flags.flag_debug_is_le_shape then
+            Log.force "Set predicates for further prove:\n%s\n"
+              (gen_list_2str "" Set_utils.set_cons_2str ";" further_prove);
+          (* prove set predicates *)
+          if List.for_all ls.ls_setsat_l set_cons_l then
+            Ilr_le_rem (ls.ls_cur_l, ls.ls_rem_l, ls.ls_cur_i.n_img,
+                        inst, fresh_setv, sv_inst, further_prove)
+          else
+            Ilr_not_le
         end

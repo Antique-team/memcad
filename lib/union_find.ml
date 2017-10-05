@@ -121,6 +121,15 @@ let find_class (r: 'a) (uf: 'a t): 'a list =
   assert (not flag_do_control || is_representative r uf);
   aux [ r ] [ Aa_sets.remove r (Bi_fun.inverse r uf) ]
 
+(* lift an element to the representive of a class *)
+let lift_rep (id: 'a) (uf: 'a t): 'a t =
+  let rep,uf = find id uf in
+  if rep = id then
+    uf
+  else
+    Bi_fun.add id id (Bi_fun.add rep id uf)
+
+
 (* Union r1 r2, merges two classes, given their representatives r1 and r2;
  * r1 remains a representative, r2 does not *)
 let union (r1: 'a) (r2: 'a) (uf: 'a t): 'a t = 
@@ -128,6 +137,35 @@ let union (r1: 'a) (r2: 'a) (uf: 'a t): 'a t =
   assert (not flag_do_control || is_representative r2 uf);
   if r1 = r2 then uf else Bi_fun.add r2 r1 uf
 
+
+(* Classes meet ? *)
+let is_same_class
+    (l: 'a) (r: 'a) (au: 'a t): bool =
+  mem l au && mem r au && fst (find l au) = fst (find r au)
+
+let fold (f: 'a -> 'b -> 'b) (base: 'a t) (acc: 'b): 'b =
+  Bi_fun.fold_dom (fun a _ -> f a) base acc
+
+let meet (ufl: 'a t) (ufr: 'a t): 'a t =
+  let is_eq (a: 'a) (b: 'a) =
+    a != b && is_same_class a b ufl && is_same_class a b ufr in
+  fold
+    (fun a acc ->
+      fold
+        (fun ia iacc ->
+          if is_eq a ia && not (mem a iacc && mem ia iacc) then
+            let a,iacc =
+              if mem a iacc then find a iacc
+              else (a, add a iacc) in
+            let ia,iacc =
+              if mem ia iacc then
+                find ia iacc
+              else (ia, add ia iacc) in
+            union a ia iacc
+          else
+            iacc
+        ) ufl acc
+    ) ufl empty
 
 (** Lattice operation *)
 

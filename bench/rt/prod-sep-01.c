@@ -20,6 +20,8 @@ void main( ){
   t = x - y ;
   // heap
   q = malloc( 8 ) ;
+  if( q == 0 )
+    exit( 0 );
   q -> next = null ;
   q -> data = z ;  
 

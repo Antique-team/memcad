@@ -1,0 +1,15 @@
+
+%----------------------------------
+% Singly-linked lists in arrays
+slist<0,0>(-subi:2-)  (2;3):=
+| [0] -   emp
+      -   this = 111
+| [2 int int]
+      -   this->0 |-> $0
+        * this->2 |-> $1    
+        * $0.slist( | | )
+      -   this != 111
+        &  @n1 <= $1
+        &  @m0 = 1   
+        & alloc( this, 4 )
+.

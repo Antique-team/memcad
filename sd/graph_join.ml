@@ -25,6 +25,10 @@ open Gen_join
 
 open Graph_utils
 open Ind_utils
+open Inst_utils
+open Set_sig
+open Inst_sig
+open Set_utils
 
 
 (** Error report *)
@@ -43,8 +47,7 @@ exception Abort_rule of string
  *  - for nodes synthesized as inductive parameters *)
 (* Empty instantiation *)
 let inst_empty =
-  { ins_expr    = IntMap.empty;
-    ins_fold    = IntMap.empty;
+  { ins_fold    = IntMap.empty;
     ins_new_off = [ ]; }
 (* Printing of a node collapsing *)
 let n_collapsing_2str (nc: n_collapsing): string =
@@ -67,9 +70,11 @@ type join_config =
       j_inr:    graph;
       j_jal:    join_arg;
       j_jar:    join_arg;
-      (* Satisfaction of boolean predicates *)
+      (* Satisfaction of boolean|set predicates *)
       j_satl:   (n_cons -> bool);
+      j_setsatl:    (set_cons -> bool);
       j_satr:   (n_cons -> bool);
+      j_setsatr:    (set_cons -> bool);
       (** Relations among arguments *)
       (* Relation between arguments/output nodes *)
       j_rel:    node_relation;
@@ -82,6 +87,11 @@ type join_config =
       j_lint:   (onode * onode -> bool);
       (* relation pair been dropped XR=>HS: explain more *)
       j_drel:   PairSet.t;
+      (* instantiation constraints, following from is_le facts *)
+      j_instset_l:  setv_inst;
+      j_instsv_l:   sv_inst;
+      j_instset_r:  setv_inst;
+      j_instsv_r:   sv_inst;
       (** Outputs *)
       (* Output under construction *)
       j_out:    graph;
@@ -117,7 +127,7 @@ let find_in_config (p: int * int) (j: join_config): join_config * int =
       j_rel = nrel }, ni
 
 (* Find in config, loose version:
- *  may drop relation in "side", if the other node has already a mapping 
+ * may drop relation in "side", if the other node has already a mapping
  *  - e.g., if a mapping (3,8) exists and side=Rgh, then
  *    find_in_config_looose (3,9) will return (3,8)
  *  - in the same situation but when (3,6), (3,8) exist in the mapping, the
@@ -154,7 +164,16 @@ let read_in_config (p: int * int) (j: join_config): int =
   try Nrel.find j.j_rel p
   with Not_found -> Log.fatal_exn "read_in_config"
 
-
+(* combine int or pointer parameters from the inputs to the out put *)
+let f_combine_side (args: int list) (argo: int list) (arg: int list)
+    (rel: node_relation) (side: side): node_relation =
+  let l_pairs =
+    let al, ar =
+      match side with
+      | Lft -> args, argo
+      | Rgh -> argo, args in
+    List.map2 (fun x y -> x, y) al ar in
+  List.fold_left2 Nrel.add rel l_pairs arg
 
 (** Management of applicable rules *)
 (* Computes the next applicable rules at a node *)
@@ -164,14 +183,14 @@ let collect_rules_node_gen
     (jc: join_config): join_config =
   let is_seg_ext =
     Graph_utils.is_bseg_ext jc.j_jal.abs_go il jc.j_jar.abs_go ir in
-  let is_seg_intro = 
+  let is_seg_intro =
     Graph_utils.is_bseg_intro jc.j_jal.abs_go il jc.j_jar.abs_go ir in
   let jr =
     collect_rules_sv_gen is_prio is_seg_ext is_seg_intro jc.j_rel
       il (sv_kind il jc.j_inl) ir (sv_kind ir jc.j_inr) jc.j_rules in
   { jc with j_rules = jr }
 let collect_rules_node (il: int) (ir: int) (jc: join_config): join_config =
-  collect_rules_node_gen 
+  collect_rules_node_gen
     (* let node in encoded graph with high priority  *)
     (fun (l,ir) -> encode_node_find il jc.j_jal && encode_node_find ir jc.j_jar)
     il ir jc
@@ -182,6 +201,170 @@ let init_rules (jc: join_config): join_config =
       collect_rules_node_gen jc.j_hint il ir
     ) jc.j_rel.n_inj jc
 
+
+(** Instantiation obtained from a pair of calls
+ *  (maintains the set parameters associated to the call) *)
+
+(* deal with set parameters for introducing empty segment *)
+let inst_void_seg (seg: seg_edge) (inst: setv_inst) (sv_inst: sv_inst)
+    (t: graph): setv_inst * sv_inst * graph * int list =
+  let setv_inst, t =
+    List.fold_left2
+      (fun (acci, acct) ii io ->
+        let key, acct = setv_add_fresh false None acct in
+        let eqs =
+          IntMap.add ii (S_var key)
+            (IntMap.add io (S_var key) acci.setvi_eqs) in
+        { acci with
+          setvi_eqs = eqs;
+          setvi_fresh = IntSet.add key acci.setvi_fresh }, acct
+      ) (inst, t) seg.se_sargs.ia_set seg.se_dargs.ia_set in
+  let sv_inst, t, rev_int_args =
+    List.fold_left2
+      (fun (acci, acct, acca) ii io ->
+        let key, acct = sv_add_fresh Ntint Nnone acct in
+        { acci with sv_fresh = IntSet.add key acci.sv_fresh}, acct,
+        key :: acca
+      ) (sv_inst, t, []) seg.se_sargs.ia_int seg.se_dargs.ia_int in
+  setv_inst, sv_inst, t, List.rev rev_int_args
+
+(* Guess constraints among set parameters and numerical parameters
+ * from output graph *)
+let guess_cons (jout: graph) (jin_l: graph)
+    (satl: n_cons -> bool) (set_satl: set_cons -> bool)
+    (sv_instl: sv_inst) (jin_r: graph)
+    (satr: n_cons -> bool) (set_satr: set_cons -> bool)
+    (sv_instr: sv_inst) (rel: node_relation)
+    : int IntMap.t * set_expr IntMap.t * set_expr IntMap.t
+    * sv_inst * sv_inst * graph * graph =
+  let f_map il ir acc =
+    List.fold_left2
+      (fun acc i j -> IntMap.add i j (IntMap.add j i acc)) acc il ir in
+  let do_rel (ia_intl: int list) (rel: node_relation)
+      : (int * int) list =
+    List.map (Nrel.find_p rel) ia_intl in
+  let do_inj (ia_intl: int list) (inj: int IntMap.t)
+      : int list =
+    List.map (fun a -> IntMap.find a inj) ia_intl in
+  let do_sv_inst (ia_intl: (int * int) list) (ia_intr: (int * int) list)
+      (sv_instl: sv_inst) (sv_instr: sv_inst) (wkt: int_wk_typ IntMap.t)
+      : sv_inst * sv_inst =
+    let _, istl, istr =
+      List.fold_left2
+        (fun (i, accl, accr) (al, ar) (bl, br) ->
+          let wk = IntMap.find i wkt in
+          match wk with
+          | `Eq | `Add ->
+              let cl = Nc_cons (Apron.Tcons1.EQ, Ne_var al, Ne_var bl) in
+              let cr = Nc_cons (Apron.Tcons1.EQ, Ne_var ar, Ne_var br) in
+              i+1,
+              { accl with sv_cons = cl :: accl.sv_cons },
+              { accr with sv_cons = cr :: accr.sv_cons }
+          | `Leq ->
+              let cl = Nc_cons (Apron.Tcons1.SUPEQ, Ne_var bl, Ne_var al) in
+              let cr = Nc_cons (Apron.Tcons1.SUPEQ, Ne_var br, Ne_var ar) in
+              i+1, { accl with sv_cons = cl :: accl.sv_cons},
+              { accr with sv_cons = cr :: accr.sv_cons}
+          | `Geq ->
+              let cl = Nc_cons (Apron.Tcons1.SUPEQ, Ne_var al, Ne_var bl) in
+              let cr = Nc_cons (Apron.Tcons1.SUPEQ, Ne_var ar, Ne_var br) in
+              i+1,
+              { accl with sv_cons = cl :: accl.sv_cons},
+              { accr with sv_cons = cr :: accr.sv_cons }
+          | `Non ->
+              i+1, accl, accr
+        ) (0, sv_instl, sv_instr) ia_intl ia_intr in
+    istl, istr in
+  IntMap.fold
+    (fun key n (acco, accl, accr, sv_instl, sv_instr, agl, agr) ->
+      match n.n_e with
+      | Hemp | Hpt _ | Hind _ ->
+          acco, accl, accr, sv_instl, sv_instr, agl, agr
+      | Hseg seg ->
+          let dnode = IntMap.find seg.se_dnode jout.g_g in
+          match dnode.n_e with
+          | Hemp | Hpt _ ->
+              if seg.se_ind.i_spars = 0  && seg.se_ind.i_ipars = 0 then
+                acco, accl, accr, sv_instl, sv_instr, agl, agr
+              else
+                let ind = seg.se_ind in
+                let isl, isr = Nrel.find_p rel seg.se_dnode in
+                (*  verify that inclusion holds in both sides *)
+                let le_res_l, iel, _ =
+                  Graph_algos.is_le_ind false ind agl isl satl set_satl in
+                let le_res_r, ier, _ =
+                  Graph_algos.is_le_ind false ind agr isr satr set_satr in
+                begin
+                  match le_res_l, le_res_r with
+                  | Ilr_le_rem (gl, _,injl, sinstl, svarsl,ninstl, consl),
+                    Ilr_le_rem (gr, _,injr, sinstr, svarsr,ninstr, consr) ->
+                      let parsl = do_inj iel.ie_args.ia_int injl in
+                      let parsr = do_inj ier.ie_args.ia_int injr in
+                      let ind_pars =
+                        List.map2 (fun a b -> a, b) parsl parsr in
+                      let seg_pars = do_rel seg.se_dargs.ia_int rel in
+                      let sv_instl, sv_instr =
+                        sv_inst_merge ninstl sv_instl,
+                        sv_inst_merge ninstr sv_instr in
+                      let sv_instl, sv_instr =
+                        do_sv_inst ind_pars seg_pars sv_instl sv_instr
+                          ind.i_pars_wktyp.int_typ in
+                      if svarsl = IntSet.empty && consl = []
+                          && svarsr = IntSet.empty && consr = [] then
+                        let smapl, smapr =
+                          gen_map iel.ie_args.ia_set seg.se_dargs.ia_set
+                            IntMap.empty,
+                          gen_map ier.ie_args.ia_set seg.se_dargs.ia_set
+                            IntMap.empty in
+                        acco, rename_is_le_inst sinstl accl smapl,
+                        rename_is_le_inst sinstr accr smapr, sv_instl,
+                        sv_instr, gl, gr
+                      else acco, accl, accr, sv_instl, sv_instr, gl, gr
+                  | _, _ -> acco, accl, accr, sv_instl, sv_instr, agl, agr
+                end
+          | Hind ie ->
+              assert (seg.se_ind.i_name = ie.ie_ind.i_name);
+              let pars_l, pars_r =
+                do_rel ie.ie_args.ia_int rel,
+                do_rel seg.se_dargs.ia_int rel in
+              let sv_instl, sv_instr =
+                do_sv_inst pars_l pars_r sv_instl sv_instr
+                  ie.ie_ind.i_pars_wktyp.int_typ in
+              f_map seg.se_dargs.ia_set ie.ie_args.ia_set acco, accl, accr,
+              sv_instl, sv_instr, agl, agr
+          | Hseg se ->
+              assert (seg.se_ind.i_name = se.se_ind.i_name);
+              let pars_l, pars_r =
+                do_rel se.se_sargs.ia_int rel,
+                do_rel seg.se_dargs.ia_int rel in
+              let sv_instl, sv_instr =
+                do_sv_inst pars_l pars_r sv_instl sv_instr
+                  se.se_ind.i_pars_wktyp.int_typ in
+              f_map seg.se_dargs.ia_set se.se_sargs.ia_set acco, accl, accr,
+              sv_instl, sv_instr, agl, agr
+    ) jout.g_g
+    (IntMap.empty, IntMap.empty, IntMap.empty, sv_instl, sv_instr, jin_l, jin_r)
+
+(* type fresh sv in instantiation according to  out graph*)
+let type_sv_wk (g: graph) (rel: node_relation)  (sv_instl: sv_inst)
+    (sv_instr: sv_inst):  (int_wk_typ IntMap.t) * (int_wk_typ IntMap.t) =
+  let fst_rel id = fst (Nrel.find_p rel id) in
+  let snd_rel id = snd (Nrel.find_p rel id) in
+  let g_pars_wktyp_l = type_iargs_g g fst_rel in
+  let g_pars_wktyp_r = type_iargs_g g snd_rel in
+  let to_out_wkty (iwk: int_wk_typ IntMap.t) (f_rel: int -> int)
+      (sv_inst: sv_inst)
+      : int_wk_typ IntMap.t =
+    IntMap.fold
+      (fun id wk acc ->
+        let al = f_rel id in
+        if IntSet.mem al sv_inst.sv_fresh then
+          try IntMap.add al (merge_wktype (IntMap.find al acc) wk) acc
+          with Not_found -> IntMap.add al wk acc
+        else acc
+      ) iwk IntMap.empty in
+  to_out_wkty g_pars_wktyp_l fst_rel sv_instl,
+  to_out_wkty g_pars_wktyp_r snd_rel sv_instr
 
 
 (** Utility functions for the is_le rules *)
@@ -226,7 +409,7 @@ let block_array_unify
                    pe_dest = sum_r, Offs.zero } in
   let col_r = { col_base   = nr.n_i;
                 col_stride = stride;
-                col_block  = []; (* still to compute *) 
+                col_block  = []; (* still to compute *)
                 col_extptr = OffSet.empty } in
   (* 2. look whether the right side has size 1 *)
   if sl = 1 then
@@ -375,11 +558,11 @@ let block_inductive_candidate
       ind
   | hd :: tl ->
       (* use of the precedence directive to choose an order... *)
-      let l = 
+      let l =
         match !Ind_utils.ind_prec with
         | [ ] -> l
         | _ ->
-            let l_prec = 
+            let l_prec =
               List.fold_left
                 (fun acc s ->
                   try StringMap.find s m :: acc with Not_found -> acc
@@ -387,8 +570,8 @@ let block_inductive_candidate
             if l_prec = [] then l
             else l_prec in
       if List.length l = 1 then
-        List.hd l 
-      else 
+        List.hd l
+      else
         let inds_in = collect_inds g in
         let l = List.filter (fun ind -> StringSet.mem ind.i_name inds_in) l in
         assert (List.length l = 1);
@@ -471,11 +654,14 @@ let apply_pt_pt
               let pe = { pe_size = u_size ;
                          pe_dest = id, dd_o } in
               (* comsume the pt edge in encoded graph *)
-              let j = { j with 
+              let j = { j with
                         j_jal = encode_pt_pt onl (dl_n, dl_o) j.j_jal;
                         j_jar = encode_pt_pt onr (dr_n, dr_o) j.j_jar; } in
               (* XR=>HS: explain these cases *)
-              if j.j_lint (onl, onr) then
+              let is_prio =
+                encode_node_find dl_n j.j_jal &&
+                encode_node_find dr_n j.j_jar in
+              if j.j_lint (onl, onr) && (not is_prio) then
                 { j with
                   j_out = pt_edge_block_append (is, u_os) pe j.j_out;
                   j_drel = PairSet.add (dl_n, dr_n) j.j_drel }
@@ -507,6 +693,8 @@ let apply_ind_ind
               List.length ier.ie_args.ia_int);
       assert (List.length iel.ie_args.ia_ptr =
               List.length ier.ie_args.ia_ptr);
+      assert (List.length iel.ie_args.ia_set =
+              List.length ier.ie_args.ia_set);
       if Ind_utils.compare iel.ie_ind ier.ie_ind = 0 then
         (* check if inductive edge is empty *)
         let bign_l = Ind_utils.no_par_use_rules_emp iel.ie_ind
@@ -524,7 +712,7 @@ let apply_ind_ind
                 let j, ni =
                   try
                     let _ = Nrel.find j.j_rel (ial, iar) in
-                    find_in_config (ial, iar) j 
+                    find_in_config (ial, iar) j
                   with Not_found ->
                     find_in_config_loose side (ial, iar) j in
                 ni :: acc, j
@@ -536,24 +724,30 @@ let apply_ind_ind
                 ia :: acc_l, nj
               ) ([ ], j) iel.ie_args.ia_ptr ier.ie_args.ia_ptr in
         (* Construction of a new inductive edge for the pair graph *)
-        let l_iargs, rel, out =
-          List.fold_left2
-            (fun (acc_l, acc_rel, acc_out) ial iar ->
-              let ia, n_out =
-                sv_add_fresh Ntint Nnone acc_out in
-              ia :: acc_l,
-              Nrel.add acc_rel (ial, iar) ia,
-              n_out
-            ) ([ ], j.j_rel, j.j_out) iel.ie_args.ia_int ier.ie_args.ia_int in
-        let ie = { ie_ind  = iel.ie_ind ;
-                   ie_args = { ia_ptr = List.rev l_pargs ;
-                               ia_int = List.rev l_iargs } } in
+        let pars_wktyp_l = compute_wk_type isl iel j.j_satl in
+        let pars_wktyp_r = compute_wk_type isr ier j.j_satr in
+        let ie, out =
+          ind_edge_make iel.ie_ind.i_name (List.rev l_pargs) iel.ie_ind.i_ipars
+            iel.ie_ind.i_spars j.j_out in
+        let j_inl, set_inst_l, sv_inst_l, wk_intargs_l =
+          l_call_inst iel.ie_args j.j_inl ie.ie_args j.j_instset_l j.j_instsv_l
+            pars_wktyp_l.int_typ in
+        let j_inr, set_inst_r,  sv_inst_r, wk_intargs_r =
+          l_call_inst ier.ie_args j.j_inr ie.ie_args j.j_instset_r j.j_instsv_r
+            pars_wktyp_r.int_typ in
+        let rel =
+          f_combine_side wk_intargs_l wk_intargs_r ie.ie_args.ia_int
+            j.j_rel Lft in
         let vrules = invalidate_rules isl isr Iind Iind j.j_rules in
         { j with
           j_rules = vrules;
-          j_inl   = ind_edge_rem isl j.j_inl;
-          j_inr   = ind_edge_rem isr j.j_inr;
+          j_inl   = ind_edge_rem isl j_inl;
+          j_inr   = ind_edge_rem isr j_inr;
           j_out   = ind_edge_add is ie out;
+          j_instsv_l = sv_inst_l;
+          j_instsv_r = sv_inst_r;
+          j_instset_l = set_inst_l;
+          j_instset_r = set_inst_r;
           j_rel   = rel }
       else Log.todo_exn "join: inductive edges fails"
   | _, _ -> (* we may check the rule was not invalidated ? *)
@@ -572,31 +766,29 @@ let apply_gen_ind_weak
   let iso, iss = Graph_algos.get_sides side (isl, isr) in
   let ino, ins = Graph_algos.get_sides side (j.j_inl, j.j_inr) in
   let sato, sats = Graph_algos.get_sides side (j.j_satl, j.j_satr) in
+  let setsato, setsats =
+    Graph_algos.get_sides side (j.j_setsatl, j.j_setsatr) in
+  let instseto, instsets =
+    Graph_algos.get_sides side (j.j_instset_l, j.j_instset_r) in
+  let instsvo, instsvs =
+    Graph_algos.get_sides side (j.j_instsv_l, j.j_instsv_r) in
   (* r -> side; l -> other side *)
   let ns = node_find iss ins in
   match ns.n_e with
   | Hind ies ->
       let n_int = List.length ies.ie_args.ia_int in
+      let n_set = List.length ies.ie_args.ia_set in
       (* construction of a graph with just one inductive edge *)
       (* experimental:
        * integer arguments of the inductive are special nodes
        * that might be instantiated *)
       let le_res, ieo, instantiable_nodes =
-        Graph_algos.is_le_ind ~submem:j.j_submem ies.ie_ind ino iso sato in
+        Graph_algos.is_le_ind ~submem:j.j_submem ies.ie_ind ino iso
+          sato setsato in
       begin
         match le_res with
-        | Ilr_le_rem (grem, removed, rel, inst) ->
+        | Ilr_le_rem (grem, removed, rel, sinst, new_setvar,ninst, cons) ->
             (* addition of instantiations of the nodes of "other side" *)
-            let insto, insts =
-              Graph_algos.get_sides side (j.j_instl, j.j_instr) in
-            let ninsto =
-              IntMap.fold
-                (fun i ex acc ->
-                  if IntMap.mem i acc then
-                    (* double instantiation attempt, fail *)
-                    Log.fatal_exn "%s: attempt at double instantiation" rname
-                  else IntMap.add i ex acc
-                ) inst insto.ins_expr in
             let j =
               match side with
               | Lft ->
@@ -606,8 +798,7 @@ let apply_gen_ind_weak
                   { j with
                     j_rules = vrules;
                     j_inl   = ind_edge_rem isl j.j_inl;
-                    j_inr   = grem;
-                    j_instr = { insto with ins_expr = ninsto } }
+                    j_inr   = grem; }
               | Rgh ->
                   let vrules =
                     invalidate_rules isl isr (Iblob removed)
@@ -615,9 +806,9 @@ let apply_gen_ind_weak
                   { j with
                     j_rules = vrules;
                     j_inl   = grem;
-                    j_inr   = ind_edge_rem isr j.j_inr;
-                    j_instl = { insto with ins_expr = ninsto } } in
-            assert (IntMap.cardinal inst = IntSet.cardinal instantiable_nodes);
+                    j_inr   = ind_edge_rem isr j.j_inr; } in
+            (* assert (IntMap.cardinal inst
+             *  = IntSet.cardinal instantiable_nodes); *)
             let bign_s =
               Ind_utils.no_par_use_rules_emp ies.ie_ind
                 && sats (Nc_cons (Apron.Tcons1.EQ, Ne_var iss, Ne_csti 0)) in
@@ -656,19 +847,47 @@ let apply_gen_ind_weak
                       ni :: acc, j
                     ) ([ ], j) ies.ie_args.ia_ptr ieo.ie_args.ia_ptr in
                 let ppars = List.rev revppars in
-                ind_edge_make ies.ie_ind.i_name ppars n_int j.j_out, j in
+                ind_edge_make ies.ie_ind.i_name ppars n_int n_set j.j_out, j in
+              (* let pars_wktyp_s = compute_wk_type iss ies sats in *)
+              let pars_wktyp_s = ies.ie_ind.i_pars_wktyp in
+              let ino, ins = Graph_algos.get_sides side (j.j_inl, j.j_inr) in
+              let j_ins, instsets, instsvs, wk_intargs_s =
+                l_call_inst ies.ie_args ins ie.ie_args instsets instsvs
+                  pars_wktyp_s.int_typ in
+              let instseto, instsvo, ieo_args_int =
+                is_le_call_inst ieo.ie_args ie.ie_args instseto
+                  instsvo sinst ninst new_setvar cons rel in
               let rel =
                 let l_pairs =
                   let al, ar =
                     match side with
-                    | Lft -> ies.ie_args, ieo.ie_args
-                    | Rgh -> ieo.ie_args, ies.ie_args in
-                  List.map2 (fun x y -> x, y) al.ia_int ar.ia_int in
-                List.fold_left2 Nrel.add j.j_rel
-                  (List.rev l_pairs) ie.ie_args.ia_int in
-              { j with
-                j_out = ind_edge_add is ie gout ;
-                j_rel = rel }
+                    | Lft -> wk_intargs_s, ieo_args_int
+                    | Rgh -> ieo_args_int, wk_intargs_s in
+                  List.map2 (fun x y -> x, y) al ar in
+                List.fold_left2 Nrel.add j.j_rel l_pairs ie.ie_args.ia_int in
+              let j =
+                match side with
+                | Lft ->
+                    { j with
+                      j_out = ind_edge_add is ie gout;
+                      j_inl   = j_ins;
+                      j_rel = rel;
+                      j_instset_r = instseto;
+                      j_instsv_r = instsvo;
+                      j_instset_l = instsets;
+                      j_instsv_l = instsvs;
+                    }
+                | Rgh ->
+                    { j with
+                      j_out = ind_edge_add is ie gout ;
+                      j_inr   = j_ins;
+                      j_rel = rel;
+                      j_instset_l = instseto;
+                      j_instsv_l = instsvo;
+                      j_instset_r = instsets;
+                      j_instsv_r = instsvs;
+                    } in
+              j
         | Ilr_not_le -> (* rule application failed *)
             if Flags.flag_join_bypass_fail_rules then
               j (* By-pass the rule *)
@@ -703,6 +922,12 @@ let apply_gen_seg_intro
   let ino, ins = Graph_algos.get_sides side (j.j_inl, j.j_inr) in
   let ego, egs = Graph_algos.get_sides side (j.j_jal, j.j_jar) in
   let sato, sats = Graph_algos.get_sides side (j.j_satl, j.j_satr) in
+  let setsato, setsats =
+    Graph_algos.get_sides side (j.j_setsatl, j.j_setsatr) in
+  let instseto, instsets =
+    Graph_algos.get_sides side (j.j_instset_l, j.j_instset_r) in
+  let instsvo, instsvs =
+    Graph_algos.get_sides side (j.j_instsv_l, j.j_instsv_r) in
   (* extract other siblings *)
   let allsibl = Graph_algos.sel_side side (j.j_rel.n_l2r, j.j_rel.n_r2l) in
   let siblings =
@@ -714,7 +939,7 @@ let apply_gen_seg_intro
         Log.fatal_exn "inconsistent mapping in %s" rname in
   assert (IntSet.mem iso siblings);
   let siblings = IntSet.remove iso siblings in
-  let seg_end = Graph_utils.choose_dst iso ego.abs_go siblings in  
+  let seg_end = Graph_utils.choose_dst iso ego.abs_go siblings in
   (* destination node in the other side *)
   let ido =
     let card = IntSet.cardinal siblings in
@@ -727,7 +952,7 @@ let apply_gen_seg_intro
           (intset_2str siblings) (IntSet.min_elt seg_end);
         IntSet.min_elt seg_end
       end
-    else 
+    else
       begin
         Log.info "seg-intro found too many siblings: %s ; picking %d"
           (intset_2str siblings) n;
@@ -769,11 +994,11 @@ let apply_gen_seg_intro
       Log.force "Found %d seg-candidates" (List.length lcandidates);
     let is_source = List.exists (fun (x, y) -> x = iso) lcandidates in
     let niss, nido  = node_find iss ins, node_find ido ino in
-    let is_rule = 
+    let is_rule =
       match (niss.n_attr, niss.n_e), (nido.n_attr, nido.n_e) with
       (* compare the property of end nodes to see if the rule is ok to apply *)
       | (Attr_ind _, Hpt _), (Attr_none, Hemp) -> false
-      | _, _ -> true in 
+      | _, _ -> true in
     match lcandidates, is_source, is_rule with
     | (x, y) :: _, false, _ ->
         raise (Abort_rule "seg-intro: not the best source")
@@ -783,15 +1008,14 @@ let apply_gen_seg_intro
     | [ ], _, _ -> raise (Abort_rule "seg-intro: no pair of nodes") in
   if not is_continue then
     collect_rules_node_gen (fun (l, r) -> l=isl && r = isr) isl isr j
-  else 
+  else
     begin
-      assert (ind.i_ipars = 0);
       (* test of inclusion of a part of the right side into a segment edge *)
       let le_res, seo =
-        Graph_algos.is_le_seg ~submem:j.j_submem ind ino iso ido sato in
+        Graph_algos.is_le_seg ~submem:j.j_submem ind ino iso ido
+          sato setsato in
       match le_res with
-      | Ilr_le_rem (gremo, removedo, inj, inst) ->
-          assert (inst = IntMap.empty);
+      | Ilr_le_rem (gremo, removedo, inj, sinst, new_setvar, ninst, cons) ->
           (* rule success; perform the weakening *)
           (* begin temp *)
           (* this code is ugly and works only for pointer parameters *)
@@ -815,10 +1039,10 @@ let apply_gen_seg_intro
             | Hseg se -> Some se.se_sargs in
           (* when the destination node is null, we may need to modify the
            * parameter *)
-          let m_odst = 
+          let m_odst =
             if sato (Nc_cons (Apron.Tcons1.EQ, Ne_var ido, Ne_csti 0)) then
               match id_pars_opt with
-              | None -> m_odst 
+              | None -> m_odst
               | Some ind_pars ->
                   List.map
                     (fun io ->
@@ -891,7 +1115,7 @@ let apply_gen_seg_intro
                                 if !Flags.flag_debug_join_shape then
                                   Log.force "seg-in backup par search=> %d"
                                     par_s;
-                                par_s 
+                                par_s
                               else
                                 Log.fatal_exn
                                   "backup parameter search failed (empty)"
@@ -906,7 +1130,7 @@ let apply_gen_seg_intro
                   par :: acc, i + 1
                 ) ([], 0) m_osrc m_odst in
             List.rev lll in
-          let f_combine m_o j =
+          let f_do_it m_o m_s j =
             let f m0 m1 =
               let mm, j =
                 List.fold_left2
@@ -918,20 +1142,46 @@ let apply_gen_seg_intro
             match side with
             | Lft -> f m_s m_o
             | Rgh -> f m_o m_s in
-          let mm_src, j = f_combine m_osrc j in
-          let mm_dst, j = f_combine m_odst j in
-          (* end temp *)
-          let seg =
-            { se_ind   = ind ;
-              se_sargs = { ia_ptr = mm_src ;
-                           ia_int = (assert (ind.i_ipars = 0); [ ]) } ;
-              se_dargs = { ia_ptr = mm_dst ;
-                           ia_int = (assert (ind.i_ipars = 0); [ ]) } ;
-              se_dnode = id } in
+          let mm_src, j = f_do_it m_osrc m_s j in
+          let mm_dst, j = f_do_it m_odst m_s j in
+          let seg, gout =
+            seg_edge_make ind.i_name mm_src mm_dst
+              ind.i_ipars ind.i_spars id j.j_out in
+          let instseto, instsvo, isargo, idargo =
+            is_le_seg_inst seo seg instseto instsvo sinst ninst
+              new_setvar cons inj in
+          let instsets, instsvs, ins, int_args =
+            inst_void_seg seg instsets instsvs ins in
+          let rel =
+            f_combine_side int_args isargo seg.se_sargs.ia_int j.j_rel side in
+          let rel =
+            f_combine_side int_args idargo seg.se_dargs.ia_int rel side in
           let j =
             match side with
-            | Lft ->  collect_rules_node isl ido  { j with j_inr = gremo }
-            | Rgh ->  collect_rules_node ido isr  { j with j_inl = gremo } in
+            | Lft ->
+                collect_rules_node isl ido
+                  { j with
+                    j_inr = gremo;
+                    j_inl = ins;
+                    j_rel = rel;
+                    j_instset_r = instseto;
+                    j_instsv_r = instsvo;
+                    j_instset_l = instsets;
+                    j_instsv_l = instsvs;
+                    j_jal = remove_node isl isl j.j_jal;
+                    j_jar = remove_node isr ido j.j_jar }
+            | Rgh ->
+                collect_rules_node ido isr
+                  { j with
+                    j_inl = gremo;
+                    j_inr = ins;
+                    j_rel = rel;
+                    j_instset_l = instseto;
+                    j_instsv_l = instsvo;
+                    j_instset_r = instsets;
+                    j_instsv_r = instsvs;
+                    j_jal = remove_node isl ido j.j_jal;
+                    j_jar = remove_node isr isr j.j_jar } in
           let vrules =
             match side with
             | Lft ->
@@ -942,7 +1192,7 @@ let apply_gen_seg_intro
                   (invalidate_rules isl isr (Iblob removedo) Inone j.j_rules) in
           { j with
             j_rules = vrules;
-            j_out   = seg_edge_add is seg j.j_out }
+            j_out   = seg_edge_add is seg gout }
       | Ilr_not_le -> (* rule application failed *)
           (* HS: instead of failing, we need to try weaken *)
           { j with j_rules = rules_add_weakening (isl, isr) j.j_rules }
@@ -965,15 +1215,21 @@ let apply_seg_ext
     (* weak side *)
     let side =
       match nl.n_e, nr.n_e with
-      | Hseg _, _ -> Rgh 
+      | Hseg _, _ -> Rgh
       | _, Hseg _ -> Lft
       | _, _  -> Log.fatal_exn"indintro: improper case" in
     let _ = Graph_algos.sel_side side ("ext-seg", "seg-ext") in
     let iso, iss = Graph_algos.get_sides side (isl, isr) in
     let ino, ins = Graph_algos.get_sides side (j.j_inl, j.j_inr) in
     let sato, sats = Graph_algos.get_sides side (j.j_satl, j.j_satr) in
+    let setsato, setsats =
+      Graph_algos.get_sides side (j.j_setsatl, j.j_setsatr) in
     let no, ns =  Graph_algos.get_sides side (nl, nr) in
     let nro, nrs = Graph_algos.get_sides side (j.j_rel.n_l2r, j.j_rel.n_r2l) in
+    let instseto, instsets =
+      Graph_algos.get_sides side (j.j_instset_l, j.j_instset_r) in
+    let instsvo, instsvs =
+      Graph_algos.get_sides side (j.j_instsv_l, j.j_instsv_r) in
     (* match edge in the left graph with a segment *)
     match no.n_e with
     | Hseg seo ->
@@ -993,15 +1249,15 @@ let apply_seg_ext
           if card = 1 then
             let elt = IntSet.min_elt s in
             let nids, nido  = node_find elt ins, node_find ido ino in
-            let is_rule = 
+            let is_rule =
               match (nido.n_attr, nido.n_e), (nids.n_attr, nids.n_e) with
               (* compare the property of end nodes to see
                * if the rule is ok to apply *)
               | (Attr_none, Hpt _), (Attr_none, Hemp) -> false
-              | _, _ -> true in 
-            if not is_rule then 
+              | _, _ -> true in
+            if not is_rule then
               raise (Abort_rule "seg-ext failed (other)")
-            else 
+            else
               elt, false
           else
             (* Backup solution:
@@ -1023,15 +1279,13 @@ let apply_seg_ext
             | _ -> raise (Abort_rule "seg-ext backup failed (other)") in
         (* test of inclusion of a part of the right side into a segment edge *)
         let le_res, ses =
-          Graph_algos.is_le_seg ~submem:j.j_submem ind ins iss ids sats in
+          Graph_algos.is_le_seg ~submem:j.j_submem ind ins iss ids
+            sats setsats in
         begin
           match le_res with
-          | Ilr_le_rem (grem, removedr, inj, inst) ->
+          | Ilr_le_rem (grem, removedr, inj, sinst, new_setvars, ninst, cons) ->
               (* success case *)
               (* synthesis and addition of a new segment edge *)
-              assert (inst = IntMap.empty);
-              assert (seo.se_sargs.ia_int = [ ]);
-              assert (ses.se_sargs.ia_int = [ ]);
               (* mapping the pointer parameters of the new edge *)
               let find (l, r) j =
                 find_in_config (Graph_algos.get_sides side (l, r)) j in
@@ -1045,18 +1299,26 @@ let apply_seg_ext
                       let nj, ni = find (il, nir) accj in
                       nj, ni :: accl
                     ) (j, [ ]) ial.ia_ptr iar.ia_ptr in
-                j, { ia_ptr = List.rev l ;
-                     ia_int = (assert (ind.i_ipars = 0); [ ]) } in
-              let j, res_sargs = f_do_it j seo.se_sargs ses.se_sargs in
-              let j, res_dargs = f_do_it j seo.se_dargs ses.se_dargs in
+                j, List.rev l  in
+              let j, mm_src = f_do_it j seo.se_sargs ses.se_sargs in
+              let j, mm_dst = f_do_it j seo.se_dargs ses.se_dargs in
               (* => If id is not here, add rules from there !!!  *)
               let j, id = find (ido, ids) j in
-              let seg = { se_ind   = ind ;
-                          se_sargs = res_sargs ;
-                          se_dargs = res_dargs ;
-                          se_dnode = id } in
-              (* there are some case that guessed is true, but we still need *
-               * collect rules*)
+              let seg, gout =
+                seg_edge_make ind.i_name mm_src mm_dst
+                  ind.i_ipars ind.i_spars id j.j_out in
+              let ino, instseto, instsvo, isargo, idargo =
+                l_seg_inst seo ino seg instseto instsvo
+                  ind.i_pars_wktyp.int_typ in
+              let instsets, instsvs,isargs, idargs  =
+                is_le_seg_inst ses seg instsets instsvs sinst ninst
+                  new_setvars cons inj in
+              let rel =
+                f_combine_side isargs isargo seg.se_sargs.ia_int j.j_rel side in
+              let rel =
+                f_combine_side idargs idargo seg.se_dargs.ia_int rel side in
+              (* there are some case that guessed is true, but we still need
+               * collect rules *)
               let idl, idr = Graph_algos.get_sides side (ido, ids) in
               let j = collect_rules_node idl idr j in
               let vrules =
@@ -1071,15 +1333,29 @@ let apply_seg_ext
                 match side with
                 | Rgh ->
                     { j with
-                      j_inl = seg_edge_rem isl j.j_inl;
-                      j_inr = grem; }
+                      j_inl = seg_edge_rem isl ino;
+                      j_inr = grem;
+                      j_rel = rel;
+                      j_instset_r = instsets;
+                      j_instsv_r = instsvs;
+                      j_instsv_l = instsvo;
+                      j_instset_l = instseto;
+                    }
                 | Lft ->
                     { j with
                       j_inl = grem;
-                      j_inr = seg_edge_rem isr j.j_inr; } in
+                      j_inr = seg_edge_rem isr ino;
+                      j_rel = rel;
+                      j_instset_l = instsets;
+                      j_instsv_l = instsvs;
+                      j_instsv_r = instsvo;
+                      j_instset_r = instseto;
+                    } in
               { j with
                 j_rules = vrules;
-                j_out   = seg_edge_add is seg j.j_out }
+                j_jal = remove_node isl idl j.j_jal;
+                j_jar = remove_node isr idr j.j_jar;
+                j_out   = seg_edge_add is seg gout}
           | Ilr_not_le -> (* rule application failed *)
               Log.fatal_exn"seg-ext fails"
           | Ilr_le_seg _ | Ilr_le_ind _ -> (* those cases should not happen *)
@@ -1087,7 +1363,7 @@ let apply_seg_ext
         end
     | _ -> (* we may check the rule was not invalidated ? *)
         Log.fatal_exn"seg-ext: improper case"
-  with Abort_rule _ ->   
+  with Abort_rule _ ->
     (* HS: instead of failing, we need to try weaken to inductive edge *)
     { j with j_rules = rules_add_weakening (isl, isr) j.j_rules }
 
@@ -1107,20 +1383,18 @@ let apply_seg_ext_ext
     let ind = Ind_utils.ind_find indl_name in
     (* test of inclusion of a part of the left side into a segment edge *)
     let le_res, sel =
-      Graph_algos.is_le_seg ~submem:j.j_submem ind j.j_inl isl idl j.j_satl in
+      Graph_algos.is_le_seg ~submem:j.j_submem ind j.j_inl isl idl j.j_satl
+        j.j_setsatl in
     (* test of inclusion of a part of the right side into a segment edge *)
     let re_res, ser =
-      Graph_algos.is_le_seg ~submem:j.j_submem ind j.j_inr isr idr j.j_satr in
+      Graph_algos.is_le_seg ~submem:j.j_submem ind j.j_inr isr idr j.j_satr
+        j.j_setsatr in
     begin
       match le_res, re_res with
-      | Ilr_le_rem (greml, removedl, injl, instl),
-        Ilr_le_rem (gremr, removedr, injr, instr) ->
+      | Ilr_le_rem (greml, removedl, injl, sinstl, svarsl, ninstl, consl),
+        Ilr_le_rem (gremr, removedr, injr, sinstr, svarsr, ninstr, consr) ->
           (* success case *)
           (* synthesis and addition of a new segment edge *)
-          assert (instl = IntMap.empty);
-          assert (instr = IntMap.empty);
-          assert (sel.se_sargs.ia_int = [ ]);
-          assert (ser.se_sargs.ia_int = [ ]);
           (* rename segment parameters to the input*)
           let rename (args: ind_args) (inj: int IntMap.t): ind_args =
             let p =
@@ -1141,16 +1415,23 @@ let apply_seg_ext_ext
                   let nj, ni = find_in_config (il, ir) accj in
                   nj, ni :: accl
                 ) (j, [ ]) ial.ia_ptr iar.ia_ptr in
-            j, { ia_ptr = List.rev l ;
-                 ia_int = (assert (ind.i_ipars = 0); [ ]) } in
-          let j, res_sargs = f_do_it j sel.se_sargs ser.se_sargs in
-          let j, res_dargs = f_do_it j sel.se_dargs ser.se_dargs in
+            j, List.rev l in
+          let j, mm_src = f_do_it j sel.se_sargs ser.se_sargs in
+          let j, mm_dst = f_do_it j sel.se_dargs ser.se_dargs in
           (* => If id is not here, add rules from there !!!  *)
           let j, id = find_in_config (idl, idr) j in
-          let seg = { se_ind   = ind ;
-                      se_sargs = res_sargs ;
-                      se_dargs = res_dargs ;
-                      se_dnode = id } in
+          let seg, gout =
+            seg_edge_make ind.i_name mm_src mm_dst
+              ind.i_ipars ind.i_spars id j.j_out in
+          let instsetl, instsvl, isargl, idargl  =
+            is_le_seg_inst sel seg j.j_instset_l j.j_instsv_l sinstl
+              ninstl svarsl consl injl in
+          let instsetr, instsvr, isargr, idargr =
+            is_le_seg_inst ser seg j.j_instset_r  j.j_instsv_r sinstr
+              ninstr svarsr consr injr in
+          let rel =
+            f_combine_side isargl isargr seg.se_sargs.ia_int j.j_rel Lft in
+          let rel = f_combine_side idargl idargr seg.se_dargs.ia_int rel Lft in
           (* there are some case that guessed is true, but we still need *
            * collect rules*)
           let j = collect_rules_node idl idr j in
@@ -1161,11 +1442,16 @@ let apply_seg_ext_ext
             j_rules = vrules;
             j_inl   = greml;
             j_inr   = gremr;
+            j_rel   = rel;
+            j_instset_r = instsetr;
+            j_instsv_r  = instsvr;
+            j_instset_l = instsetl;
+            j_instsv_l  = instsvl;
             j_jal   = remove_node isl idl j.j_jal;
             j_jar   = remove_node isr idr j.j_jar;
-            j_out   = seg_edge_add is seg j.j_out }
+            j_out   = seg_edge_add is seg gout }
             (* rule application failed *)
-      | Ilr_not_le, _ -> 
+      | Ilr_not_le, _ ->
           Log.fatal_exn"seg-ext-ext fails: Ile"
       |  _, Ilr_not_le ->
           Log.fatal_exn"seg-ext-ext fails: Ire"
@@ -1187,9 +1473,9 @@ let apply_ind_intro
   let nr = node_find isr j.j_inr in
   (* emp side *)
   let side = match nl.n_e, nr.n_e with
-    | Hemp, Hpt mcr -> Lft 
+    | Hemp, Hpt mcr -> Lft
     | Hpt mcl, Hemp -> Rgh
-    | Hemp, Hemp -> Lft 
+    | Hemp, Hemp -> Lft
     (*HS: it is possible that one side is seg, and the other is pt *)
     | Hpt mcl, Hseg _ -> Rgh
     | Hseg _ , Hpt mcr -> Lft
@@ -1198,14 +1484,20 @@ let apply_ind_intro
   let iso, iss = Graph_algos.get_sides side (isl, isr) in
   let ino, ins = Graph_algos.get_sides side (j.j_inl, j.j_inr) in
   let sato, sats = Graph_algos.get_sides side (j.j_satl, j.j_satr) in
+  let setsato, setsats =
+    Graph_algos.get_sides side (j.j_setsatl, j.j_setsatr) in
   let no, ns =  Graph_algos.get_sides side (nl, nr) in
   let nro, nrs = Graph_algos.get_sides side (j.j_rel.n_l2r, j.j_rel.n_r2l) in
+  let instseto, instsets =
+    Graph_algos.get_sides side (j.j_instset_l, j.j_instset_r) in
+  let instsvo, instsvs =
+    Graph_algos.get_sides side (j.j_instsv_l, j.j_instsv_r) in
   match ns.n_e, no.n_e with
   | _, Hpt mco ->
       (* 1. search for candidate inductive definitions:
        *    - should have an empty rule
        *    - should have a rule matching the rhs signature *)
-      let ind = 
+      let ind =
         match ns.n_attr with
         | Attr_none | Attr_array _ ->
             block_inductive_candidate "indintro" ino false mco
@@ -1218,15 +1510,13 @@ let apply_ind_intro
       assert (ind.i_ipars = 0);
       (* 2. verify that inclusion holds in both sides *)
       let le_res_s, ies, instants =
-        Graph_algos.is_le_ind ~submem:j.j_submem ind ins iss sats in
+        Graph_algos.is_le_ind ~submem:j.j_submem ind ins iss sats setsats in
       let le_res_o, ieo, instanto =
-        Graph_algos.is_le_ind ~submem:j.j_submem ind ino iso sato in
+        Graph_algos.is_le_ind ~submem:j.j_submem ind ino iso sato setsato in
       begin
         match le_res_s, le_res_o with
-        | Ilr_le_rem (grems, removeds, rels, insts),
-          Ilr_le_rem (gremo, removedo, relo, insto) ->
-            assert (insts = IntMap.empty);
-            assert (insto = IntMap.empty);
+        | Ilr_le_rem (grems, removeds, rels, sinsts, svarss, ninsts, conss),
+          Ilr_le_rem (gremo, removedo, relo, sinsto, svarso, ninsto, conso) ->
             let ppars =
               (* computation of pointer parameters:
                *    - assumes mappings found in the right hand side
@@ -1241,8 +1531,8 @@ let apply_ind_intro
                       try IntMap.find pr0 relo
                       with Not_found ->
                         Log.fatal_exn "ind-intro ppars, no R-map" in
-                    let pl1 = 
-                      try IntMap.find pl0 rels 
+                    let pl1 =
+                      try IntMap.find pl0 rels
                       with Not_found ->
                         let set0 =
                           try IntMap.find pr1 nro
@@ -1257,17 +1547,25 @@ let apply_ind_intro
                           Log.fatal_exn"ind-intro ppars, too large L-set"
                         else IntSet.min_elt set0  in
                     let p =
-                      try Nrel.find j.j_rel
-                            (Graph_algos.get_sides side (pr1, pl1))
+                      try
+                        Nrel.find j.j_rel
+                          (Graph_algos.get_sides side (pr1, pl1))
                       with Not_found ->
                         Log.fatal_exn "ind-intro, ppar not found" in
                     p :: accp
                   ) [ ] ies.ie_args.ia_ptr ieo.ie_args.ia_ptr in
               List.rev lrev in
-            let ie =
-              { ie_ind  = ind ;
-                ie_args = { ia_ptr = ppars;
-                            ia_int = (assert (ind.i_ipars = 0); [ ]) } } in
+            let ie, gout =
+              ind_edge_make ies.ie_ind.i_name ppars ies.ie_ind.i_ipars
+                ies.ie_ind.i_spars j.j_out in
+            let instseto, instsvo, iargo =
+              is_le_call_inst ieo.ie_args ie.ie_args instseto
+                instsvo sinsto ninsto svarso conso relo in
+            let instsets, instsvs, iargs =
+              is_le_call_inst ies.ie_args ie.ie_args instsets
+                instsvs sinsts ninsts svarss conss rels in
+            let rel =
+              f_combine_side iargs iargo ie.ie_args.ia_int j.j_rel side in
             let vrules =
               match side with
               | Lft ->
@@ -1278,17 +1576,28 @@ let apply_ind_intro
                     (Iblob removedo) (Iblob removeds) j.j_rules in
             let j =
               match side with
-              | Lft -> 
+              | Lft ->
                   { j with
                     j_inl = grems;
-                    j_inr = gremo; }
+                    j_inr = gremo;
+                    j_instset_r = instseto;
+                    j_instsv_r = instsvo;
+                    j_instset_l = instsets;
+                    j_instsv_l = instsvs;
+                  }
               | Rgh ->
                   { j with
                     j_inl = gremo;
-                    j_inr = grems; } in
+                    j_inr = grems;
+                    j_instset_r = instsets;
+                    j_instsv_r = instsvs;
+                    j_instset_l = instseto;
+                    j_instsv_l = instsvo;
+                  } in
             { j with
               j_rules = vrules;
-              j_out   = ind_edge_add is ie j.j_out }
+              j_rel = rel;
+              j_out   = ind_edge_add is ie gout }
         | _, _ ->
             match side with
             | Lft ->
@@ -1313,13 +1622,13 @@ let apply_ind_intro
  * iterates over rules.
  *)
 let rec s_join (jc: join_config): join_config =
-  let ppi = graph_2stri "  " in 
+  let ppi = graph_2stri "  " in
   (* Find the next rule to apply, and trigger it *)
   match rules_next jc.j_rules with
   | None -> (* there is no more rule to apply, so we return current config *)
       if !Flags.flag_debug_join_shape then
         Log.force "no more rule applies;\n%s" (rules_2str jc.j_rules);
-      if PairSet.is_empty jc.j_drel then jc 
+      if PairSet.is_empty jc.j_drel then jc
       else (* XR?: comment what this is doing *)
         let jc =
           PairSet.fold
@@ -1332,12 +1641,20 @@ let rec s_join (jc: join_config): join_config =
   | Some (k, (il, ir), rem_rules) ->
       if !Flags.flag_debug_join_shape then
         begin
-          Log.force
-            "----------------\nSituation:\n- L:\n%s%s- R:\n%s%s- O:\n%s- M:\n%s"
-            (ppi jc.j_inl) (Graph_encode.to_string jc.j_jal.abs_go) 
-            (ppi jc.j_inr) (Graph_encode.to_string jc.j_jar.abs_go) 
-            (ppi jc.j_out) 
+          Log.force "----------------\n";
+          Log.force "Situation:\n- L:\n%s%s\n- R:\n%s%s\n- O:\n%s- M:\n%s"
+            (ppi jc.j_inl) (Graph_encode.to_string jc.j_jal.abs_go)
+            (ppi jc.j_inr) (Graph_encode.to_string jc.j_jar.abs_go)
+            (ppi jc.j_out)
             (Nrel.nr_2stri "  " jc.j_rel);
+          Log.force "- Set instantiation left:\n%s"
+            (setv_inst_2stri "   " jc.j_instset_l);
+          Log.force "- Set instantiation right:\n%s"
+            (setv_inst_2stri "   " jc.j_instset_r);
+          Log.force "- Node instantiation left:\n%s"
+            (sv_inst_2stri "   " jc.j_instsv_l);
+          Log.force "- Node instantiation right:\n%s"
+            (sv_inst_2stri "   " jc.j_instsv_r);
           if !Flags.flag_debug_join_strategy then
             Log.force "%s----------------" (rules_2str jc.j_rules)
         end;
@@ -1380,16 +1697,23 @@ let join
     ~(submem: bool)        (* whether sub-memory is_le (no alloc check) *)
     ((xl, jl): graph * join_arg) (* left input *)
     (satl: n_cons -> bool) (* left satisfaction function *)
+    (set_satl: set_cons -> bool) (* left satisfaction function *)
     ((xr, jr): graph * join_arg) (* right input *)
     (satr: n_cons -> bool) (* right satisfaction function *)
+    (set_satr: set_cons -> bool) (* right satisfaction function *)
     (ho: hint_bg option)   (* optional hint *)
     (lo: lint_bg option)   (* optional nullable node address *)
     (r: node_relation)     (* relation between both inputs *)
+    (srel: node_relation)  (* relation between both inputs set vars *)
     (noprio: bool)         (* whether to NOT make roots prioretary *)
     (o: graph)             (* pre-computed, initial version of output *)
     : graph * node_relation (* extended relation *)
     * n_instantiation (* inst for left argument *)
-    * n_instantiation (* inst for right argument *) =
+    * n_instantiation (* inst for right argument *)
+    * setv_inst       (* set inst for left argument *)
+    * setv_inst       (* set inst for right argument *)
+    * sv_inst         (* sv inst for left argument *)
+    * sv_inst =       (* sv inst for right argument *)
   if not !Flags.very_silent_mode then
     Log.force "\n\n[Gr,al]  start join\n\n";
   assert (xl.g_svemod = Dom_utils.svenv_empty);
@@ -1452,7 +1776,7 @@ let join
   let l =
     let is_dead (l, r) lo =
       try (Aa_maps.find l lo.lbg_dead = r)
-      with Not_found -> false in 
+      with Not_found -> false in
     match lo with
     | None -> fun (l, r) -> false
     | Some lo -> fun (l, r) -> is_dead (l, r) lo in
@@ -1462,27 +1786,87 @@ let join
       sat_graph_diseq g i j
     | _ -> false in
   let j_sat sat g ctr  = (sat ctr) || (sat_diseq ctr g) in
-  let out = s_g_join { j_rules  = empty_rules;
-                       j_inl    = xl;
-                       j_inr    = xr;
-                       j_jal    = jl;
-                       j_jar    = jr;
-                       j_satl   = j_sat satl xl;
-                       j_satr   = j_sat satr xr;
-                       j_rel    = r;
-                       j_instl  = inst_empty;
-                       j_instr  = inst_empty;
-                       j_hint   = h;
-                       j_lint   = l;
-                       j_drel   = PairSet.empty;
-                       j_out    = o;
-                       j_submem = submem } in
+  let instsetl, instsetr = IntMap.fold (fun i (l, r) (isl, isr) ->
+      IntMap.add i (S_var l) isl, IntMap.add i (S_var r) isr
+    ) srel.n_pi (IntMap.empty, IntMap.empty) in
+  let j = { j_rules  = empty_rules;
+            j_inl    = xl;
+            j_inr    = xr;
+            j_jal    = jl;
+            j_jar    = jr;
+            j_satl   = j_sat satl xl;
+            j_setsatl = set_satl;
+            j_satr   = j_sat satr xr;
+            j_setsatr = set_satr;
+            j_rel    = r;
+            j_instl  = inst_empty;
+            j_instr  = inst_empty;
+            j_hint   = h;
+            j_lint   = l;
+            j_drel   = PairSet.empty;
+            j_instset_l = {setv_inst_empty with setvi_eqs = instsetl};
+            j_instsv_l = sv_inst_empty;
+            j_instset_r = {setv_inst_empty with setvi_eqs = instsetr};
+            j_instsv_r  = sv_inst_empty;
+            j_out    = o;
+            j_submem = submem } in
+  let out = s_g_join j in
+  (* deal with the key and svemod *)
+  let do_is_le_graph jin jout =
+    let g =
+      IntMap.fold
+        (fun id node acc ->
+          if IntMap.mem id acc then acc else IntMap.add id node acc
+        ) jout.g_g jin.g_g in
+    { jin with
+      g_nkey   = jout.g_nkey;
+      g_g      = g;
+      g_svemod = jout.g_svemod } in
+  let guess_eq_set, smapl, smapr, sv_instl, sv_instr, _, _ =
+    guess_cons out.j_out
+      (do_is_le_graph j.j_inl out.j_inl)
+      j.j_satl j.j_setsatl out.j_instsv_l
+      (do_is_le_graph j.j_inr out.j_inr)
+      j.j_satr j.j_setsatr out.j_instsv_r out.j_rel in
+  let instset_l = instantiate_eq out.j_instset_l guess_eq_set smapl in
+  let instset_r = instantiate_eq out.j_instset_r guess_eq_set smapr in
+  let instsv_l = sv_instantiation sv_instl out.j_satl in
+  let instsv_r = sv_instantiation sv_instr out.j_satr in
+  let instsv_l = do_sv_inst_left_ctrs instsv_l out.j_satl in
+  let instsv_r = do_sv_inst_left_ctrs instsv_r out.j_satr in
+  let typed_fresh_svl, typed_fresh_svr =
+    type_sv_wk out.j_out out.j_rel instsv_l instsv_r in
+  let instsv_l =
+    typed_sv_instantiation instsv_l typed_fresh_svl out.j_satl in
+  let instsv_r =
+    typed_sv_instantiation instsv_r typed_fresh_svr out.j_satr in
+  let instsv_l = prove_sv_cons instsv_l out.j_satl in
+  let instsv_r = prove_sv_cons instsv_r  out.j_satr in
+  assert (instset_l.setvi_fresh = IntSet.empty);
+  assert (instset_r.setvi_fresh = IntSet.empty);
+  assert (instsv_l.sv_cons = []);
+  assert (instsv_r.sv_cons = []);
+  let out = { out with
+              j_instset_l = instset_l;
+              j_instset_r = instset_r;
+              j_instsv_l = instsv_l;
+              j_instsv_r = instsv_r;} in
   (* Optional display before return *)
   let ppi = graph_2stri "  " in
   let nl = num_edges out.j_inl and nr = num_edges out.j_inr in
   if !Flags.flag_debug_join_shape || nl != 0 || nr != 0 then
-    Log.force
-      "Final [%d,%d]:\n- Left:\n%s- Right:\n%s- Out:\n%s\n- Rel:\n%s"
-      nl nr (ppi out.j_inl) (ppi out.j_inr) (ppi out.j_out)
-      (Nrel.nr_2stri " " out.j_rel);
-  out.j_out, out.j_rel, out.j_instl, out.j_instr
+    begin
+      Log.force
+        "Final [%d,%d]:\n- Left:\n%s- Right:\n%s- Out:\n%s\n- Rel:\n%s"
+        nl nr (ppi out.j_inl) (ppi out.j_inr) (ppi out.j_out)
+        (Nrel.nr_2stri " " out.j_rel);
+      Log.force "-Set instantiation left:\n%s-Set instantiation right:\n%s"
+        (setv_inst_2stri "   " out.j_instset_l)
+        (setv_inst_2stri "   " out.j_instset_r);
+        Log.force "- Node instantiation left:\n%s"
+        (sv_inst_2stri "   " out.j_instsv_l);
+      Log.force "- Node instantiation right:\n%s"
+        (sv_inst_2stri "   " out.j_instsv_r);
+    end;
+  out.j_out, out.j_rel, out.j_instl, out.j_instr, out.j_instset_l,
+  out.j_instset_r, out.j_instsv_l, out.j_instsv_r

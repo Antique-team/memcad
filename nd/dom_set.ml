@@ -33,6 +33,14 @@ module DBuild =
   functor ( M: DOM_VALUE ) ->
     functor ( S: DOMSET) ->
   (struct
+    let module_name = "dom_set"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s -> %s\n%s%s"
+        module_name M.module_name
+        module_name S.module_name
+        (M.config_2str ())
+        (S.config_2str ())
+
     (** Type of abstract values *)
     (* An abstract element is a conjunction of a value abstraction and of
      * a set abstraction *)
@@ -138,16 +146,16 @@ module DBuild =
               t_s     = S.symvars_srename om nm None t.t_s;
               t_setvs = setvs }
       | Some setv_map ->
-          let setvs =
+          let setvs, setv_map =
             IntSet.fold
-              (fun i acc ->
+              (fun i (acc, accm) ->
                 try
                   let x, y = IntMap.find i setv_map.sm_map in
-                  IntSet.add x (IntSet.union y acc)
+                  IntSet.add x (IntSet.union y acc), accm
                 with Not_found ->
                   if do_check then Log.warn "unmapped setv: %d" i;
-                  acc
-              ) t.t_setvs IntSet.empty in
+                  acc, { accm with sm_rem = IntSet.add i accm.sm_rem }
+              ) t.t_setvs (IntSet.empty, setv_map) in
           if mark then
             { t_v     = M.symvars_srename om nm t.t_v;
               t_s     = S.symvars_srename om nm (Some setv_map) t.t_s;
@@ -319,10 +327,30 @@ module DBuild =
       List.map (fun (m, v) -> m, { x with t_v = v }) l
 
     (* Check predicates on array *)
-    let check (op: Opd0.check_operand) (x: t): bool =
+    let check (op: vcheck_op) (x: t): bool =
       M.check op x.t_v
 
     (* Assumptions on array *)
-    let assume (op: Opd0.assume_operand) (x: t): t =
+    let assume (op: vassume_op) (x: t): t =
       { x with t_v = M.assume op x.t_v }
+
+    (** Summarzing dimensions related operations *)
+    (* Expand the constraints on one dimension to another *)
+    let expand (oid: int) (nid: int) (x: t): t =
+      { x with t_v = M.expand oid nid x.t_v }
+    (* Upper bound of the constraits of two dimensions *)
+    let compact (lid: int) (rid: int) (x: t): t =
+      { x with t_v = M.compact lid rid x.t_v }
+    (* Conjunction *)
+    let meet (x0: t) (x1: t): t =
+      { x0 with t_v = M.meet x0.t_v x1.t_v }
+    (* Forget the information about an SV *)
+    let sv_forget (id: int) (x: t): t =
+      { x with t_v = M.sv_forget id x.t_v}
+    (* Export of range information *)
+    let sv_bound (id: int) (x: t): interval =
+      M.bound_variable id x.t_v
+    (* Extract all SVs that are equal to a given SV *)
+    let get_eq_class (id: int) (x: t): IntSet.t =
+      M.get_eq_class id x.t_v
   end: DOM_VALSET)

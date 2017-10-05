@@ -14,13 +14,16 @@ open Data_structures
 open Flags
 open Lib
 open Offs
+open Apron
 
 open Graph_sig
 open Ind_sig
 open Nd_sig
 open Sv_sig
 open Svenv_sig
+open Set_sig
 open Dom_sig
+open Inst_sig
 
 open Gen_dom
 
@@ -45,7 +48,10 @@ let graph_empty (inds: StringSet.t): graph =
     g_nkey   = Keygen.empty;
     g_g      = IntMap.empty;
     g_svemod = Dom_utils.svenv_empty;
-    g_roots  = IntSet.empty }
+    g_roots  = IntSet.empty;
+    g_setvkey   = Keygen.empty;
+    g_setvroots = IntSet.empty;
+    g_setvkind  = IntMap.empty; }
 
 
 (** Pretty-printing *)
@@ -87,7 +93,9 @@ let pt_edge_2str (src: bnode) (pe: pt_edge): string =
   Printf.sprintf "%s %s %s" (bnode_2str src) s_arrow (onode_2str pe.pe_dest)
 let ind_args_2str (ia: ind_args): string =
   let l_2str = gen_list_2str "" (Printf.sprintf "<%d>") "," in
-  Printf.sprintf "%s|%s" (l_2str ia.ia_ptr) (l_2str ia.ia_int)
+  let lset_2str = gen_list_2str "" (Printf.sprintf "S[%d]") "," in
+  Printf.sprintf "%s|%s|%s" (l_2str ia.ia_ptr) (l_2str ia.ia_int)
+    (lset_2str ia.ia_set)
 let ind_edge_2str (ie: ind_edge): string =
   Printf.sprintf "==%s(%s)==>" ie.ie_ind.i_name (ind_args_2str ie.ie_args)
 let block_2stria (ind: string) (is: int) (mc: pt_edge Block_frag.t)
@@ -316,7 +324,8 @@ let num_edges (t: graph): int =
     ) t.g_g 0
 
 
-(** Node operations *)
+(** Management of SVs *)
+
 (* Node membership *)
 let node_mem (id: nid) (t: graph): bool = IntMap.mem id t.g_g
 (* Node accessor *)
@@ -331,7 +340,6 @@ let sv_kind (i: int) (t: graph): region_kind =
   | Hpt _  -> Kpt
   | Hind _ -> Kind
   | Hseg _ -> Kseg
-
 
 (* Addition of a new node with known id (crashes if already exists) *)
 let sv_add ?(attr: node_attribute = Attr_none) ?(root: bool = false) (id: nid)
@@ -383,6 +391,132 @@ let sv_rem (id: int) (t: graph): graph =
                      svm_add = gadd;
                      svm_rem = grem } } in
   { t with g_nkey = Keygen.release_key t.g_nkey id }
+
+
+(** Management of SETVs *)
+
+let setv_add_fresh (root: bool) (ko: set_par_type option) (x: graph)
+    : int * graph =
+  let kg, setv = Keygen.gen_key x.g_setvkey in
+  let x = { x with g_setvkey = kg } in
+  let x =
+    if root then { x with g_setvroots = IntSet.add setv x.g_setvroots }
+    else x in
+  let x =
+    match ko with
+    | None -> x
+    | Some k -> { x with g_setvkind = IntMap.add setv k x.g_setvkind } in
+  setv, x
+let setv_add (root: bool) (setv: int) (x: graph): graph =
+  let x =
+    if root then { x with g_setvroots = IntSet.add setv x.g_setvroots }
+    else x in
+  { x with g_setvkey = Keygen.use_key x.g_setvkey setv }
+
+(* generate the guard constraint that an inductive edge being empty *)
+let cons_emp_ind (n: int) (ie: ind_edge): n_cons option =
+  (* functions that return a node *)
+  let fetch_ptr_par (i: int): int =
+    try List.nth ie.ie_args.ia_ptr i
+    with Failure _ ->
+      Log.fatal_exn "emp_ind: ptr par out of range" in
+  let fetch_int_par (i: int): int =
+    try List.nth ie.ie_args.ia_int i
+    with Failure _ ->
+      Log.fatal_exn "emp_ind: int par out of range" in
+  let map_formal_arith_arg: formal_arith_arg -> int = function
+    | `Fa_this      -> n
+    | `Fa_var_new i -> Log.fatal_exn "emp_ind: unexpected new var"
+    | `Fa_par_int i -> fetch_int_par i
+    | `Fa_par_ptr i -> fetch_ptr_par i in
+  (* compute predicates *)
+  let rec map_aexpr (ae: aexpr) : n_expr =
+    match ae with
+    | Ae_cst i -> Ne_csti i
+    | Ae_var fa -> Ne_var (map_formal_arith_arg fa)
+    | Ae_plus (_, _) -> Log.fatal_exn "emp_ind: unexpected expression" in
+  match Ind_utils.emp_rule_cons ie.ie_ind with
+  | None -> None
+  | Some af ->
+      match af with
+      | Af_equal (Ae_var `Fa_this, re) ->
+          Some (Nc_cons (Apron.Tcons1.EQ, Ne_var n, map_aexpr re))
+      | _ -> None
+
+
+(** Generation of set parameters to build an inductive predicate *)
+let build_set_args (nset: int) (g: graph): graph * nid list =
+  let rec f i g sargs =
+    if i = 0 then g, sargs
+    else
+      let arg, g = setv_add_fresh false None g in
+      f (i - 1) g (arg :: sargs) in
+  f nset g []
+
+
+(* merge two integer weaken type *)
+let merge_wktype (wkl: int_wk_typ) (wkr: int_wk_typ):int_wk_typ =
+  if wkl = wkr then wkl
+  else
+    match wkl, wkr with
+    | `Leq, `Geq |  `Geq, `Leq  ->  `Eq
+    | _, _ -> Log.fatal_exn "double type for a node"
+
+(* convert types from inductive edge to segment end point *)
+let seg_end_wkt (int_typ: int_wk_typ IntMap.t): int_wk_typ IntMap.t =
+  IntMap.map
+    (function
+      | `Leq -> `Geq
+      | `Geq -> `Leq
+      | wk -> wk
+    ) int_typ
+
+(* type a list of integer parameters *)
+let type_iargs_ie (ie: ind_args) (int_typ: int_wk_typ IntMap.t)
+    (acc: int_wk_typ IntMap.t) =
+  let do_i_type (n: int) (acc: int_wk_typ IntMap.t) (wk: int_wk_typ)
+      : int_wk_typ IntMap.t =
+    try IntMap.add n (merge_wktype (IntMap.find n acc) wk) acc
+    with Not_found -> IntMap.add n wk acc in
+  let _, acc =
+    List.fold_left
+      (fun (index, acc) n ->
+        let wk = IntMap.find index int_typ in
+        index+1, do_i_type n acc wk
+      ) (0, acc) ie.ia_int in
+  acc
+
+(* compute weaken type for integer parameters in a graph *)
+let type_iargs_g (g: graph) (f_rel: int -> int): int_wk_typ IntMap.t =
+  IntMap.fold
+    (fun key node acc->
+      match node.n_e with
+      | Hemp
+      | Hpt _ -> acc
+      | Hind ie ->
+          let int_wk_typ = ie.ie_ind.i_pars_wktyp.int_typ in
+          type_iargs_ie ie.ie_args int_wk_typ acc
+      | Hseg se ->
+          let sal = f_rel key in
+          let dal = f_rel se.se_dnode in
+          let sint_wk_typ = se.se_ind.i_pars_wktyp.int_typ in
+          let dint_wk_typ = seg_end_wkt se.se_ind.i_pars_wktyp.int_typ in
+          if sal = dal then
+            type_iargs_ie se.se_sargs sint_wk_typ acc
+          else
+            type_iargs_ie se.se_dargs dint_wk_typ
+              (type_iargs_ie se.se_sargs sint_wk_typ acc)
+    ) g.g_g IntMap.empty
+
+(* choose the integer parameters weaken type *)
+let compute_wk_type (is: int) (ind: ind_edge) (sat: n_cons -> bool)
+    : pars_wk_typ =
+  match cons_emp_ind is ind with
+  | None -> ind.ie_ind.i_pars_wktyp
+  | Some ctr ->
+      if sat ctr then ind.ie_ind.i_emp_pars_wktyp
+      else ind.ie_ind.i_pars_wktyp
+
 (* Checks whether a node is the root of an inductive *)
 let node_is_ind (n: int) (g: graph): bool =
   match (node_find n g).n_e with
@@ -744,7 +878,7 @@ let pt_edge_extract
     if !flag_debug_graph_blocks && false then
       Log.force "Call to pt_edge_extract.aux:  (%d,%s)\n"
         is (Offs.t_2str os);
-    let pt_extract mc = 
+    let pt_extract mc =
       try
         let pte = pt_edge_retrieve sat (is,bnd) mc sz t in
         match Offs.size_order sat pte.pe_size sz with
@@ -782,7 +916,8 @@ let pt_edge_extract
 (* Empty set of arguments *)
 let ind_args_empty: ind_args =
   { ia_ptr = [ ] ;
-    ia_int = [ ] }
+    ia_int = [ ];
+    ia_set = [ ]; }
 (* Making lists of arguments *)
 let rec ind_args_1_make (typ: ntyp) (i: int) (t: graph): nid list * graph =
   if i = 0 then [ ], t
@@ -790,15 +925,43 @@ let rec ind_args_1_make (typ: ntyp) (i: int) (t: graph): nid list * graph =
     let l0, t0 = ind_args_1_make typ (i-1) t in
     let i1, t1 = sv_add_fresh typ Nnone t0 in
     i1 :: l0, t1
+(* Making lists of set arguments *)
+let rec ind_sargs_make (i: int) (t: graph): nid list * graph =
+  if i = 0 then [ ], t
+  else
+    let l0, t0 = ind_sargs_make (i-1) t in
+    let i1, t1 = setv_add_fresh false None t0 in
+    i1 :: l0, t1
+
 (* Make a new inductive edge with fresh arg nodes *)
-let ind_edge_make (iname: string) (lptr: nid list) (nipars: int) (t: graph)
+let ind_edge_make (iname: string) (lptr: nid list) (nipars: int)
+    (spars: int) (t: graph)
     : ind_edge * graph =
   let lint, g1 = ind_args_1_make Ntint nipars t in
+  let lset, g1 = ind_sargs_make spars g1 in
   { ie_ind  = Ind_utils.ind_find iname ;
     ie_args = { ia_ptr = lptr ;
-                ia_int = lint } },
+                ia_int = lint;
+                ia_set = lset; } },
   g1
 
+(* Make a new segment edge with fresh arg nodes *)
+let seg_edge_make (iname: string) (lptr: nid list) (dptr: nid list)
+    (nipars: int) (spars: int) (idr: int) (t: graph)
+    : seg_edge * graph =
+  let lint, g1 = ind_args_1_make Ntint nipars t in
+  let lset, g1 = ind_sargs_make spars g1 in
+  let dint, g1 = ind_args_1_make Ntint nipars g1 in
+  let dset, g1 = ind_sargs_make spars g1 in
+  { se_ind  = Ind_utils.ind_find iname ;
+    se_sargs = { ia_ptr = lptr ;
+                 ia_int = lint ;
+                 ia_set = lset } ;
+    se_dargs = { ia_ptr = dptr ;
+                 ia_int = dint ;
+                 ia_set = dset } ;
+    se_dnode = idr; },
+  g1
 
 (** Operations common to inductive and segment edges *)
 let ind_seg_pre_add_check (n: node): unit =
@@ -830,6 +993,9 @@ let ind_edge_add (is: nid) (ie: ind_edge) (t: graph): graph =
   if List.length ie.ie_args.ia_int != ie.ie_ind.i_ipars then
     Log.fatal_exn "ind_edge_add, int args (%s): %d-%d" ie.ie_ind.i_name
       (List.length ie.ie_args.ia_int) (ie.ie_ind.i_ipars);
+  if List.length ie.ie_args.ia_set != ie.ie_ind.i_spars then
+    Log.fatal_exn "ind_edge_add, set args (%s): %d-%d" ie.ie_ind.i_name
+      (List.length ie.ie_args.ia_set) (ie.ie_ind.i_spars);
   let iname = ie.ie_ind.i_name in
   if not (StringSet.mem iname t.g_inds) then
     Log.fatal_exn "seg_add: inductive %s not in graph" iname;
@@ -1013,7 +1179,7 @@ let mark_free (id: nid) (t: graph): graph =
 
 (** Tests that can be (partly) evaluated in the graphs *)
 (* Equalities generated by the knowledge a segment be empty *)
-let empty_segment_equalities (nbase: int) (se: seg_edge): PairSet.t =
+let empty_segment_equalities (nbase: int) (se: seg_edge): PairSet.t * PairSet.t =
   assert (List.length se.se_sargs.ia_ptr = List.length se.se_dargs.ia_ptr);
   assert (List.length se.se_sargs.ia_int = List.length se.se_dargs.ia_int);
   let f_pair (src: nid) (dst: nid): PairSet.t =
@@ -1022,18 +1188,21 @@ let empty_segment_equalities (nbase: int) (se: seg_edge): PairSet.t =
     List.fold_left2 (fun acc src dst -> PairSet.add (src, dst) acc) in
   f_pairs (f_pairs (f_pair nbase se.se_dnode)
              se.se_sargs.ia_ptr se.se_dargs.ia_ptr)
-    se.se_sargs.ia_int se.se_dargs.ia_int
+    se.se_sargs.ia_int se.se_dargs.ia_int,
+  f_pairs PairSet.empty  se.se_sargs.ia_set se.se_dargs.ia_set
 (* Reduction of a segment known to be empty *)
 let red_empty_segment (nbase: nid) (g: graph): graph * PairSet.t =
   let se = seg_edge_find nbase g in
-  seg_edge_rem nbase g, empty_segment_equalities nbase se
+  let eqs, seqs = empty_segment_equalities nbase se in
+  seg_edge_rem nbase g, eqs (* HS, todo: set parameters *)
 (* Graph renaming, for the reduction *)
 let graph_rename_ids (renaming: int IntMap.t) (g: graph): graph =
   assert (g.g_svemod = Dom_utils.svenv_empty);
   IntSet.iter (fun i -> assert (not (IntMap.mem i renaming))) g.g_roots;
   let do_nid (i: nid): nid = try IntMap.find i renaming with Not_found -> i in
   let do_ind_args (ia: ind_args): ind_args =
-    { ia_ptr = List.map do_nid ia.ia_ptr;
+    { ia with
+      ia_ptr = List.map do_nid ia.ia_ptr;
       ia_int = List.map do_nid ia.ia_int } in
   let do_pt_edge (pe: pt_edge): pt_edge =
     { pe with
@@ -1167,7 +1336,7 @@ let pt_pt_disequal (b0: pt_edge Block_frag.t) (b1: pt_edge Block_frag.t): bool =
   let bfst_1, bend_1 = Block_frag.first_bound b1, Block_frag.end_bound b1 in
   let bfst_1, bend_1 = Offs.to_int (Bounds.to_offs bfst_1),
                        Offs.to_int (Bounds.to_offs bend_1) in
-  (max bfst_0 bfst_1)< (min bend_0 bend_1) 
+  (max bfst_0 bfst_1)< (min bend_0 bend_1)
 
 (* return true only if pt block has share range with each non-empty rule
    of ind, and the empty rule of ind constraints that address = null *)
@@ -1191,8 +1360,8 @@ let ind_ind_disequal (iel: ind) (ier: ind): bool =
        | Ik_unk -> false
        | Ik_empz -> true
        | Ik_range (l, r) ->
-           List.for_all 
-             (fun eler -> 
+           List.for_all
+             (fun eler ->
                match eler.ir_kind with
                | Ik_unk -> false
                | Ik_empz -> true
@@ -1253,7 +1422,7 @@ let graph_guard (b: bool) (c: n_cons) (g: graph): guard_res =
         | Hseg sel, Hseg ser -> Gr_emp_seg v0
         | Hind ie0, Hind ie1 ->
             if ind_ind_disequal ie0.ie_ind ie1.ie_ind &&
-              ie0.ie_ind.i_mt_rule && ie1.ie_ind.i_mt_rule then 
+              ie0.ie_ind.i_mt_rule && ie1.ie_ind.i_mt_rule then
               Gr_equality (v0, v1)
             else
               begin
@@ -1270,7 +1439,7 @@ let graph_guard (b: bool) (c: n_cons) (g: graph): guard_res =
               begin
                 if ie.ie_ind.i_emp_ipar = -1 then
                   Gr_emp_ind v0
-                else 
+                else
                   let ptr = List.nth ie.ie_args.ia_ptr ie.ie_ind.i_emp_ipar in
                   match (node_find ptr g).n_e with
                   | Hpt m0 ->
@@ -1332,8 +1501,11 @@ let seg_split (is: nid) (g: graph): graph * nid =
         let ii, g = sv_add_fresh Ntaddr Nnone g in
         aux (i-1) (ii :: l, g) in
     aux (ind.i_ppars-1) ([ ], g) in
+  let lint, g = ind_args_1_make Ntint ind.i_ipars g in
+  let lset, g = ind_sargs_make ind.i_spars g in
   let margs = { ia_ptr = lpars;
-                ia_int = [ ] } in
+                ia_int = lint;
+                ia_set = lset; } in
   (* remove the former segment edge *)
   let g = seg_edge_rem is g in
   (* build and add the two new segment edges *)
@@ -1362,33 +1534,43 @@ let node_attribute_lub (a0: node_attribute) (a1: node_attribute)
 (* For join, creation of a graph with a set of roots, from two graphs *)
 let init_graph_from_roots
     (is_submem: bool) (* whether we consider a sub-memory or not *)
-    (m: (int * int) IntMap.t) (gl: graph) (gr: graph): graph =
-  IntMap.fold
-    (fun ii (il,ir) acc ->
-      let nl = node_find il gl in
-      let nr = node_find ir gr in
-      let nt =
-        if nl.n_t = nr.n_t then nl.n_t
-        else
-          match nl.n_t, nr.n_t with
-          | Ntraw, nt | nt, Ntraw -> nt
-          | _ -> Log.fatal_exn "init graph, nt" in
-      let nalloc =
-        if is_submem then Nsubmem
-        else if nl.n_alloc = nr.n_alloc then nl.n_alloc
-        else
-          match nl.n_alloc, nr.n_alloc with
-          | Nnone, _ | _, Nnone -> Nnone
-          | _ -> Log.fatal_exn "init graph, nalloc: %s | %s"
-                   (nalloc_2str nl.n_alloc) (nalloc_2str nr.n_alloc) in
-      let r =
-        match IntSet.mem il gl.g_roots, IntSet.mem ir gr.g_roots with
-        | true, true -> true
-        | false, false -> false
-        | _ -> Log.fatal_exn "init_graph, root" in
-      sv_add ~attr: (node_attribute_lub nl.n_attr nr.n_attr)
-        ~root:(not is_submem && r) ii nt nalloc acc
-    ) m (graph_empty gl.g_inds)
+    (m: (int * int) IntMap.t)
+    (msetv: (int * int) IntMap.t)
+    (gl: graph) (gr: graph): graph =
+  let graph =
+    IntMap.fold
+      (fun ii (il,ir) acc ->
+        let nl = node_find il gl in
+        let nr = node_find ir gr in
+        let nt =
+          if nl.n_t = nr.n_t then nl.n_t
+          else
+            match nl.n_t, nr.n_t with
+            | Ntraw, nt | nt, Ntraw -> nt
+            | _ -> Log.fatal_exn "init graph, nt" in
+        let nalloc =
+          if is_submem then Nsubmem
+          else if nl.n_alloc = nr.n_alloc then nl.n_alloc
+          else
+            match nl.n_alloc, nr.n_alloc with
+            | Nnone, _ | _, Nnone -> Nnone
+            | _ -> Log.fatal_exn "init graph, nalloc: %s | %s"
+                  (nalloc_2str nl.n_alloc) (nalloc_2str nr.n_alloc) in
+        let r =
+          match IntSet.mem il gl.g_roots, IntSet.mem ir gr.g_roots with
+          | true, true -> true
+          | false, false -> false
+          | _ -> Log.fatal_exn "init_graph, root" in
+        sv_add ~attr: (node_attribute_lub nl.n_attr nr.n_attr)
+          ~root:(not is_submem && r) ii nt nalloc acc
+      ) m (graph_empty gl.g_inds) in
+  let graph =
+    IntMap.fold
+      (fun ii (il, ir) acc ->
+        setv_add true ii acc
+      ) msetv graph in
+  graph
+
 (* retrieve node with index 'n' from graph 'g' *)
 let get_node (n: int) (g: graph): node =
   IntMap.find n g.g_g
@@ -1760,7 +1942,7 @@ let is_bseg_intro  (gl: abs_graph_arg option) (sl: int)
   sv_seg_intro gl sl && sv_seg_intro gr sr
 
 (* choose destination nodes for seg_intro from encode graph *)
-let choose_dst (sc: int) (ag: abs_graph_arg option) 
+let choose_dst (sc: int) (ag: abs_graph_arg option)
     (sibs: IntSet.t): IntSet.t =
   try
     let ag = Option.get ag in
@@ -1770,7 +1952,7 @@ let choose_dst (sc: int) (ag: abs_graph_arg option)
         (fun acc ele ->
           if ele.sc = sc && is_segment (List.hd ele.pth) then
             IntSet.add (fst ele.dt) acc
-          else acc  
+          else acc
         ) IntSet.empty ag in
     IntSet.inter send sibs
   with
@@ -1841,7 +2023,7 @@ let seg_extension_end (is: int) (arg: join_arg): (int * string) option =
 let encode_node_find (is: int) (arg: join_arg): bool =
   match arg.abs_gi with
   | None -> false
-  | Some gi -> List.exists (fun ele -> fst ele.sc = is) gi 
+  | Some gi -> List.exists (fun ele -> fst ele.sc = is) gi
 
 (* Remove node and related edges in encoded graph *)
 let remove_node (is: int) (id: int) (arg: join_arg): join_arg =
@@ -1893,3 +2075,11 @@ let collect_inds (g: graph): StringSet.t =
       | Hind ind_edge -> StringSet.add ind_edge.ie_ind.i_name acc
       | Hseg seg_edge -> StringSet.add seg_edge.se_ind.i_name acc
     ) g.g_g StringSet.empty
+
+let visu_opt_of_string (opt: string): visu_option =
+  match opt with
+  | "CC" -> Connex_component
+  | "SUCC" -> Successors
+  | "CUTL" -> Cut_leaves
+  | s -> failwith ("visu_opt_of_string: " ^ s)
+

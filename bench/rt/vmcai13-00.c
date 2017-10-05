@@ -31,6 +31,8 @@ typedef iterator* Iterator;
 Node mkNode(Node f, Node s, Node p, Tree t, int d) {
   Node n;
   n = malloc( sizeof(node) );
+  if( n == 0 )
+    exit( 0 );
   n->first = f;
   n->second = s;
   n->parent = p;
@@ -44,6 +46,8 @@ Node mkNode(Node f, Node s, Node p, Tree t, int d) {
 Tree mkTree() {
   Tree t;
   t = malloc( sizeof(tree) );
+  if( t == 0 )
+    exit( 0 );
   t->root = NULL;
   t->iterators = 0;
   return t;
@@ -90,6 +94,8 @@ void bstInsertTree(Tree t, int data) {
 Iterator mkIterator(Tree t) {
   Iterator i;
   i = malloc( sizeof(iterator) );
+  if( i == 0 )
+    exit( 0 );
   i->tree = t;
   i->pointer = t->root;
   t->iterators = t->iterators + 1;

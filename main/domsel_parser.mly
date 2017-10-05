@@ -10,7 +10,7 @@ open Flags
 %token <string>   V_string
 
 %token T_lpar T_rpar T_lbrack T_rbrack T_and T_star T_comma T_underscore
-%token T_all T_list
+%token T_all T_list T_tvl
 %token T_eof
 
 %type <Flags.shape_dom>  edomshape
@@ -37,6 +37,7 @@ domshape2:
 | T_lbrack T_all T_rbrack        { Shd_all     }
 | T_lbrack T_list T_rbrack       { Shd_list    }
 | T_lbrack indlist T_rbrack      { Shd_inds $2 }
+| T_lbrack T_tvl T_rbrack        { Shd_tvl     }
 | T_lpar domshape0 T_rpar        { $2          }
 
 indlist:

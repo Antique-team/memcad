@@ -13,6 +13,7 @@
 open Data_structures
 
 open Set_sig
+open Nd_sig
 
 (** Set parameters instantiation (after join) *)
 (* Synthesized setvs need to be resolved to something of the original graphs;
@@ -33,4 +34,21 @@ type setv_inst =
       (* Other definitions *)
       setvi_props: set_cons list;     (* def. constraints that can be assumed *)
       (* Validation of the instantiation *)
-      setvi_prove: set_cons list;     (* constraints to prove *) }
+      setvi_prove: set_cons list;     (* constraints to prove *)
+      (* fresh set variables introduced in the input set domain*)
+      setvi_fresh: IntSet.t;
+    }
+
+
+type sv_inst =
+  { sv_fresh:   IntSet.t; (* fresh sv *)
+    sv_ie:      IntSet.t; (* sv instantiated by equal expr *)
+    (* Definition of svs to be instantiated *)
+    sv_eqs:   n_expr IntMap.t; (* new sv => expr *)
+    sv_low:   (n_expr list) IntMap.t; (* new sv => strict lower bound exprs *)
+    sv_up:    (n_expr list) IntMap.t; (* new sv => strict upper bound exprs *)
+    sv_eqlow: (n_expr list) IntMap.t; (* new sv => lower bound exprs *)
+    sv_equp:  (n_expr list) IntMap.t; (* new sv => upper bound exprs *)
+    (* constraints to prove *)
+    sv_cons: n_cons list;
+  }

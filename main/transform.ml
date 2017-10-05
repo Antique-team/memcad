@@ -401,7 +401,10 @@ let add_fun (curr_fun: C_sig.c_fun) (env: env): env =
        with a function of the same name once we have its definition *)
     let prev_fun = StringMap.find name env.prog.cp_funs in
     if (prev_fun.cf_body <> []) || (curr_fun.cf_body = []) then
-      Log.fatal_exn "add_fun: name already in map env.prog.cp_funs: %s" name
+      begin
+        Log.warn "add_fun: name already in map env.prog.cp_funs: %s" name;
+        env
+      end
     else
       let m =
         StringMap.add name curr_fun (StringMap.remove name env.prog.cp_funs)
@@ -772,6 +775,7 @@ let rec c_stat_of_expr
           Cs_memcad (Mc_comstring str)
         | "assert", [_] ->
           Csassert (c_expr_of_expr clang c_types env decl_env (List.hd args))
+        | "exit", [_] -> Csexit
         | "free", [_] ->
           Csfree (c_lval_of_expr clang c_types env decl_env (List.hd args))
         | _ ->

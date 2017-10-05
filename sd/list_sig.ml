@@ -16,6 +16,7 @@ open Lib
 
 open Graph_sig
 open Ind_sig
+open Array_ind_sig
 open Nd_sig
 open Set_sig
 open Sv_sig
@@ -74,6 +75,11 @@ type l_def =
       ld_nextoff: int;           (* offset of the next field (list tail ptr) *)
       ld_size:    int;           (* size of the block describing an element *)
       ld_onexts:  (int * l_def) list; (* nested lists (if any) *)
+      ld_submem:  submem_ind option; (* list type: whether in array *)
+      ld_m_offs:  int list;      (* offset for maya variables*)
+      ld_emp_csti: int;          (* endpoint of the list*)
+      ld_emp_mcons: mform list;  (* maya constraints "emp" case *)
+      ld_next_mcons: mform list; (* maya constraints for "next" case *)
       ld_set:     seti option;   (* set constraints (if any) *) }
 
 (* "List" inductive predicate, with parameters *)
@@ -124,9 +130,18 @@ type lmem =
 type unfold_result =
     { ur_lmem:     lmem;
       ur_cons:     n_cons list;           (* num constraints, to integrate *)
+      ur_mcons:    mform list;            (* maya constraints *)
       ur_setcons:  set_cons list;         (* set constraints, to integrate *)
       ur_newsetvs: set_par_type IntMap.t; (* set of new setvs *)
       ur_remsetvs: IntSet.t;              (* set of removed setvs *) }
+
+
+(** Guard result (to guide the reduction afterwards) *)
+
+type lguard_res =
+  | Gr_no_info           (* no information, do nothing *)
+  | Gr_bot               (* incompatible constraints, need to reduce to _|_ *)
+  | Gr_sveq of nid * nid (* two SVs are found equal; reduce by removing one *)
 
 
 (** Partial inclusion checking algorithm output *)
@@ -151,7 +166,7 @@ type is_le_weaken_guess =
   [ `Ilr_le_list of lmem * (int IntMap.t) * (IntSet.t IntMap.t)
         * (set_cons list)                          (* remainder *)
   | `Ilr_le_lseg of lmem                                (* remainder *)
-        * int * (int IntMap.t) * (IntSet.t IntMap.t) 
+        * int * (int IntMap.t) * (IntSet.t IntMap.t)
         * (set_cons list)                          (* end-point *)
   | `Ilr_not_le ]
 

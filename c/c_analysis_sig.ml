@@ -63,7 +63,7 @@ module type DOM_PRE_PROPERTY =
     type t
     val empty: t
     val t_2str: t -> string
-    val equal: t -> t -> bool
+    val merge: t -> t -> t
     val assign: c_lval -> c_expr -> t -> t
     val guard: c_expr -> t -> t -> t
     val decl: c_var -> t -> t
@@ -74,13 +74,16 @@ module type DOM_PRE_PROPERTY =
     val fcall: c_lval -> c_call -> c_fun -> t -> t
     val return: c_expr option -> t -> t
     val memcad: c_memcad_com -> t-> t
+    val binding: VarSet.t * VarSet.t  -> ( var -> int) -> IntSet.t * IntSet.t
+    val resolve: t -> (VarSet.t * VarSet.t)
   end
+
 module type PRE_PATH_SENSITIVE_ANALYSIS =
   sig
     type t
     type elt
     val pre_prog: string -> c_prog -> t
-    val pro_at: int -> t-> elt
+    val mat_resolve: t -> (VarSet.t * VarSet.t) IntMap.t
     val t_2str: t -> string
   end
 
@@ -120,10 +123,13 @@ let flow_op_2str: 'a flow_op -> string = function
 
 module type DOM_C =
   sig
+    include INTROSPECT
     type t
     (* Bottom element *)
     val bot: t -> t
     val is_bot: t -> bool
+    (* Disjunction size *)
+    val disj_size: t -> int
     (* Top element, with provided set of roots *)
     val top: c_prog -> t
     (* Pretty-printing *)
@@ -131,7 +137,7 @@ module type DOM_C =
     (* External output *)
     val ext_output: output_format -> string -> t -> t
     (* Management of variables, set variables, set expressions, etc. *)
-    val unary_op: t -> Opd3.unary_operand -> t
+    val unary_op: t -> unary_op -> t
     (* Management of inductive, segments, arrays, etc. *)
     val assume: t -> state_log_form -> t
     val check:  t -> state_log_form -> bool

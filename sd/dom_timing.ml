@@ -23,6 +23,8 @@ module Dom_valset_timing =
   functor (D: DOM_VALSET) ->
   (struct
     module T = Timer.Timer_Mod( struct let name = "Valset" end )
+    let module_name = "dom_valset_timing"
+    let config_2str = T.app1 "config_2str" D.config_2str
     type t = D.t
     let init_inductives = T.app2 "init_inductives" D.init_inductives
     let bot = D.bot
@@ -70,6 +72,12 @@ module Dom_valset_timing =
     let check = T.app2 "check" D.check
     let unfold = T.app4 "unfold" D.unfold
     let assume = T.app2 "assume" D.assume
+    let expand = T.app3 "expand" D.expand
+    let compact = T.app3 "compact" D.compact
+    let meet = T.app2 "meet" D.meet
+    let sv_forget = T.app2 "sv_forget" D.sv_forget
+    let sv_bound = T.app2 "sv_bound" D.sv_bound
+    let get_eq_class = T.app2 "get_eq_class" D.get_eq_class
   end: DOM_VALSET)
 
 (** Timing support for memory_low domains *)
@@ -78,10 +86,12 @@ module Dom_mem_low_timing =
   (struct
     module T = Timer.Timer_Mod( struct let name = D.module_name end )
     let module_name = D.module_name
+    let config_2str = T.app1 "config_2str" D.config_2str
     type t = D.t
     let init_inductives = T.app2 "init_inductives" D.init_inductives
     let inductive_is_allowed = T.app1 "ind_is_allowed"D.inductive_is_allowed
     let sve_sync_bot_up = T.app1 "sve_sync_bot_up" D.sve_sync_bot_up
+    let sanity_sv = T.app2 "sanity_sv" D.sanity_sv
     let bot = D.bot
     let is_bot = T.app1 "is_bot" D.is_bot
     let top = T.app1 "top" D.top
@@ -118,6 +128,8 @@ module Dom_mem_low_timing =
 module Dom_maya_timing = functor (Dm: DOM_MAYA) ->
   (struct
     module T = Timer.Timer_Mod(struct let name = "Maya" end)
+    let module_name = "dom_maya_timing"
+    let config_2str = T.app1 "config_2str" Dm.config_2str
     type t = Dm.t
     let bot = Dm.bot
     let t_2stri = T.app3 "t_stri" Dm.t_2stri
@@ -144,8 +156,10 @@ module Dom_maya_timing = functor (Dm: DOM_MAYA) ->
     let compact = T.app3 "compact" Dm.compact
     let rename_var = T.app3 "rename_var" Dm.rename_var
     let symvars_filter = T.app2 "symvars_filter" Dm.symvars_filter
-    let forget = T.app2 "forget" Dm.forget
+    let sv_forget = T.app2 "forget" Dm.sv_forget
     let is_incl = T.app2 "is_incl" Dm.is_incl
     let narrow_set_vars = T.app1 "narrow_set_vars" Dm.narrow_set_vars
     let top = Dm.top
+    let get_eq_class = T.app2 "get_eq_class" Dm.get_eq_class
+    let get_namer = T.app2 "get_namer" Dm.get_namer
   end: DOM_MAYA)

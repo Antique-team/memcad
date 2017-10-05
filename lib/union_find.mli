@@ -40,6 +40,12 @@ val find_class: 'a -> 'a t -> 'a list
 (* Union r1 r2, merge two classes, given their representatives r1 and r2;
  * r1 remains a representative, r2 do not *)
 val union: 'a -> 'a -> 'a t -> 'a t
+val is_same_class: 'a -> 'a -> 'a t -> bool
+val fold: ('a -> 'b -> 'b) -> 'a t -> 'b -> 'b
+(* Classes meet ? *)
+val meet: 'a t -> 'a t -> 'a t
+(* lift an element to the representive of a class *)
+val lift_rep: 'a -> 'a t ->  'a t
 
 (** Lattice operation *)
 (* Rename, replace one element by another *)

@@ -61,7 +61,8 @@ let local_abstract_one
   let le_res =
     let inj = Aa_maps.singleton i i in
     (* for now, we do not attempt to reduce segments *)
-    List_is_le.is_le_weaken_guess ~stop:stop m IntSet.empty (* no segment *)
+    List_is_le.is_le_weaken_guess ~stop:stop m
+      IntSet.empty IntSet.empty (* no segment *)
       sat setsat { mlist with lm_nkey = key }
       inj Aa_maps.empty in
   (* If inclusion finds something, weaken *)

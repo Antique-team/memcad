@@ -27,14 +27,23 @@ open Inst_utils
 (** Empty memory *)
 val lmem_empty: lmem
 
+val lmem_reach: lmem -> IntSet.t -> IntSet.t
+
 (** Pretty-printing *)
 val set_equa_2str: set_equa -> string
 val l_def_2stri: string -> l_def -> string
 val l_call_2stri: string -> l_call -> string
 val l_call_2strc: l_call -> string
+val l_call_setvars_2str: l_call -> string
 val lheap_frag_2stri: string -> nid -> lheap_frag -> string
 val lnode_2stri: string -> lnode -> string
 val lmem_2stri: ?refcount:bool -> string -> lmem -> string
+val get_def: lmem -> l_def 
+val get_maya_off: int -> lmem ->int list 
+val lseg_2list: int -> lmem -> lmem
+
+(** Sanity checks *)
+val sanity_check: string -> lmem -> unit
 
 (** Management of SVs *)
 val sve_sync_bot_up: lmem -> lmem * svenv_mod
@@ -112,6 +121,10 @@ val gen_ind_setpars: lmem -> l_call
  * account for the SETV parameter kinds (const, head, etc) *)
 val split_indpredpars: l_call -> lmem -> lmem * l_call * l_call * set_cons list
 
+(** Reduction *)
+val lmem_rename_sv: nid -> nid -> lmem -> lmem
+val lmem_guard: n_cons -> lmem -> lguard_res
+
 (** Utilities for join *)
 (* Initialization of the join graph:
  * returns:
@@ -130,3 +143,7 @@ val l_call_compare: l_call -> l_call -> int
 val list_ind_defs: l_def StringMap.t ref
 (* Experimental code, to try to look for list like inductive defs *)
 val exp_search_lists: unit -> unit
+
+(* Utilities needed for list visualization *)
+val nodes_of_lmem: lmem -> lnode list
+val lnode_reach: lnode -> IntSet.t

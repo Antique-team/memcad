@@ -1,3 +1,7 @@
+% BROKEN, TO FIX:
+% 8036b
+
+
 %  1-99     c-micro and atomic     small C tests (noth memory specific)
 %  1mn      c-next-                idem
 %  2mn      mc-com-                MemCAD commands
@@ -127,6 +131,7 @@ category        = valid
 file            = "bench/rt/c-micro-09.c"
 %indfile         = "bench/rt/ind.all"
 auto_ind        = on
+malloc_non0	= on
 disj            = off
 domain          = box
 silent          = on
@@ -139,6 +144,7 @@ category        = valid
 file            = "bench/rt/c-micro-10.c"
 %indfile         = "bench/rt/ind.all"
 auto_ind        = on
+malloc_non0	= on
 disj            = off
 domain          = box
 silent          = on
@@ -151,6 +157,7 @@ category        = valid
 file            = "bench/rt/c-micro-11.c"
 %indfile         = "bench/rt/ind.all"
 auto_ind        = on
+malloc_non0	= on
 disj            = off
 domain          = box
 silent          = on
@@ -235,6 +242,7 @@ category        = valid
 [19]
 file            = "bench/rt/c-micro-19.c"
 disj            = off
+malloc_non0	= on
 domain          = box
 silent          = on
 asserts_total   = 1
@@ -246,6 +254,7 @@ category        = valid
 file            = "bench/rt/c-micro-20.c"
 %indfile         = "bench/rt/ind.all"
 auto_ind        = on
+malloc_non0	= on
 disj            = off
 domain          = box
 silent          = on
@@ -562,6 +571,20 @@ asserts_proved  = 0
 timeout         = 5
 category        = exp
 
+[61]
+file            = "bench/rt/c-micro-61.c"
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+disj            = off
+domain          = box
+silent          = off
+rec_calls       = on
+unrolls         = 0
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
 [100]
 file            = "bench/rt/next-00.c"
 disj            = off
@@ -665,6 +688,7 @@ category        = valid
 [110]
 file            = "bench/rt/next-10.c"
 disj            = off
+malloc_non0	= on
 domain          = box
 silent          = on
 asserts_total   = 1
@@ -675,6 +699,7 @@ category        = valid
 [111]
 file            = "bench/rt/next-11.c"
 disj            = off
+malloc_non0	= on
 domain          = box
 silent          = on
 asserts_total   = 2
@@ -685,6 +710,7 @@ category        = valid
 [112]
 file            = "bench/rt/next-12.c"
 disj            = off
+malloc_non0	= on
 domain          = box
 silent          = on
 asserts_total   = 1
@@ -695,6 +721,7 @@ category        = valid
 [113]
 file            = "bench/rt/next-13.c"
 disj            = off
+malloc_non0	= on
 domain          = box
 silent          = on
 asserts_total   = 1
@@ -705,6 +732,7 @@ category        = valid
 [114]
 file            = "bench/rt/next-14.c"
 disj            = off
+malloc_non0	= on
 domain          = pol
 silent          = on
 asserts_total   = 1
@@ -715,6 +743,7 @@ category        = valid
 [115]
 file            = "bench/rt/next-15.c"
 disj            = off
+malloc_non0	= on
 domain          = pol
 silent          = on
 asserts_total   = 1
@@ -725,6 +754,7 @@ category        = valid
 [116]
 file            = "bench/rt/next-16.c"
 disj            = off
+malloc_non0	= on
 domain          = pol
 silent          = on
 asserts_total   = 1
@@ -735,6 +765,7 @@ category        = valid
 [117]
 file            = "bench/rt/next-17.c"
 disj            = off
+malloc_non0	= on
 domain          = pol
 silent          = on
 asserts_total   = 1
@@ -745,6 +776,7 @@ category        = valid
 [118]
 file            = "bench/rt/next-18.c"
 disj            = off
+malloc_non0	= on
 domain          = pol
 silent          = on
 asserts_total   = 1
@@ -755,6 +787,21 @@ category        = valid
 
 %-----------------------------------------------------
 % Examples on lists
+
+[100500]
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+unary_abs       = off
+silent          = on
+timeout         = 1
+
+[100501]
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+unary_abs       = off
+silent          = on
+timeout         = 1
+disj            = off
 
 [500a]
 file            = "bench/rt/list-00.c"
@@ -774,7 +821,7 @@ file            = "bench/rt/list-00.c"
 %indfile         = "bench/rt/ind.all"
 auto_ind        = on
 disj            = off
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 domain          = box
 %dynenv          = off
 unary_abs       = off
@@ -784,21 +831,6 @@ asserts_proved  = 2
 timeout         = 5
 category        = explist
 
-[100500]
-%indfile         = "bench/rt/ind.all"
-auto_ind        = on
-unary_abs       = off
-silent          = on
-timeout         = 1
-
-[100501]
-%indfile         = "bench/rt/ind.all"
-auto_ind        = on
-unary_abs       = off
-silent          = on
-timeout         = 1
-disj            = off
-
 [501a]#<[100501]>
 file            = "bench/rt/list-01.c"
 asserts_total   = 1
@@ -806,7 +838,7 @@ asserts_proved  = 1
 category        = valid
 
 [501b]#<[501a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [501c]#<[501b]>
 setdom          = on
@@ -820,7 +852,7 @@ asserts_proved  = 1
 category        = valid
 
 [502b]#<[502a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [502c]#<[502b]>
 setdom          = on
@@ -839,7 +871,7 @@ timeout         = 1
 category        = valid
 
 [503b]#<[503a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [503c]#<[503b]>
 setdom          = on
@@ -860,7 +892,7 @@ timeout         = 5
 category        = valid
 
 [504b]#<[504a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [504c]#<[504b]>
 setdom          = on
@@ -877,7 +909,7 @@ timeout         = 1
 category        = valid
 
 [505b]#<[505a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [505c]#<[505b]>
 setdom          = on
@@ -896,7 +928,7 @@ timeout         = 5
 category        = valid
 
 [506b]#<[506a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 category        = explist
 
 [506c]#<[506b]>
@@ -908,6 +940,7 @@ file            = "bench/rt/list-07.c"
 %indfile         = "bench/rt/ind.all"
 auto_ind        = on
 disj            = off
+malloc_non0	= on
 domain          = box
 silent          = on
 asserts_total   = 1
@@ -916,7 +949,7 @@ timeout         = 5
 category        = valid
 
 [507b]#<[507a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [507c]#<[507b]>
 setdom          = on
@@ -935,7 +968,7 @@ timeout         = 5
 category        = valid
 
 [508b]#<[508a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [508c]#<[508b]>
 setdom          = on
@@ -967,7 +1000,7 @@ timeout         = 5
 category        = valid
 
 [509b]#<[509a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [509c]#<[509b]>
 setdom          = on
@@ -978,6 +1011,7 @@ file            = "bench/rt/list-10.c"
 %indfile         = "bench/rt/ind.all"
 auto_ind        = on
 disj            = off
+malloc_non0	= on
 domain          = box
 unary_abs       = off
 silent          = on
@@ -987,7 +1021,7 @@ timeout         = 5
 category        = valid
 
 [510b]#<[510a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [510c]#<[510b]>
 setdom          = on
@@ -998,6 +1032,7 @@ file            = "bench/rt/list-11.c"
 %indfile         = "bench/rt/ind.all"
 auto_ind        = on
 disj            = off
+malloc_non0	= on
 domain          = box
 unary_abs       = off
 silent          = on
@@ -1007,7 +1042,7 @@ timeout         = 5
 category        = valid
 
 [511b]#<[511a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [511c]#<[511b]>
 setdom          = on
@@ -1026,7 +1061,7 @@ timeout         = 5
 category        = valid
 
 [512b]#<[512a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 category        = explist
 
 [512c]#<[512b]>
@@ -1046,7 +1081,7 @@ timeout         = 5
 category        = valid
 
 [513b]#<[513a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [513c]#<[513b]>
 setdom          = on
@@ -1057,6 +1092,7 @@ file            = "bench/rt/list-14.c"
 %indfile         = "bench/rt/ind.all"
 auto_ind        = on
 disj            = off
+malloc_non0	= on
 domain          = box
 silent          = on
 asserts_total   = 1
@@ -1065,7 +1101,7 @@ timeout         = 5
 category        = valid
 
 [514b]#<[514a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [514c]#<[514b]>
 setdom          = on
@@ -1076,6 +1112,7 @@ file            = "bench/rt/list-15.c"
 %indfile         = "bench/rt/ind.all"
 auto_ind        = on
 disj            = off
+malloc_non0	= on
 domain          = box
 silent          = on
 asserts_total   = 1
@@ -1084,7 +1121,7 @@ timeout         = 5
 category        = valid
 
 [515b]#<[515a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [515c]#<[515b]>
 setdom          = on
@@ -1095,6 +1132,7 @@ file            = "bench/rt/list-16.c"
 %indfile         = "bench/rt/ind.all"
 auto_ind        = on
 disj            = off
+malloc_non0	= on
 domain          = box
 silent          = on
 asserts_total   = 1
@@ -1103,7 +1141,7 @@ timeout         = 5
 category        = valid
 
 [516b]#<[516a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [516c]#<[516b]>
 setdom          = on
@@ -1114,6 +1152,7 @@ file            = "bench/rt/list-17.c"
 %indfile         = "bench/rt/ind.all"
 auto_ind        = on
 disj            = off
+malloc_non0	= on
 domain          = box
 silent          = on
 asserts_total   = 1
@@ -1122,7 +1161,7 @@ timeout         = 5
 category        = valid
 
 [517b]#<[517a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [517c]#<[517b]>
 setdom          = on
@@ -1133,6 +1172,7 @@ file            = "bench/rt/list-18.c"
 %indfile         = "bench/rt/ind.all"
 auto_ind        = on
 disj            = off
+malloc_non0	= on
 domain          = box
 silent          = on
 asserts_total   = 1
@@ -1141,7 +1181,7 @@ timeout         = 5
 category        = valid
 
 [518b]#<[518a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 category        = explist
 
 [518c]#<[518b]>
@@ -1153,6 +1193,7 @@ file            = "bench/rt/list-19.c"
 %indfile         = "bench/rt/ind.all"
 auto_ind        = on
 disj            = off
+malloc_non0	= on
 domain          = box
 silent          = on
 asserts_total   = 1
@@ -1161,7 +1202,7 @@ timeout         = 5
 category        = valid
 
 [519b]#<[519a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 category        = explist
 
 [519c]#<[519b]>
@@ -1173,6 +1214,7 @@ file            = "bench/rt/list-20.c"
 %indfile         = "bench/rt/ind.all"
 auto_ind        = on
 disj            = off
+malloc_non0	= on
 domain          = box
 silent          = on
 asserts_total   = 1
@@ -1181,7 +1223,7 @@ timeout         = 5
 category        = valid
 
 [520b]#<[520a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [520c]#<[520b]>
 setdom          = on
@@ -1200,7 +1242,7 @@ timeout         = 5
 category        = valid
 
 [521b]#<[521a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 category        = explist
 
 [521c]#<[521b]>
@@ -1220,7 +1262,7 @@ timeout         = 5
 category        = valid
 
 [522b]#<[522a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [522c]#<[522b]>
 setdom          = on
@@ -1241,7 +1283,7 @@ timeout         = 5
 category        = valid
 
 [523b]#<[523a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 category        = explist
 
 [523c]#<[523b]>
@@ -1261,7 +1303,7 @@ timeout         = 5
 category        = valid
 
 [524b]#<[524a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 category        = explist
 
 [524c]#<[524b]>
@@ -1278,10 +1320,10 @@ silent          = on
 asserts_total   = 4
 asserts_proved  = 4
 timeout         = 5
-category        = valid
 
 [525b]#<[525a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
+category        = valid
 
 [525c]#<[525b]>
 setdom          = on
@@ -1300,7 +1342,7 @@ timeout         = 5
 category        = valid
 
 [526b]#<[526a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 category        = explist
 
 [526c]#<[526b]>
@@ -1320,7 +1362,7 @@ timeout         = 5
 category        = valid
 
 [527b]#<[527a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [527c]#<[527b]>
 setdom          = on
@@ -1339,7 +1381,7 @@ timeout         = 5
 category        = valid
 
 [528b]#<[528a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [528c]#<[528b]>
 setdom          = on
@@ -1358,7 +1400,7 @@ timeout         = 5
 category        = valid
 
 [529b]#<[529a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [529c]#<[529b]>
 setdom          = on
@@ -1378,7 +1420,7 @@ timeout         = 5
 category        = exp
 
 [530b]#<[530a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 category        = explist
 
 [530c]#<[530b]>
@@ -1395,7 +1437,7 @@ timeout         = 5
 setdom          = on
 asserts_total   = 2
 asserts_proved  = 2
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 disj            = off
 category        = expset
 
@@ -1409,7 +1451,7 @@ timeout         = 5
 setdom          = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 disj            = off
 category        = expset
 
@@ -1427,7 +1469,7 @@ disj            = on
 category        = valid
 
 [533b]#<[533a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 category        = valid
 
 [534a]
@@ -1440,12 +1482,12 @@ timeout         = 5
 setdom          = on
 asserts_total   = 1
 asserts_proved  = 1
-%domstruct       = "[ #list ]"
+%domstruct       = " [ #list ] "
 disj            = on
 category        = valid
 
 [534b]#<[534a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 category        = valid
 
 [535b]
@@ -1454,7 +1496,7 @@ file            = "bench/rt/list-35.c"
 auto_ind        = on
 disj            = off
 domain          = box
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 silent          = on
 asserts_total   = 0
 asserts_proved  = 0
@@ -1470,7 +1512,7 @@ asserts_proved  = 1
 category        = valid
 
 [536b]#<[536a]>
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [537]
 file            = "bench/rt/list-min-max.c"
@@ -1577,6 +1619,147 @@ timeout         = 5
 category        = valid, selwiden
 timing          = "env"
 timing          = "encode"
+
+[541]
+file            = "bench/rt/tree-stack.c"
+indfile         = "bench/rt/ind.tree_stack"
+disj            = on
+sel_widen       = on
+unary_abs       = off
+silent          = off
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = exp
+
+[542]
+file            = "bench/rt/tree-traversal.c"
+indfile         = "bench/rt/ind.tree_trav"
+disj            = on
+sel_widen       = off
+unary_abs       = off
+silent          = off
+setdom          = lin
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = exp
+
+[542a]
+file            = "bench/rt/tree-traversal.c"
+indfile         = "bench/rt/ind.tree_trav"
+main_fun        = "main_a"
+disj            = on
+sel_widen       = off
+unary_abs       = off
+silent          = on
+setdom          = lin
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[542b]
+file            = "bench/rt/tree-traversal.c"
+indfile         = "bench/rt/ind.tree_trav"
+main_fun        = "main_b"
+disj            = on
+sel_widen       = off
+unary_abs       = off
+silent          = on
+setdom          = lin
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+[542c]
+file            = "bench/rt/tree-traversal.c"
+indfile         = "bench/rt/ind.tree_trav"
+main_fun        = "main_c"
+disj            = on
+sel_widen       = off
+unary_abs       = off
+silent          = on
+setdom          = lin
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = valid
+
+
+[543]
+file            = "bench/rt/sll-insertsort.c"
+indfile         = "bench/rt/ind.list"
+main_fun        = "main"
+disj            = on
+sel_widen       = off
+unary_abs       = off
+silent          = off
+setdom          = lin
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 5
+category        = exp
+
+[543a]
+file            = "bench/rt/sll-insertsort.c"
+indfile         = "bench/rt/ind.listsort"
+main_fun        = "main_a"
+disj            = on
+sel_widen       = on
+unary_abs       = off
+silent          = on
+very_silent     = on
+setdom          = lin
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 5
+category        = valid
+
+[543b]
+file            = "bench/rt/sll-insertsort.c"
+indfile         = "bench/rt/ind.listsort"
+main_fun        = "main_b"
+disj            = on
+sel_widen       = on
+unary_abs       = off
+silent          = on
+setdom          = lin
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 1
+category        = valid
+
+[543c]
+file            = "bench/rt/sll-insertsort.c"
+indfile         = "bench/rt/ind.listsort"
+main_fun        = "main_c"
+disj            = on
+sel_widen       = on
+unary_abs       = off
+silent          = on
+setdom          = lin
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 1
+category        = valid
+
+
+[543d]
+file            = "bench/rt/sll-insertsort.c"
+indfile         = "bench/rt/ind.listsort"
+main_fun        = "main_d"
+disj            = on
+sel_widen       = on
+unary_abs       = off
+silent          = off
+very_silent     = off
+setdom          = lin
+asserts_total   = 0
+asserts_proved  = 0
+timeout         = 5
+category        = exp
 
 %-----------------------------------------------------
 % Examples of inductives with parameters, list of length(...)
@@ -1994,6 +2177,7 @@ indfile         = "bench/rt/ind.all"
 indpars         = on
 unary_abs       = off
 disj            = off
+malloc_non0	= on
 silent          = on
 asserts_total   = 1
 asserts_proved  = 1
@@ -2022,6 +2206,7 @@ indfile         = "bench/rt/ind.all"
 indpars         = on
 unary_abs       = off
 disj            = off
+malloc_non0	= on
 silent          = on
 asserts_total   = 1
 asserts_proved  = 1
@@ -2036,6 +2221,7 @@ indfile         = "bench/rt/ind.all"
 indpars         = on
 unary_abs       = off
 disj            = off
+malloc_non0	= on
 silent          = on
 asserts_total   = 2
 asserts_proved  = 2
@@ -2050,6 +2236,7 @@ indfile         = "bench/rt/ind.all"
 indpars         = on
 unary_abs       = off
 disj            = off
+malloc_non0	= on
 silent          = on
 asserts_total   = 1
 asserts_proved  = 1
@@ -2093,7 +2280,7 @@ unary_abs       = off
 disj            = off
 silent          = on
 % FBR: the domstruct param is a problem for auto_ind
-domstruct       = "[lo_pcst,lo_wpcst]"
+domstruct       = " [lo_pcst,lo_wpcst] "
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
@@ -2107,7 +2294,7 @@ unary_abs       = off
 disj            = off
 silent          = on
 % FBR: the domstruct param is a problem for auto_ind
-domstruct       = "[lo_pcst,lo_wpcst]"
+domstruct       = " [lo_pcst,lo_wpcst] "
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
@@ -2122,7 +2309,7 @@ unary_abs       = off
 disj            = on
 silent          = on
 % FBR: the domstruct param is a problem for auto_ind
-domstruct       = "[lo_pcst,lo_wpcst]"
+domstruct       = " [lo_pcst,lo_wpcst] "
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
@@ -3162,7 +3349,7 @@ category        = valid
 % file            = "bench/rt/list-00.c"
 % indfile         = "bench/rt/ind.all"
 % disj            = off
-% domstruct       = "[slllo] ^ ([bintree_o] ^ [dllo])"
+% domstruct       = " [slllo] ^ ([bintree_o] ^ [dllo]) "
 % domain          = box
 % silent          = on
 % asserts_total   = 2
@@ -3288,7 +3475,7 @@ asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
 category        = valid
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 array           = on
 %category        = exparray
 
@@ -3302,7 +3489,7 @@ asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
 category        = valid
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 array           = on
 %category        = exparray
 
@@ -3316,7 +3503,7 @@ asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
 category        = valid
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 array           = on
 %category        = exparray
 
@@ -3331,7 +3518,7 @@ asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
 category        = valid
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 array           = on
 %category        = exparray
 
@@ -3346,7 +3533,7 @@ asserts_total   = 3
 asserts_proved  = 3
 timeout         = 5
 %category        = valid
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 array           = on
 category        = exparray
 
@@ -3361,7 +3548,7 @@ asserts_total   = 2
 asserts_proved  = 2
 timeout         = 6000
 %category        = valid
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 array           = on
 category        = exparray
 
@@ -3376,7 +3563,7 @@ asserts_total   = 1
 asserts_proved  = 1
 timeout         = 6000
 %category        = valid
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 array           = on
 category        = exparray
 
@@ -3391,7 +3578,7 @@ asserts_total   = 1
 asserts_proved  = 1
 timeout         = 6000
 %category        = valid
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 array           = on
 category        = exparray
 
@@ -3406,7 +3593,7 @@ asserts_total   = 3
 asserts_proved  = 3
 timeout         = 6000
 %category        = valid
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 array           = on
 category        = exparray
 
@@ -3421,7 +3608,7 @@ asserts_total   = 1
 asserts_proved  = 1
 timeout         = 6000
 %category        = valid
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 array           = on
 category        = exparray
 
@@ -3436,7 +3623,7 @@ asserts_total   = 1
 asserts_proved  = 1
 timeout         = 6000
 %category        = valid
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 array           = on
 category        = exparray
 
@@ -3451,7 +3638,7 @@ asserts_total   = 1
 asserts_proved  = 1
 timeout         = 6000
 %category        = valid
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 array           = on
 category        = exparray
 
@@ -3466,7 +3653,7 @@ asserts_total   = 1
 asserts_proved  = 1
 timeout         = 6000
 %category        = valid
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 array           = on
 category        = exparray
 
@@ -3481,7 +3668,7 @@ asserts_total   = 1
 asserts_proved  = 1
 timeout         = 6000
 %category        = valid
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 array           = on
 category        = exparray
 
@@ -3496,54 +3683,295 @@ asserts_total   = 1
 asserts_proved  = 1
 timeout         = 6000
 %category        = valid
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 array           = on
 category        = exparray
-
-[3027]
-file            = "bench/rt/arraypred-hole.c"
-disj            = off
-unary_abs       = off
-very_silent     = off
-silent          = on
-domain          = pol
-asserts_total   = 1
-asserts_proved  = 1
-timeout         = 6000
-%category        = valid
-domstruct       = "[ _ ]"
-array           = on
-category        = arraypred
 
 [3028]
 file            = "bench/rt/array_materialize.c"
 disj            = off
 unary_abs       = off
-very_silent     = off
+very_silent     = on
 silent          = on
 domain          = pol
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 6000
 %category        = valid
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 array           = on
 category        = arraypred
 
-[3029]
-file            = "bench/bigrt/arrcont/static_list/staticList01.c"
+[3040]
+file            = "bench/rt/ecoop17-minix-getelem.c"
+indfile         = "bench/rt/ind.minix"
 disj            = off
 unary_abs       = off
-very_silent     = off
+very_silent     = on
+silent          = on
+domain          = pol
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 600
+array           = on
+eq_pack         = on
+domstruct       = " [ _ ] "
+category        = arrayshape
+timing          = "apron"
+
+[3041]
+file            = "bench/rt/ecoop17-minix-insert.c"
+indfile         = "bench/rt/ind.minix"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = pol
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 600
+array           = on
+eq_pack         = on
+domstruct       = " [ _ ] "
+category        = arrayshape
+timing          = "apron"
+
+[3042]
+file            = "bench/rt/ecoop17-minix-delete.c"
+indfile         = "bench/rt/ind.minix"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = pol
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 600
+array           = on
+eq_pack         = on
+domstruct       = " [ _ ] "
+category        = arrayshape
+timing          = "apron"
+
+[3043]
+file            = "bench/rt/ecoop17-minix-init.c"
+indfile         = "bench/rt/ind.minix"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = pol
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 600
+array           = on
+eq_pack         = on
+domstruct       = " [ _ ] "
+category        = arrayshape
+timing          = "apron"
+
+
+[3044]
+file            = "bench/rt/ecoop17-aos-start.c"
+indfile         = "bench/rt/ind.sortedlist"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = pol
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 600
+array           = on
+eq_pack         = on
+domstruct       = " [ _ ] "
+category        = arrayshape
+timing          = "apron"
+
+[3045]
+file            = "bench/rt/ecoop17-aos-shed.c"
+indfile         = "bench/rt/ind.sortedlist"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = pol
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 600
+array           = on
+domstruct       = " [ _ ] "
+category        = arrayshape1
+timing          = "apron"
+
+[3046]
+file            = "bench/rt/ecoop17-aos-stop.c"
+indfile         = "bench/rt/ind.sortedlist"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = pol
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 600
+array           = on
+eq_pack         = on
+domstruct       = " [ _ ] "
+category        = arrayshape
+timing          = "apron"
+
+[3047]
+file            = "bench/rt/ecoop17-aos-init.c"
+indfile         = "bench/rt/ind.sortedlist"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = pol
+asserts_total   = 3
+asserts_proved  = 3
+timeout         = 600
+array           = on
+eq_pack         = on
+domstruct       = " [ _ ] "
+category        = arrayshape
+timing          = "apron"
+
+[3048]
+file            = "bench/rt/ecoop17-aos-all.c"
+indfile         = "bench/rt/ind.sortedlist"
+disj            = off
+unary_abs       = off
+very_silent     = on
 silent          = on
 domain          = pol
 asserts_total   = 1
 asserts_proved  = 1
-timeout         = 6000
-%category        = valid
-domstruct       = "[ _ ]"
+timeout         = 600
 array           = on
-category        = arraypred
+eq_pack         = on
+domstruct       = " [ _ ] "
+category        = arrayshape
+timing          = "apron"
+
+[3049]
+file            = "bench/rt/ecoop17-tinyos-insert.c"
+indfile         = "bench/rt/ind.arrayshape"
+disj            = on
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = pol
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 600
+array           = on
+eq_pack         = on
+domstruct       = " [ _ ] "
+category        = arrayshape
+timing          = "apron"
+
+[3050]
+file            = "bench/rt/ecoop17-tinyos-delete.c"
+indfile         = "bench/rt/ind.arrayshape"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = pol
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 600
+array           = on
+eq_pack         = on
+domstruct       = " [ _ ] "
+category        = arrayshape
+timing          = "apron"
+
+[3053]
+file            = "bench/rt/ecoop17-eicon-add.c"
+indfile         = "bench/rt/ind.eicon"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = pol
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 600
+array           = on
+eq_pack         = on
+domstruct       = " [ _ ] "
+category        = arrayshape
+
+[3054]
+file            = "bench/rt/ecoop17-eicon-delete.c"
+indfile         = "bench/rt/ind.eicon"
+disj            = on
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = pol
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 600
+array           = on
+eq_pack         = on
+domstruct       = "[ _ ]"
+category        = arrayshape
+timing          = "apron"
+
+[3055]
+file            = "bench/rt/ecoop17-eicon-traversal.c"
+indfile         = "bench/rt/ind.eicon"
+disj            = on
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = pol
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 600
+array           = on
+eq_pack         = on
+domstruct       = " [ _ ] "
+category        = arrayshape
+timing          = "apron"
+
+[3056]
+file            = "bench/rt/ecoop17-aptimer-insert.c"
+indfile         = "bench/rt/ind.aptimer"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = pol
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 600
+array           = on
+eq_pack         = on
+domstruct       = " [ _ ] "
+category        = arrayshape
+timing          = "apron"
+
+[3057]
+file            = "bench/rt/ecoop17-aptimer-delete.c"
+indfile         = "bench/rt/ind.aptimer"
+disj            = off
+unary_abs       = off
+very_silent     = on
+silent          = on
+domain          = pol
+asserts_total   = 1
+asserts_proved  = 1
+timeout         = 600
+array           = on
+eq_pack         = on
+domstruct       = " [ _ ] "
+category        = arrayshape
+timing          = "apron"
 
 % Issue: the data field is not assigned in the loop
 %        which creates issues to fold the sub-memory
@@ -4266,7 +4694,7 @@ asserts_proved  = 2
 timeout         = 5
 red_mode        = disabled
 category        = expprod
-domstruct       = "[ ill, dll ]"
+domstruct       = " [ ill, dll ] "
 timing          = "value"
 timing          = "base"
 timing          = "mexprs"
@@ -4283,7 +4711,7 @@ asserts_proved  = 2
 timeout         = 5
 red_mode        = disabled
 category        = expprod
-domstruct       = "[ ill ] ^ [ dll ]"
+domstruct       = " [ ill ] ^ [ dll ] "
 timing          = "value"
 timing          = "base"
 timing          = "prod"
@@ -4301,7 +4729,7 @@ asserts_proved  = 2
 timeout         = 5
 red_mode        = disabled
 category        = expprod
-domstruct       = "[ ill, dll ]"
+domstruct       = " [ ill, dll ] "
 timing          = "value"
 timing          = "base"
 timing          = "mexprs"
@@ -4318,7 +4746,7 @@ asserts_proved  = 2
 timeout         = 5
 red_mode        = disabled
 category        = expprod
-domstruct       = "[ ill ] ^ [ dll ]"
+domstruct       = " [ ill ] ^ [ dll ] "
 timing          = "value"
 timing          = "base"
 timing          = "prod"
@@ -4336,7 +4764,7 @@ asserts_proved  = 2
 timeout         = 5
 red_mode        = disabled
 category        = expprod
-domstruct       = "[ ill, dll ]"
+domstruct       = " [ ill, dll ] "
 timing          = "value"
 timing          = "base"
 timing          = "mexprs"
@@ -4353,7 +4781,7 @@ asserts_proved  = 2
 timeout         = 5
 red_mode        = disabled
 category        = expprod
-domstruct       = "[ ill ] ^ [ dll ]"
+domstruct       = " [ ill ] ^ [ dll ] "
 timing          = "value"
 timing          = "base"
 timing          = "prod"
@@ -4371,7 +4799,7 @@ asserts_proved  = 4
 timeout         = 5
 red_mode        = disabled
 category        = expprod
-domstruct       = "[ ill ] ^ [ dll ]"
+domstruct       = " [ ill ] ^ [ dll ] "
 timing          = "value"
 timing          = "base"
 timing          = "prod"
@@ -4389,7 +4817,7 @@ asserts_proved  = 2
 timeout         = 5
 red_mode        = disabled
 category        = expprod
-domstruct       = "[ ill ] ^ [ dll ]"
+domstruct       = " [ ill ] ^ [ dll ] "
 timing          = "value"
 timing          = "base"
 timing          = "prod"
@@ -4407,7 +4835,7 @@ asserts_proved  = 2
 timeout         = 5
 red_mode        = disabled
 category        = expprod
-domstruct       = "[ ill ] ^ [ dll ]"
+domstruct       = " [ ill ] ^ [ dll ] "
 timing          = "value"
 timing          = "base"
 timing          = "prod"
@@ -4437,7 +4865,7 @@ unary_abs       = off
 asserts_total   = 6
 asserts_proved  = 6
 timeout         = 5
-domstruct       = "[ _ ] * [ ]"
+domstruct       = " [ _ ] * [ ] "
 red_mode        = disabled
 category        = expsep
 timing          = "value"
@@ -4464,7 +4892,7 @@ timing          = "value"
 timing          = "base"
 timing          = "mexprs"
 timing          = "env"
-domstruct       = "[ list ]"
+domstruct       = " [ list ] "
 
 [4101b]
 file            = "bench/rt/prod-sep-01.c"
@@ -4477,7 +4905,7 @@ very_silent     = on
 asserts_total   = 3
 asserts_proved  = 3
 timeout         = 5
-domstruct       = "[ _ ] * [ list ]"
+domstruct       = " [ _ ] * [ list ] "
 red_mode        = disabled
 category        = expsep
 timing          = "value"
@@ -4488,7 +4916,7 @@ timing          = "mexprs"
 timing          = "env"
 
 [4101d]#<[4101b]>
-domstruct       = "[ _ ] * [ #list ]"
+domstruct       = " [ _ ] * [ #list ] "
 very_silent     = off
 
 [4102a]
@@ -4508,7 +4936,7 @@ timing          = "value"
 timing          = "base"
 timing          = "mexprs"
 timing          = "env"
-domstruct       = "[ list ]"
+domstruct       = " [ list ] "
 
 [4102b]
 file            = "bench/rt/prod-sep-02.c"
@@ -4521,7 +4949,7 @@ very_silent     = on
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ _ ] * [ list ]"
+domstruct       = " [ _ ] * [ list ] "
 red_mode        = disabled
 category        = expsep
 timing          = "value"
@@ -4548,7 +4976,7 @@ timing          = "value"
 timing          = "base"
 timing          = "mexprs"
 timing          = "env"
-domstruct       = "[ list ]"
+domstruct       = " [ list ] "
 
 [4103b]
 file            = "bench/rt/prod-sep-03.c"
@@ -4561,7 +4989,7 @@ very_silent     = off
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ _ ] * [ list ]"
+domstruct       = " [ _ ] * [ list ] "
 red_mode        = disabled
 category        = expsep
 timing          = "value"
@@ -4588,7 +5016,7 @@ timing          = "value"
 timing          = "base"
 timing          = "mexprs"
 timing          = "env"
-domstruct       = "[ list ]"
+domstruct       = " [ list ] "
 
 [4104b]
 file            = "bench/rt/prod-sep-04.c"
@@ -4601,7 +5029,7 @@ very_silent     = on
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ _ ] * [ list ]"
+domstruct       = " [ _ ] * [ list ] "
 red_mode        = disabled
 category        = expsep
 timing          = "value"
@@ -4628,7 +5056,7 @@ timing          = "base"
 timing          = "mexprs"
 timing          = "env"
 very_silent     = on
-domstruct       = "[ list ]"
+domstruct       = " [ list ] "
 
 [4105b]
 file            = "bench/rt/prod-sep-05.c"
@@ -4640,7 +5068,7 @@ unary_abs       = off
 asserts_total   = 5
 asserts_proved  = 5
 timeout         = 5
-domstruct       = "[ _ ] * [ list ]"
+domstruct       = " [ _ ] * [ list ] "
 red_mode        = disabled
 category        = expsep
 timing          = "value"
@@ -4668,7 +5096,7 @@ timing          = "base"
 timing          = "mexprs"
 timing          = "env"
 very_silent     = on
-domstruct       = "[ list ]"
+domstruct       = " [ list ] "
 
 [4106b]
 file            = "bench/rt/prod-sep-06.c"
@@ -4680,7 +5108,7 @@ unary_abs       = off
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ _ ] * [ list ]"
+domstruct       = " [ _ ] * [ list ] "
 red_mode        = disabled
 category        = expsep
 timing          = "value"
@@ -4708,7 +5136,7 @@ timing          = "base"
 timing          = "mexprs"
 timing          = "env"
 %very_silent     = on
-domstruct       = "[ list ]"
+domstruct       = " [ list ] "
 
 [4107b]
 file            = "bench/rt/prod-sep-07.c"
@@ -4720,7 +5148,7 @@ unary_abs       = off
 asserts_total   = 7
 asserts_proved  = 7
 timeout         = 5
-domstruct       = "[ _ ] * [ list ]"
+domstruct       = " [ _ ] * [ list ] "
 red_mode        = disabled
 category        = expsep
 timing          = "value"
@@ -4748,7 +5176,7 @@ timing          = "base"
 timing          = "mexprs"
 timing          = "env"
 %very_silent     = on
-domstruct       = "[ list ]"
+domstruct       = " [ list ] "
 
 [4108b]
 file            = "bench/rt/prod-sep-08.c"
@@ -4760,7 +5188,7 @@ unary_abs       = off
 asserts_total   = 7
 asserts_proved  = 7
 timeout         = 5
-domstruct       = "[ _ ] * [ list ]"
+domstruct       = " [ _ ] * [ list ] "
 red_mode        = disabled
 category        = expsep
 timing          = "value"
@@ -4781,7 +5209,7 @@ unary_abs       = off
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ tree ]"
+domstruct       = " [ tree ] "
 red_mode        = disabled
 category        = valid
 timing          = "value"
@@ -4799,7 +5227,7 @@ unary_abs       = off
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ _ ] * [ tree ]"
+domstruct       = " [ _ ] * [ tree ] "
 red_mode        = disabled
 category        = expsep
 timing          = "value"
@@ -4819,7 +5247,7 @@ unary_abs       = off
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ tree ]"
+domstruct       = " [ tree ] "
 red_mode        = disabled
 timing          = "value"
 timing          = "base"
@@ -4837,7 +5265,7 @@ unary_abs       = off
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ _ ] * [ tree ]"
+domstruct       = " [ _ ] * [ tree ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -4858,7 +5286,7 @@ unary_abs       = off
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ tree ]"
+domstruct       = " [ tree ] "
 red_mode        = disabled
 timing          = "value"
 timing          = "base"
@@ -4876,7 +5304,7 @@ unary_abs       = off
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ _ ] * [ tree ]"
+domstruct       = " [ _ ] * [ tree ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -4897,7 +5325,7 @@ unary_abs       = off
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ tree ]"
+domstruct       = " [ tree ] "
 red_mode        = disabled
 timing          = "value"
 timing          = "base"
@@ -4915,7 +5343,7 @@ unary_abs       = off
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ _ ] * [ tree ]"
+domstruct       = " [ _ ] * [ tree ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -4935,7 +5363,7 @@ unary_abs       = off
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ tree ]"
+domstruct       = " [ tree ] "
 red_mode        = disabled
 timing          = "value"
 timing          = "base"
@@ -4953,7 +5381,7 @@ unary_abs       = off
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ _ ] * [ tree ]"
+domstruct       = " [ _ ] * [ tree ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -4974,7 +5402,7 @@ unary_abs       = off
 asserts_total   = 5
 asserts_proved  = 5
 timeout         = 5
-domstruct       = "[ tree ]"
+domstruct       = " [ tree ] "
 red_mode        = disabled
 timing          = "value"
 timing          = "base"
@@ -4993,7 +5421,7 @@ unary_abs       = off
 asserts_total   = 5
 asserts_proved  = 5
 timeout         = 5
-domstruct       = "[ _ ] * [ tree ]"
+domstruct       = " [ _ ] * [ tree ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5015,7 +5443,7 @@ unary_abs       = off
 asserts_total   = 5
 asserts_proved  = 5
 timeout         = 5
-domstruct       = "[ tree ]"
+domstruct       = " [ tree ] "
 red_mode        = disabled
 timing          = "value"
 timing          = "base"
@@ -5034,7 +5462,7 @@ unary_abs       = off
 asserts_total   = 5
 asserts_proved  = 5
 timeout         = 5
-domstruct       = "[ _ ] * [ tree ]"
+domstruct       = " [ _ ] * [ tree ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5057,7 +5485,7 @@ unary_abs       = off
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ list,bintree_o ]"
+domstruct       = " [ list,bintree_o ] "
 red_mode        = disabled
 timing          = "value"
 timing          = "base"
@@ -5076,7 +5504,7 @@ unary_abs       = off
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ _ ] * [ list,bintree_o ]"
+domstruct       = " [ _ ] * [ list,bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5098,7 +5526,7 @@ unary_abs       = off
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ list ] * [ bintree_o ]"
+domstruct       = " [ list ] * [ bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5120,7 +5548,7 @@ unary_abs       = off
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ _ ] * [ list ] * [ bintree_o ]"
+domstruct       = " [ _ ] * [ list ] * [ bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5142,7 +5570,7 @@ unary_abs       = off
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ list,bintree_o ]"
+domstruct       = " [ list,bintree_o ] "
 red_mode        = disabled
 timing          = "value"
 timing          = "base"
@@ -5161,7 +5589,7 @@ unary_abs       = off
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ _ ] * [ list,bintree_o ]"
+domstruct       = " [ _ ] * [ list,bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5183,7 +5611,7 @@ unary_abs       = off
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ list ] * [ bintree_o ]"
+domstruct       = " [ list ] * [ bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5205,7 +5633,7 @@ unary_abs       = off
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ _ ] * [ list ] * [ bintree_o ]"
+domstruct       = " [ _ ] * [ list ] * [ bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5227,7 +5655,7 @@ unary_abs       = off
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ list,bintree_o ]"
+domstruct       = " [ list,bintree_o ] "
 red_mode        = disabled
 timing          = "value"
 timing          = "base"
@@ -5246,7 +5674,7 @@ unary_abs       = off
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ _ ] * [ list,bintree_o ]"
+domstruct       = " [ _ ] * [ list,bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5268,7 +5696,7 @@ unary_abs       = off
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ list ] * [ bintree_o ]"
+domstruct       = " [ list ] * [ bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5290,7 +5718,7 @@ unary_abs       = off
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ _ ] * [ list ] * [ bintree_o ]"
+domstruct       = " [ _ ] * [ list ] * [ bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5312,7 +5740,7 @@ unary_abs       = off
 asserts_total   = 8
 asserts_proved  = 8
 timeout         = 5
-domstruct       = "[ list,bintree_o ]"
+domstruct       = " [ list,bintree_o ] "
 red_mode        = disabled
 timing          = "value"
 timing          = "base"
@@ -5331,7 +5759,7 @@ unary_abs       = off
 asserts_total   = 8
 asserts_proved  = 8
 timeout         = 5
-domstruct       = "[ _ ] * [ list,bintree_o ]"
+domstruct       = " [ _ ] * [ list,bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5353,7 +5781,7 @@ unary_abs       = off
 asserts_total   = 8
 asserts_proved  = 8
 timeout         = 5
-domstruct       = "[ list ] * [ bintree_o ]"
+domstruct       = " [ list ] * [ bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5375,7 +5803,7 @@ unary_abs       = off
 asserts_total   = 8
 asserts_proved  = 8
 timeout         = 5
-domstruct       = "[ _ ] * [ list ] * [ bintree_o ]"
+domstruct       = " [ _ ] * [ list ] * [ bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5397,7 +5825,7 @@ unary_abs       = off
 asserts_total   = 12
 asserts_proved  = 12
 timeout         = 5
-domstruct       = "[ list,bintree_o ]"
+domstruct       = " [ list,bintree_o ] "
 red_mode        = disabled
 timing          = "value"
 timing          = "base"
@@ -5416,7 +5844,7 @@ unary_abs       = off
 asserts_total   = 12
 asserts_proved  = 12
 timeout         = 5
-domstruct       = "[ _ ] * [ list,bintree_o ]"
+domstruct       = " [ _ ] * [ list,bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5438,7 +5866,7 @@ unary_abs       = off
 asserts_total   = 12
 asserts_proved  = 12
 timeout         = 5
-domstruct       = "[ list ] * [ bintree_o ]"
+domstruct       = " [ list ] * [ bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5460,7 +5888,7 @@ unary_abs       = off
 asserts_total   = 12
 asserts_proved  = 12
 timeout         = 5
-domstruct       = "[ _ ] * [ list ] * [ bintree_o ]"
+domstruct       = " [ _ ] * [ list ] * [ bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5482,7 +5910,7 @@ unary_abs       = off
 asserts_total   = 4
 asserts_proved  = 4
 timeout         = 10
-domstruct       = "[ list,bintree_o ]"
+domstruct       = " [ list,bintree_o ] "
 red_mode        = disabled
 timing          = "value"
 timing          = "base"
@@ -5499,7 +5927,7 @@ unary_abs       = on
 asserts_total   = 4
 asserts_proved  = 4
 timeout         = 5
-domstruct       = "[ _ ] * [ list,bintree_o ]"
+domstruct       = " [ _ ] * [ list,bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5520,7 +5948,7 @@ unary_abs       = off
 asserts_total   = 4
 asserts_proved  = 4
 timeout         = 5
-domstruct       = "[ list ] * [ bintree_o ]"
+domstruct       = " [ list ] * [ bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5541,7 +5969,7 @@ unary_abs       = off
 asserts_total   = 4
 asserts_proved  = 4
 timeout         = 5
-domstruct       = "[ _ ] * [ list ] * [ bintree_o ]"
+domstruct       = " [ _ ] * [ list ] * [ bintree_o ] "
 red_mode        = disabled
 category        = exp
 timing          = "value"
@@ -5563,7 +5991,7 @@ silent          = on
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 category        = valid
 
 [4201]
@@ -5574,7 +6002,7 @@ silent          = on
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 category        = valid
 
 [4202a]
@@ -5595,7 +6023,7 @@ silent          = on
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 category        = valid
 
 [4203a]
@@ -5616,7 +6044,7 @@ silent          = on
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 category        = valid
 
 [4204a]
@@ -5646,7 +6074,7 @@ thr_w_add       = 10001
 asserts_total   = 9
 asserts_proved  = 9
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 category        = valid
 
 [4205]
@@ -5662,7 +6090,7 @@ thr_w_add       = 10001
 asserts_total   = 9
 asserts_proved  = 9
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 category        = valid
 
 [4206]
@@ -5674,7 +6102,7 @@ domain          = pol
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 category        = valid
 
 [4207]
@@ -5686,7 +6114,7 @@ domain          = pol
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 category        = valid
 
 [4208]
@@ -5698,7 +6126,7 @@ domain          = pol
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 category        = valid
 
 [4209]
@@ -5710,7 +6138,7 @@ domain          = pol
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 category        = valid
 
 [4210a]
@@ -5731,7 +6159,7 @@ domain          = pol
 asserts_total   = 4
 asserts_proved  = 4
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 category        = valid
 
 [4211a]
@@ -5752,7 +6180,7 @@ domain          = pol
 asserts_total   = 4
 asserts_proved  = 4
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 category        = valid
 
 [4212a]
@@ -5774,7 +6202,7 @@ domain          = pol
 asserts_total   = 4
 asserts_proved  = 4
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 category        = valid
 
 [4213a]
@@ -5795,7 +6223,7 @@ domain          = pol
 asserts_total   = 4
 asserts_proved  = 4
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 red_mode        = disabled
 category        = valid
 
@@ -5819,7 +6247,7 @@ domain          = pol
 asserts_total   = 4
 asserts_proved  = 4
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 timing          = "flat"
 timing          = "apron"
 category        = valid
@@ -5842,7 +6270,7 @@ domain          = pol
 asserts_total   = 4
 asserts_proved  = 4
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 category        = valid
 
 [4216a]
@@ -5871,7 +6299,7 @@ timing          = "apron"
 timing          = "value"
 timing          = "env"
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 category        = valid
 
 [4217a]
@@ -5892,11 +6320,12 @@ domain          = pol
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 category        = valid
 
 [4218a]
 file            = "bench/rt/shape-less-18.c"
+malloc_non0	= on
 disj            = off
 silent          = off
 domain          = pol
@@ -5913,7 +6342,7 @@ domain          = pol
 asserts_total   = 2
 asserts_proved  = 2
 timeout         = 5
-domstruct       = "[ _ ]"
+domstruct       = " [ _ ] "
 category        = exp
 
 %-----------------------------------------------------
@@ -5941,7 +6370,7 @@ file            = "bench/rt/set-00.c"
 unary_abs       = off
 disj            = off
 timeout         = 5
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [8000a]#<[8000]>
 category        = valid,validset
@@ -5958,7 +6387,7 @@ disj            = on
 timeout         = 5
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [8001a]#<[8001]>
 category        = todobdd % valid,validset
@@ -5968,6 +6397,18 @@ setdom          = on
 setdom          = lin
 category        = hack, valid
 
+[8001c]#<[8001]>
+setdom          = setr_lin
+category        = valid
+
+[8001d]#<[8001]>
+setdom          = setr_bdd
+category        = valid
+
+[8001e]#<[8001]>
+setdom          = quicr
+category        = valid
+
 [8002]
 file            = "bench/rt/set-02.c"
 unary_abs       = off
@@ -5975,7 +6416,7 @@ disj            = off
 timeout         = 5
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [8002a]#<[8002]>
 category        = todobdd % valid,validset
@@ -5985,6 +6426,18 @@ setdom          = on
 setdom          = lin
 category        = todohack %, hack
 
+[8002c]#<[8002]>
+setdom          = setr_lin
+category        = exp, expsetr
+
+[8002d]#<[8002]>
+setdom          = setr_bdd
+category        = valid
+
+[8002e]#<[8002]>
+setdom          = quicr
+category        = exp, expsetr
+
 [8003]
 file            = "bench/rt/set-03.c"
 unary_abs       = off
@@ -5992,7 +6445,7 @@ disj            = off
 timeout         = 5
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [8003a]#<[8003]>
 category        = todobdd % valid,validset
@@ -6002,6 +6455,14 @@ setdom          = on
 setdom          = lin
 category        = todohack %, hack
 
+[8003c]#<[8003]>
+setdom          = setr_lin
+category        = exp, expsetr
+
+[8003d]#<[8003]>
+setdom          = setr_bdd
+category        = valid
+
 [8004]
 file            = "bench/rt/set-04.c"
 unary_abs       = off
@@ -6009,7 +6470,7 @@ disj            = off
 timeout         = 5
 asserts_total   = 0
 asserts_proved  = 0
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [8004a]#<[8004]>
 category        = todobdd % valid,validset
@@ -6019,6 +6480,14 @@ setdom          = on
 setdom          = lin
 category        = valid,hack
 
+[8004c]#<[8004]>
+setdom          = setr_lin
+category        = valid
+
+[8004d]#<[8004]>
+setdom          = setr_bdd
+category        = valid
+
 [8005]
 file            = "bench/rt/set-05.c"
 unary_abs       = off
@@ -6026,7 +6495,7 @@ disj            = off
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [8005a]#<[8005]>
 category        = todobdd % valid,validset
@@ -6036,6 +6505,14 @@ setdom          = on
 setdom          = lin
 category        = todohack, hack
 
+[8005c]#<[8005]>
+setdom          = setr_lin
+category        = valid
+
+[8005d]#<[8005]>
+setdom          = setr_bdd
+category        = valid
+
 [8006]
 file            = "bench/rt/set-06.c"
 unary_abs       = off
@@ -6043,7 +6520,7 @@ disj            = off
 asserts_total   = 1
 asserts_proved  = 1
 timeout         = 5
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [8006a]#<[8006]>
 category        = todobdd % valid,validset
@@ -6052,6 +6529,14 @@ setdom          = on
 [8006b]#<[8006]>
 setdom          = lin
 category        = todohack %, hack
+
+[8006c]#<[8006]>
+setdom          = setr_lin
+category        = exp, expsetr
+
+[8006d]#<[8006]>
+setdom          = setr_bdd
+category        = valid
 
 [8007]
 file            = "bench/rt/set-07.c"
@@ -6064,7 +6549,7 @@ timeout         = 5
 disj            = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [8007a]#<[8007]>
 category        = todobdd % valid,validset
@@ -6074,9 +6559,13 @@ setdom          = on
 setdom          = lin
 category        = valid, hack
 
-[8007c]#<[8007a]>
-disj            = off
-category        = todobdd % valid,validset
+[8007c]#<[8007]>
+setdom          = setr_lin
+category        = valid
+
+[8007d]#<[8007]>
+setdom          = setr_bdd
+category        = valid
 
 [8008]
 file            = "bench/rt/set-08.c"
@@ -6087,7 +6576,7 @@ timeout         = 5
 disj            = on
 asserts_total   = 2
 asserts_proved  = 2
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [8008a]#<[8008]>
 category        = valid,validset
@@ -6097,9 +6586,13 @@ setdom          = on
 setdom          = lin
 category        = valid,hack
 
-[8008c]#<[8008a]>
-disj            = off
-category        = todobdd % valid,validset
+[8008c]#<[8008]>
+setdom          = setr_lin
+category        = valid
+
+[8008d]#<[8008]>
+setdom          = setr_bdd
+category        = valid
 
 [8009]
 file            = "bench/rt/set-09.c"
@@ -6110,7 +6603,7 @@ timeout         = 5
 disj            = on
 asserts_total   = 2
 asserts_proved  = 2
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [8009a]#<[8009]>
 category        = valid,validset
@@ -6120,9 +6613,13 @@ setdom          = on
 setdom          = lin
 category        = valid,hack
 
-[8009c]#<[8009a]>
-disj            = off
-category        = expset
+[8009c]#<[8009]>
+setdom          = setr_lin
+category        = valid
+
+[8009d]#<[8009]>
+setdom          = setr_bdd
+category        = valid
 
 [8010]
 file            = "bench/rt/set-10.c"
@@ -6133,7 +6630,7 @@ timeout         = 5
 disj            = on
 asserts_total   = 1 % 2 % XR: reduction shape -> set needed
 asserts_proved  = 1 % 2 % XR: reduction shape -> set needed
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [8010a]#<[8010]>
 category        = todobdd % valid,validset
@@ -6143,9 +6640,13 @@ setdom          = on
 setdom          = lin
 category        = valid, hack
 
-[8010c]#<[8010a]>
-disj            = off
-category        = expset
+[8010c]#<[8010]>
+setdom          = setr_lin
+category        = valid
+
+[8010d]#<[8010]>
+setdom          = setr_bdd
+category        = valid
 
 [8011]
 file            = "bench/rt/set-11.c"
@@ -6156,7 +6657,7 @@ timeout         = 5
 disj            = on
 asserts_total   = 1 % 2 % XR: reduction shape -> set needed
 asserts_proved  = 1 % 2 % XR: reduction shape -> set needed
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [8011a]#<[8011]>
 category        = todobdd % valid,validset
@@ -6166,9 +6667,13 @@ setdom          = on
 setdom          = lin
 category        = valid, hack
 
-[8011c]#<[8011a]>
-disj            = off
-category        = todobdd % valid,validset
+[8011c]#<[8011]>
+setdom          = setr_lin
+category        = exp, expsetr
+
+[8011d]#<[8011]>
+setdom          = setr_bdd
+category        = valid
 
 [8012]
 file            = "bench/rt/set-12.c"
@@ -6179,7 +6684,7 @@ timeout         = 5
 disj            = on
 asserts_total   = 2
 asserts_proved  = 2
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 
 [8012a]#<[8012]>
 category        = todobdd % valid,validset
@@ -6189,9 +6694,13 @@ setdom          = on
 setdom          = lin
 category        = valid, hack
 
-[8012c]#<[8012a]>
-disj            = off
-category        = todobdd % valid,validset
+[8012c]#<[8012]>
+setdom          = setr_lin
+category        = valid
+
+[8012d]#<[8012]>
+setdom          = setr_bdd
+category        = valid
 
 % FBR: graph ind. defs. have parameters
 
@@ -6204,7 +6713,7 @@ timeout         = 5
 disj            = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6223,6 +6732,14 @@ category        = valid,hack
 disj            = off
 category        = todobdd % valid,validset
 
+[8021c]#<[8021]>
+setdom          = setr_lin
+category        = valid
+
+[8021d]#<[8021]>
+setdom          = setr_bdd
+category        = valid
+
 [8022]
 file            = "bench/rt/graph-02.c"
 indfile         = "bench/rt/ind.all"
@@ -6231,7 +6748,7 @@ timeout         = 10
 disj            = on
 asserts_total   = 1 % 2 % XR: reduction shape -> set needed
 asserts_proved  = 1 % 2 % XR: reduction shape -> set needed
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6248,18 +6765,21 @@ setdom          = on
 setdom          = lin
 category        = valid,hack,sas
 
-[8022d]#<[8022b]>
+[8022c]#<[8022]>
+setdom          = setr_lin
+category        = exp, expset
+
+[8022d]#<[8022]>
+setdom          = setr_bdd
+category        = valid
+
+[8022f]#<[8022b]>
 very_silent     = on
 category        = sastest
 
 [8022e]#<[8022a]>
 very_silent     = on
 category        = sastest
-
-[8022c]#<[8022a]>
-silent          = off
-disj            = off
-category        = todobdd % valid,validset
 
 [8023]
 file            = "bench/rt/graph-03.c"
@@ -6270,7 +6790,7 @@ timeout         = 5
 disj            = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6283,7 +6803,15 @@ setdom          = on
 
 [8023b]#<[8023]>
 setdom          = lin
-category        = valid, hack, broken
+category        = valid, hack
+
+[8023c]#<[8023]>
+setdom          = setr_lin
+category        = exp, expset
+
+[8023d]#<[8023]>
+setdom          = setr_bdd
+category        = valid
 
 [8024]
 file            = "bench/rt/graph-04.c"
@@ -6294,7 +6822,7 @@ timeout         = 5
 disj            = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6309,7 +6837,15 @@ setdom          = on
 setdom          = lin
 category        = valid, hack
 
-[8024c]#<[8024a]>
+[8024c]#<[8024]>
+setdom          = setr_lin
+category        = valid
+
+[8024d]#<[8024]>
+setdom          = setr_bdd
+category        = valid
+
+[8024e]#<[8024a]>
 disj            = off
 category        = todobdd % valid,validset
 
@@ -6322,7 +6858,7 @@ timeout         = 1
 disj            = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6338,15 +6874,23 @@ setdom          = lin
 %silent          = on
 category        = valid, hack, sas
 
-[8025d]#<[8025b]>
+[8025c]#<[8025]>
+setdom          = setr_lin
+category        = valid
+
+[8025d]#<[8025]>
+setdom          = setr_bdd
+category        = valid
+
+[8025e]#<[8025b]>
 very_silent     = on
 category        = sastest
 
-[8025e]#<[8025a]>
+[8025f]#<[8025a]>
 very_silent     = on
 category        = sastest
 
-[8025c]#<[8025a]>
+[8025g]#<[8025a]>
 disj            = off
 category        = todobdd % valid,validset
 
@@ -6359,7 +6903,7 @@ timeout         = 5
 disj            = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6372,9 +6916,17 @@ setdom          = on
 
 [8026b]#<[8026]>
 setdom          = lin
-% category        = valid, hack, broken
+% category        = valid, hack
 
-[8026c]#<[8026a]>
+[8026c]#<[8026]>
+setdom          = setr_lin
+category        = exp, expset
+
+[8026d]#<[8026]>
+setdom          = setr_bdd
+category        = exp, expset
+
+[8026e]#<[8026a]>
 disj            = off
 category        = todobdd % valid,validset
 
@@ -6387,7 +6939,7 @@ timeout         = 5
 disj            = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6402,7 +6954,15 @@ setdom          = on
 setdom          = lin
 category        = exp
 
-[8027c]#<[8027a]>
+[8027c]#<[8027]>
+setdom          = setr_lin
+category        = exp, expset
+
+[8027d]#<[8027]>
+setdom          = setr_bdd
+category        = exp, expset
+
+[8027e]#<[8027a]>
 disj            = off
 category        = todobdd % valid,validset
 
@@ -6415,7 +6975,7 @@ timeout         = 10
 disj            = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[#list ]"
+domstruct       = " [#list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6429,7 +6989,15 @@ setdom          = on
 [8028b]#<[8028]>
 setdom          = lin
 basic_widen     = on
-category        = valid, hack, broken
+category        = valid, hack
+
+[8028c]#<[8028]>
+setdom          = setr_lin
+category        = exp, expset
+
+[8028d]#<[8028]>
+setdom          = setr_bdd
+category        = valid
 
 [8029]
 file            = "bench/rt/graph-09.c"
@@ -6440,7 +7008,7 @@ timeout         = 10
 disj            = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[#list ]"
+domstruct       = " [#list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6455,11 +7023,19 @@ setdom          = on
 setdom          = lin
 category        = valid, hack, sas
 
-[8029d]#<[8029b]>
+[8029c]#<[8029]>
+setdom          = setr_lin
+category        = exp, expset
+
+[8029d]#<[8029]>
+setdom          = setr_bdd
+category        = valid
+
+[8029e]#<[8029b]>
 very_silent     = on
 category        = sastest
 
-[8029e]#<[8029a]>
+[8029f]#<[8029a]>
 very_silent     = on
 category        = sastest
 
@@ -6472,7 +7048,7 @@ timeout         = 10
 disj            = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[#list ]"
+domstruct       = " [#list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6485,13 +7061,21 @@ category        = todobdd % valid,validset
 
 [8030b]#<[8030]>
 setdom          = lin
-category        = valid, hack, sas, broken
+category        = valid, hack, sas
 
-[8030d]#<[8030b]>
+[8030c]#<[8030]>
+setdom          = setr_lin
+category        = exp, expset
+
+[8030d]#<[8030]>
+setdom          = setr_bdd
+category        = valid
+
+[8030e]#<[8030b]>
 very_silent     = on
 category        = sastest
 
-[8030e]#<[8030a]>
+[8030f]#<[8030a]>
 very_silent     = on
 category        = sastest
 
@@ -6504,7 +7088,7 @@ timeout         = 5
 disj            = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[#list ]"
+domstruct       = " [#list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6519,11 +7103,19 @@ setdom          = on
 setdom          = lin
 category        = valid,hack,sas
 
-[8031d]#<[8031b]>
+[8031c]#<[8031]>
+setdom          = setr_lin
+category        = valid
+
+[8031d]#<[8031]>
+setdom          = setr_bdd
+category        = valid
+
+[8031e]#<[8031b]>
 very_silent     = on
 category        = sastest
 
-[8031e]#<[8031a]>
+[8031f]#<[8031a]>
 very_silent     = on
 category        = sastest
 
@@ -6536,7 +7128,7 @@ timeout         = 10
 disj            = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[#list ]"
+domstruct       = " [#list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6551,6 +7143,14 @@ setdom          = on
 setdom          = lin
 category        = exp
 
+[8032c]#<[8032]>
+setdom          = setr_lin
+category        = exp, expset
+
+[8032d]#<[8032]>
+setdom          = setr_bdd
+category        = exp, expset
+
 [8033]
 file            = "bench/rt/graph-13.c"
 indfile         = "bench/rt/ind.all"
@@ -6560,7 +7160,7 @@ timeout         = 5
 disj            = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[#list ]"
+domstruct       = " [#list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6575,11 +7175,19 @@ setdom          = on
 setdom          = lin
 category        = valid,hack,sas
 
-[8033d]#<[8033b]>
+[8033c]#<[8033]>
+setdom          = setr_lin
+category        = valid
+
+[8033d]#<[8033]>
+setdom          = setr_bdd
+category        = valid
+
+[8033e]#<[8033b]>
 category        = sastest
 very_silent     = on
 
-[8033e]#<[8033a]>
+[8033f]#<[8033a]>
 category        = sastest
 very_silent     = on
 
@@ -6592,7 +7200,7 @@ timeout         = 10
 disj            = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[#list ]"
+domstruct       = " [#list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6607,11 +7215,19 @@ setdom          = on
 setdom          = lin
 category        = valid,hack,sas
 
-[8034d]#<[8034b]>
+[8034c]#<[8034]>
+setdom          = setr_lin
+category        = valid
+
+[8034d]#<[8034]>
+setdom          = setr_bdd
+category        = valid
+
+[8034e]#<[8034b]>
 category        = sastest
 very_silent     = on
 
-[8034e]#<[8034a]>
+[8034f]#<[8034a]>
 category        = sastest
 very_silent     = on
 
@@ -6624,7 +7240,7 @@ timeout         = 10
 disj            = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[#list ]"
+domstruct       = " [#list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6637,13 +7253,21 @@ setdom          = on
 
 [8035b]#<[8035]>
 setdom          = lin
-category        = valid, hack, sas, broken
+category        = valid, hack, sas
 
-[8035d]#<[8035b]>
+[8035c]#<[8035]>
+setdom          = setr_lin
+category        = valid
+
+[8035d]#<[8035]>
+setdom          = setr_bdd
+category        = valid
+
+[8035e]#<[8035b]>
 category        = sastest
 very_silent     = on
 
-[8035e]#<[8035a]>
+[8035f]#<[8035a]>
 category        = sastest
 very_silent     = on
 
@@ -6656,7 +7280,7 @@ timeout         = 10
 disj            = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[#list ]"
+domstruct       = " [#list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6670,13 +7294,21 @@ setdom          = on
 [8036b]#<[8036]>
 setdom          = lin
 basic_widen     = on
-category        = valid, hack, sas, broken
+category        = hack, sas, broken %, valid
 
-[8036d]#<[8036b]>
+[8036c]#<[8036]>
+setdom          = setr_lin
+category        = exp, expset
+
+[8036d]#<[8036]>
+setdom          = setr_bdd
+category        = exp, expset
+
+[8036e]#<[8036b]>
 category        = sastest
 very_silent     = on
 
-[8036e]#<[8036a]>
+[8036f]#<[8036a]>
 category        = sastest
 very_silent     = on
 
@@ -6690,7 +7322,7 @@ disj            = on
 setdom          = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[#list ]"
+domstruct       = " [#list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6703,7 +7335,15 @@ category        = expset, todobdd
 
 [8037b]#<[8037]>
 setdom          = lin
-category        = hack, sas, broken
+category        = hack, sas
+
+[8037c]#<[8037]>
+setdom          = setr_lin
+category        = valid
+
+[8037d]#<[8037]>
+setdom          = setr_bdd
+category        = valid
 
 % bug test case from HSL
 % graph built from empty
@@ -6718,7 +7358,7 @@ disj            = on
 setdom          = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[#list ]"
+domstruct       = " [#list ] "
 timing          = "value"
 timing          = "valset"
 timing          = "list"
@@ -6726,6 +7366,14 @@ timing          = "mexprs"
 timing          = "env"
 setdom          = lin
 category        = expset
+
+[8038c]#<[8038]>
+setdom          = setr_lin
+category        = exp, expset
+
+[8038d]#<[8038]>
+setdom          = setr_bdd
+category        = exp, expset
 
 [8100a]
 file            = "bench/rt/lset-ex-01.c"
@@ -6737,7 +7385,7 @@ disj            = on
 setdom          = on
 asserts_total   = 1
 asserts_proved  = 1
-domstruct       = "[ #list ]"
+domstruct       = " [ #list ] "
 category        = expset
 
 [8100b]#<[8100a]>
@@ -6862,7 +7510,7 @@ category        = expset
 
 [9022]
 file            = "bench/rt/unfold_type.c"
-header          = "memcad.h"
+header          = "bench/bigrt/for_gdsl.h"
 asserts_total   = 1
 asserts_proved  = 1
 unary_abs       = off
@@ -6874,7 +7522,7 @@ type_unfolds    = 2
 
 [9023]
 file            = "bench/rt/struct_pointers_table_inside_struct.c"
-header          = "memcad.h"
+header          = "bench/bigrt/for_gdsl.h"
 asserts_total   = 1
 asserts_proved  = 1
 unary_abs       = off
@@ -6886,7 +7534,7 @@ type_unfolds    = 2
 
 [9024]
 file            = "bench/rt/assign_cond.c"
-header          = "memcad.h"
+header          = "bench/bigrt/for_gdsl.h"
 asserts_total   = 9
 asserts_proved  = 9
 unary_abs       = off
@@ -6894,3 +7542,71 @@ silent          = off
 disj            = on
 category        = valid
 timeout         = 3
+
+%------------------------------------------------------------
+% Some TVL tests
+% - these are indicative examples
+% - it may be necessary to make other files, with other parameters
+% - do not modify the files refered to below, they are shared with other tests
+% - the numbers of assertions also have to be updated (at a later point)
+%------------------------------------------------------------
+
+[100502]
+%indfile         = "bench/rt/ind.all"
+auto_ind        = on
+unary_abs       = off
+silent          = off
+timeout         = 10
+disj            = on
+domstruct       = " [ #tvl ] "
+asserts_total   = 2
+asserts_proved  = 2
+timeout         = 5
+
+[500t]#<[100502]>
+file            = "bench/rt/list-00.c"
+category        = tvl
+
+[503t]#<[100502]>
+file            = "bench/rt/list-03.c"
+category        = tvl
+
+[505t]#<[100502]>
+file            = "bench/rt/list-05.c"
+category        = tvl
+
+[506t]#<[100502]>
+file            = "bench/rt/list-06.c"
+category        = tvl
+
+[508t]#<[100502]>
+file            = "bench/rt/list-08.c"
+category        = tvl
+
+[509t]#<[100502]>
+file            = "bench/rt/list-09.c"
+category        = tvl
+
+[511t]#<[100502]>
+file            = "bench/rt/list-11.c"
+category        = tvl
+
+[513t]#<[100502]>
+file            = "bench/rt/list-13.c"
+category        = tvl
+
+[517t]#<[100502]>
+file            = "bench/rt/list-17.c"
+category        = tvl
+
+[519t]#<[100502]>
+file            = "bench/rt/list-19.c"
+category        = tvl
+
+[522t]#<[100502]>
+file            = "bench/rt/list-22.c"
+category        = tvl
+
+[525t]#<[100502]>
+file            = "bench/rt/list-25.c"
+category        = tvl

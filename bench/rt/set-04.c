@@ -12,4 +12,5 @@ void main( ){
     a = a + 1;
   }
   a = a + 1;
+  _memcad("output_dot(a | SUCC)");
 }

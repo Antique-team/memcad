@@ -7,4 +7,5 @@ void main( ){
 
   a = a + 1;
   _memcad( "set_check( F = $empty) ");
+  _memcad("output_dot(a | SUCC)");
 }

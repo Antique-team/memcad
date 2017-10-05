@@ -15,7 +15,7 @@ let mkvl (l: c_lvalk): c_lval =
     clt = Ctvoid (* for now *) }
 %}
 
-%token T_comma T_pipe
+%token T_comma T_pipe T_dot
 %token T_lparen T_rparen
 %token T_lbrack T_rbrack
 %token T_arrow
@@ -117,9 +117,9 @@ memcad_command:
 | T_reduce_localize T_lparen c_lval T_rparen
     { Mc_reduce_localize $3 }
 | T_array_check V_astring
-    { Array_pred_sig.hint_array := $2; Mc_array_check }
+    { Mc_array_check }
 | T_array_assume V_astring
-    { Array_pred_sig.assume_array := $2; Mc_array_assume }
+    { Mc_array_assume }
 
 indname:
 | V_string { $1 }
@@ -188,6 +188,12 @@ c_lval:
             clt = Ctvoid } }
 | c_lval T_arrow V_string
     { { clk = Clfield (mkvl (Clderef (mkve (Celval $1))), $3);
+        clt = Ctvoid } }
+| c_lval T_lbrack c_lval T_rbrack
+    { { clk = Clindex ($1,(mkve (Celval $3)));
+        clt = Ctvoid } }
+| c_lval T_lbrack c_lval T_rbrack T_dot V_string
+    { { clk = Clfield (mkvl (Clindex ($1,(mkve (Celval $3)))),$6);
         clt = Ctvoid } }
 
 c_var_list:

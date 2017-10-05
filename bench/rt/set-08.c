@@ -16,4 +16,5 @@ void main( ){
     k = l;
   _memcad( "check_inductive( l, lsetin, [ | | E] )" );
   _memcad( "check_inductive( k, lsetin, [ | | E] )" );
+  _memcad("output_dot(l, k | SUCC)");
 }

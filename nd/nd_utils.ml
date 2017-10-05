@@ -36,7 +36,7 @@ let make_var (n: int): Var.t =
   Var.of_string (Printf.sprintf "|%d|" n)
 
 
-(** Atom printers *)
+(** SV printers *)
 (* Nodes. *)
 let node_2str (i: int): string = Printf.sprintf "N|%d|" i
 let nodej_2str (i: int): string =
@@ -407,3 +407,48 @@ let decomp_lin (e: n_expr): int * n_expr =
 let decomp_lin_opt (e: n_expr): (int * n_expr) option =
   try Some (decomp_lin e)
   with No_decomp _ -> None
+
+
+(** Atoms used in add_eqs and add_diseqs *)
+
+(* Constraints involve atoms *)
+type atom =
+  | Acst of int (* stands for integer constant *)
+  | Anode of int (* stands for a graph node *)
+(* Ordered structure *)
+module AtomOrd =
+  struct
+    type t = atom
+    let compare (a0: atom) (a1: atom): int =
+      match a0, a1 with
+      | Acst i0, Acst i1
+      | Anode i0, Anode i1 ->
+          i0 - i1
+      | Acst _, Anode _ -> 1
+      | Anode _, Acst _ -> -1
+  end
+module AtomSet = Set.Make( AtomOrd )
+module AtomMap = Map.Make( AtomOrd )
+(* Pretty-printing *)
+let atom_2str (sn: sv_namer) (a: atom): string =
+  match a with
+  | Acst i -> Printf.sprintf "%d" i
+  | Anode i -> try IntMap.find i sn with Not_found -> Printf.sprintf "|%d|" i
+let atomset_2str (sn: sv_namer) (s: AtomSet.t): string =
+  let is_beg = ref true in
+  AtomSet.fold
+    (fun a acc ->
+      let sep =
+        if !is_beg then
+          begin
+            is_beg := false;
+            ""
+          end
+        else "; " in
+      Printf.sprintf "%s%s%s" acc sep (atom_2str sn a)
+    ) s ""
+(* Conversion of n_expressions to atom *)
+let n_expr_2atom: n_expr -> atom option = function    
+  | Ne_csti i -> Some (Acst i)
+  | Ne_var i -> Some (Anode i)
+  | _ -> None

@@ -5,26 +5,24 @@ authors: "Xavier Rival et. al."
 homepage: "https://www.di.ens.fr/~rival/memcad.html"
 bug-reports: "https://github.com/Antique-team/memcad/issues"
 dev-repo: "https://github.com/Antique-team/memcad.git"
-license: "GPL v3"
+license: "CeCILL"
 build: [
   [make]
 ]
 install: [
   ["mv" "batch" "memcad_batch"]
   ["mv" "analyze" "memcad_analyze"]
-  ["cp" "memcad_batch" bin]
-  ["cp" "memcad_analyze" bin]
+  ["cp" "memcad_batch" bin]  
+  ["cp" "memcad_analyze" bin]  
 ]
 remove: [
   ["rm" "-f" "%{bin}%/memcad_batch" "%{bin}%/memcad_analyze"]
 ]
 depends: [
-  "apron"
+  "obuild"
   "base-unix"
-  "bdd"
+  "apron"
   "clangml-transforms"
-  "conf-graphviz"
-  "obuild" {build}
   "ounit"
   "qtest"
   "setr"

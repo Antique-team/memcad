@@ -37,6 +37,8 @@ void main( ){
     // insert left in t
     t0 = t;
     t = malloc( 12 ) ;
+    if( t == 0 )
+      exit( 0 );
     t -> rgt = null ;
     t -> lft = t0 ;
     t -> data = y ;

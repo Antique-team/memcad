@@ -37,28 +37,31 @@ module Log =
 (* in order to fix an Apron domain.                    *)
 module type PRE_APRON =
   sig
+    include NAME
     type t
     val man: t Manager.t
   end
 module PA_box =
   (struct
+    let module_name = "nd_PA_box"
     type t = Box.t
     let man: t Manager.t =
       Box.manager_alloc ()
   end: PRE_APRON)
 module PA_oct =
   (struct
+    let module_name = "nd_PA_oct"
     type t = Oct.t
     let man: t Manager.t =
       Oct.manager_alloc ()
   end: PRE_APRON)
 module PA_polka =
   (struct
+    let module_name = "nd_PA_polka"
     type t = Polka.strict Polka.t
     let man: t Manager.t =
       Polka.manager_alloc_strict ()
   end: PRE_APRON)
-
 
 (** Wrapper around Abstract1, to add statistics *)
 (* Interface *)
@@ -99,6 +102,7 @@ let pp_histo () =
   IntMap.iter (Log.info "  %d vars => %d num elements generated") !histo
 module Abstract1_stat =
   (struct
+    let module_name = "nd_abstract1_stat"
     module A1 = Abstract1
     type 'a t = 'a A1.t
     (* Statistics *)
@@ -130,6 +134,12 @@ module Abstract1_stat =
 (** The functor to build the Apron domain *)
 module Build_apron = functor (A: ABSTRACT1_TYPE) -> functor (PA: PRE_APRON) ->
   (struct
+    let module_name = "nd_apron"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s -> %s\n"
+        module_name "nd_abstract1_t"
+        module_name PA.module_name
+
     (** Types; here we need the underlying definition of the domain *)
     type u = PA.t (* Underlying; abstract doamin of choice *)
     type t = u A.t (* Abstract domain instance *)
@@ -226,7 +236,7 @@ module Build_apron = functor (A: ABSTRACT1_TYPE) -> functor (PA: PRE_APRON) ->
           (environment_2str IntMap.empty (get_env x1));
       x1
 
-    (* Extracts the variables as a set of keys *)
+    (* Extract the variables as a set of keys *)
     let get_svs (x: t): IntSet.t =
       let ai, af = Environment.vars (get_env x) in
       assert (Array.length af = 0);
@@ -378,11 +388,13 @@ module Build_apron = functor (A: ABSTRACT1_TYPE) -> functor (PA: PRE_APRON) ->
       let lid = make_var lid in
       let rid = make_var rid in
       A.fold man x [| lid; rid |]
-    (* Meet: a lattice operation *)
+
+    (** Conjunction *)
     let meet (lx: t) (rx: t): t =
       A.meet man lx rx
-    (* Forget the information on a dimension *)
-    let forget (id: int) (x: t): t =
+
+    (** Forget the information on a dimension *)
+    let sv_forget (id: int) (x: t): t =
       let id = make_var id in
       A.forget_array man x [| id |] false
 
@@ -391,7 +403,7 @@ module Build_apron = functor (A: ABSTRACT1_TYPE) -> functor (PA: PRE_APRON) ->
     let bound_variable (dim: int) (x: t): interval =
       let dim = make_var dim in
       let inter = A.bound_variable man x dim in
-      let inf = 
+      let inf =
         if Scalar.is_infty inter.Interval.inf <> 0 then
           None
         else
@@ -412,4 +424,8 @@ module Build_apron = functor (A: ABSTRACT1_TYPE) -> functor (PA: PRE_APRON) ->
               Some (int_of_float (Mpfrf.to_float m)) in
       { intv_inf = inf;
         intv_sup = sup; }
+
+    (* Extract all SVs that are equal to a given SV *)
+    let get_eq_class (i: int) (x: t): IntSet.t =
+      IntSet.empty
   end: DOM_NUM_NB)

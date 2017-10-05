@@ -38,6 +38,14 @@ module Dom_sep_dic =
   (struct
     (** Module name *)
     let module_name = Printf.sprintf "(%s * %s)" D1.module_name D2.module_name
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s -> %s\n%s -> %s\n%s%s%s"
+        module_name DIC.module_name
+        module_name D1.module_name
+        module_name D2.module_name
+        (DIC.config_2str ())
+        (D1.config_2str ())
+        (D2.config_2str ())
 
     (** Type of abstract values *)
     type t =
@@ -62,6 +70,9 @@ module Dom_sep_dic =
     (** Fixing sets of keys *)
     let sve_sync_bot_up (x: t): t * svenv_mod =
       { x with t_envmod = svenv_empty }, x.t_envmod
+    let sanity_sv (_: IntSet.t) (x: t): bool =
+      Log.todo "sanity_sv: unimp";
+      true
 
     (** Lattice elements *)
     (* Bottom element *)
@@ -1086,9 +1097,6 @@ module Dom_sep_dic =
             end
           end
 
-    (* Temporaries specific for array *)
-    let array_check (x: t): bool =
-      Log.fatal_exn "array check in dom_mem_low_sep"
   end: DOM_MEM_LOW)
 
 

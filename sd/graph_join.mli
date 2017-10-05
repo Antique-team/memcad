@@ -14,6 +14,8 @@ open Data_structures
 open Graph_sig
 open Nd_sig
 open Offs
+open Set_sig
+open Inst_sig
 
 
 (** The main graph join function *)
@@ -21,12 +23,18 @@ open Offs
 val join:
     submem:bool (* whether to compute is_le for a sub-mem (no alloc check) *)
   -> graph * join_arg (* left graph *)
-    -> (n_cons -> bool) (* left sat function *)
+  -> (n_cons -> bool) (* left sat function *)
+  -> (set_cons -> bool)   (* left set sat function *)
       -> graph * join_arg (* right input *)
-        -> (n_cons -> bool) (* right sat function *)
+      -> (n_cons -> bool) (* right sat function *)
+      -> (set_cons -> bool)  (* right set sat function *)
           -> hint_bg option (* optional hint *)
             -> lint_bg option (* optional nullable node address *)
-              -> node_relation (* relation between both inputs *)
+            -> node_relation (* relation between both inputs *)
+            -> node_relation  (* initial set var relation *)
                 -> bool (* whether to NOT make roots prioretary *)
                   -> graph (* pre-computed, initial version of output *)
-                    -> graph * node_relation * n_instantiation * n_instantiation
+                    -> graph * node_relation
+                        * n_instantiation * n_instantiation
+                        * setv_inst * setv_inst
+                        * sv_inst * sv_inst

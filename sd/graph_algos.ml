@@ -17,8 +17,10 @@ open Graph_sig
 open Nd_sig
 open Ind_sig
 open Sv_sig
+open Set_sig
 
 open Graph_utils
+open Inst_utils
 
 
 (** Sided algorithms support *)
@@ -53,16 +55,19 @@ let is_le_ind
     (ino: graph) (* graph to weaken *)
     (iso: int) (* index of the node from which to weaken *)
     (sato: n_cons -> bool) (* constraint verification *)
+    (setsato: set_cons -> bool) (* constraint verification *)
     : is_le_res * ind_edge * IntSet.t =
   let g1, ieo, ino, instantiable_nodes =
     let g0 = sv_add iso Ntaddr Nnone (graph_empty ino.g_inds) in
     let ppars, ino = ind_args_1_make Ntaddr ind.i_ppars ino in
-    let ie, ino = ind_edge_make ind.i_name ppars ind.i_ipars ino in
+    let ie, ino = ind_edge_make ind.i_name ppars ind.i_ipars ind.i_spars ino in
     let f_buildpars = List.fold_left (fun acc i -> IntSet.add i acc) in
     let ia_nodes = f_buildpars IntSet.empty ie.ie_args.ia_int in
     let pa_nodes = f_buildpars IntSet.empty ie.ie_args.ia_ptr in
+    let sa_nodes = f_buildpars IntSet.empty ie.ie_args.ia_set in
     let g0 = IntSet.fold (fun i -> sv_add i Ntint Nnone) ia_nodes g0 in
     let g0 = IntSet.fold (fun i -> sv_add i Ntaddr Nnone) pa_nodes g0 in
+    let g0 = IntSet.fold (fun i -> setv_add false i) sa_nodes g0 in
     ind_edge_add iso ie g0, (* graph to use in the comparison *)
     ie,                     (* "other side" weakened inductive edge *)
     ino,                    (* "other side" graph *)
@@ -71,7 +76,8 @@ let is_le_ind
   let le_res =
     let inj = Aa_maps.singleton iso iso in
     Graph_is_le.is_le_partial (Some instantiable_nodes)
-      false ~submem:submem ino None IntSet.empty sato g1 inj in
+      false ~submem:submem ino None IntSet.empty sato
+      setsato g1 inj Aa_maps.empty in
   le_res, ieo, instantiable_nodes
 
 (* Construction of a graph with only one segment edge
@@ -82,6 +88,7 @@ let is_le_seg
     (gr: graph) (* graph to weaken *)
     (isr: int) (idr: int) (* source and destination in the right side *)
     (satr: n_cons -> bool) (* constraint verification *)
+    (setsatr: set_cons -> bool) (* set constraint verification *)
     : is_le_res * seg_edge =
   (* construction of a graph with just one segment edge *)
   let g0 =
@@ -91,24 +98,19 @@ let is_le_seg
       sv_add idr Ntaddr Nnone
         (sv_add isr Ntaddr Nnone (graph_empty gr.g_inds)) in
   let g1, ser, sinst (* set of instantiable nodes *) =
-    assert (ind.i_ipars = 0); (* integer parameters not supported *)
     let lsrc, gg0 = ind_args_1_make Ntaddr ind.i_ppars g0 in
     let ldst, gg1 = ind_args_1_make Ntaddr ind.i_ppars gg0 in
-    let seg =
-      { se_ind   = ind ;
-        se_sargs = { ia_ptr = lsrc ;
-                     ia_int = [ ] } ;
-        se_dargs = { ia_ptr = ldst ;
-                     ia_int = [ ] } ;
-        se_dnode = idr } in
+    let seg, gg1 = seg_edge_make ind.i_name lsrc ldst ind.i_ipars ind.i_spars idr gg1 in
     let inst = IntSet.empty in
     seg_edge_add isr seg gg1, seg, inst in
   (* calling the weakening function *)
   let le_res =
     if isr = idr then
-      Ilr_le_rem (gr, IntSet.empty, IntMap.singleton isr isr, IntMap.empty)
+      Ilr_le_rem (gr, IntSet.empty, IntMap.singleton isr isr,
+                  IntMap.empty, IntSet.empty, sv_inst_empty, [])
     else
       let inj = Aa_maps.add idr idr (Aa_maps.singleton isr isr) in
       Graph_is_le.is_le_partial (Some sinst)
-        false ~submem:submem gr None (IntSet.singleton idr) satr g1 inj in
+        false ~submem:submem gr None (IntSet.singleton idr) satr setsatr g1 inj
+        Aa_maps.empty in
     le_res, ser

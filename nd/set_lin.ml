@@ -37,6 +37,10 @@ type sv = int
 
 module Set_lin =
   (struct
+    let module_name = "set_lin"
+    let config_2str (): string =
+      "" (* leaf module *)
+
     (** Type of abstract values *)
 
     (* Linear constraints correspond to an equality of the form
@@ -172,6 +176,34 @@ module Set_lin =
      * function f maps a symbolic variable to true if it should be dropped,
      * and to false otherwise. *)
     let drop_symb_svs (f: int -> bool) (x: t): t =
+      let find_eq set_lin c ele_sets i =
+        let m, l = IntMap.fold (fun key lin (accm, accs) ->
+            if key <> i && IntSet.subset lin.sl_elts c.sl_elts
+               && IntSet.subset lin.sl_sets c.sl_sets &&
+               IntSet.inter lin.sl_elts ele_sets <> IntSet.empty
+            then
+              IntMap.add key lin accm,
+              IntSet.union accs lin.sl_elts
+            else
+              accm, accs
+          ) set_lin (IntMap.empty, IntSet.empty) in
+        if IntSet.subset ele_sets l then Some m else None in
+      let replace map_eq set_lin elts =
+        let sl_sets, sl_elts, elts =
+          IntMap.fold
+            (fun key lin (accs, acce, acct) ->
+              if IntSet.subset lin.sl_sets accs
+                  && IntSet.subset lin.sl_elts acce
+              then
+                IntSet.add key (IntSet.diff accs lin.sl_sets),
+                IntSet.diff acce lin.sl_elts,
+                IntSet.diff acct lin.sl_elts
+              else accs, acce, acct
+            ) map_eq (set_lin.sl_sets, set_lin.sl_elts, elts) in
+        if elts = IntSet.empty then
+          Some { sl_elts = sl_elts;
+                 sl_sets = sl_sets }
+        else None in
       match x.t_t with
       | None -> x
       | Some u ->
@@ -179,7 +211,16 @@ module Set_lin =
             IntMap.fold
               (fun i c acc ->
                 let b = IntSet.exists f c.sl_elts in
-                if b then IntMap.remove i acc else acc
+                if b then
+                  let elts = IntSet.filter f c.sl_elts in
+                  let m = find_eq u.u_lin c elts i in
+                  match m with
+                  | None -> IntMap.remove i acc
+                  | Some map ->
+                      match replace map c elts with
+                      | Some c ->  IntMap.add i c acc
+                      | None -> IntMap.remove i acc
+                else acc
               ) u.u_lin u.u_lin in
           let mem =
             IntMap.fold
@@ -544,7 +585,7 @@ module Set_lin =
     let setv_col_root (t: t): IntSet.t = t.t_roots
 
     (* Set variables *)
-    let setv_add ?(root: bool = false) ?(kind: set_par_type option = None) 
+    let setv_add ?(root: bool = false) ?(kind: set_par_type option = None)
         ?(name: string option = None) (setv: int) (t: t): t =
       { t with
         t_roots = if root then IntSet.add setv t.t_roots else t.t_roots }
@@ -673,7 +714,38 @@ module Set_lin =
           (fun i sl0 acc ->
             try
               let sl1 = IntMap.find i u1.u_lin in
-              if sl_eq sl0 sl1 then IntMap.add i sl0 acc else acc
+              (* compute the difference or intersection of two set expression 
+               *  that equal to a same setvariable, as example, let
+               *  sl0 = E + X+ {\alpha} , sl1 = F + X + {\beta},
+               *  then, lin0 = E + {\alpha}, lin1 = F + {\beta},
+               *  lin_r = X *)
+              let f_com f sl sr =
+                { sl_elts = f sl.sl_elts sr.sl_elts;
+                  sl_sets = f sl.sl_sets sr.sl_sets } in
+              let lin0 = f_com IntSet.diff sl0 sl1 in
+              let lin1 = f_com IntSet.diff sl1 sl0 in
+              let lin_r = f_com IntSet.inter sl1 sl0 in
+              (* deal with the difference part: as example, lin0 = E+{\alpha},
+               * lin1 = F + {\beta}, then, if u1 => E = {\beta}, we can reduce
+               * lin0 = {\alpha}, lin1 = F, lin_r = X + E *)
+              let reduce_diff l0 l1 l_r =
+                IntSet.fold
+                  (fun s (acc0, acc1, accr) ->
+                    try
+                      let ls = IntMap.find s u1.u_lin in
+                      if IntSet.subset ls.sl_elts acc1.sl_elts &&
+                        IntSet.subset ls.sl_sets acc1.sl_sets then
+                        { acc0 with sl_sets = IntSet.remove s acc0.sl_sets },
+                        f_com IntSet.diff acc1 ls,
+                        { accr with sl_sets = IntSet.add s accr.sl_sets }
+                      else acc0, acc1, accr
+                    with Not_found -> acc0, acc1, accr
+                  ) l0.sl_sets (l0, l1, l_r) in
+              let lin0, lin1, lin_r = reduce_diff lin0 lin1 lin_r in
+              let lin1, lin0, lin_r = reduce_diff lin1 lin0 lin_r in
+              if lin0 = sl_empty && lin1 = sl_empty then
+                IntMap.add i lin_r acc
+              else acc
             with Not_found -> acc
           ) u0.u_lin IntMap.empty in
       let lin =
@@ -774,7 +846,27 @@ module Set_lin =
             | S_eq (S_var i, S_empty) | S_eq (S_empty, S_var i) ->
                 if IntMap.mem i u.u_lin then Log.warn "lin, already here";
                 let cons = { sl_elts = IntSet.empty; sl_sets = IntSet.empty } in
-                { u with u_lin = IntMap.add i cons u.u_lin }
+                let u_lin =
+                  IntMap.map
+                    (fun sl ->
+                      { sl with sl_sets = IntSet.remove i sl.sl_sets }
+                    ) u.u_lin in
+                let u_lin, u_eqs =
+                  IntMap.fold
+                    (fun i sl (accl, acce) ->
+                      if sl.sl_elts = IntSet.empty
+                          && IntSet.cardinal sl.sl_sets = 1 then
+                        let elt = IntSet.choose sl.sl_sets in
+                        let eqs =
+                          try IntMap.find i acce
+                          with Not_found -> IntSet.empty in
+                        IntMap.remove i accl,
+                        IntMap.add i (IntSet.add elt eqs) acce
+                      else accl, acce
+                    ) u_lin (u_lin, u.u_eqs) in
+                { u with
+                  u_lin = IntMap.add i cons u_lin;
+                  u_eqs = u_eqs }
             | S_eq (S_var i, S_var j) ->
                 u_add_eq u i j
             | S_eq (S_var i, S_uplus (S_var j, S_var k))
@@ -793,7 +885,9 @@ module Set_lin =
                 begin
                   match linearize e with
                   | Some lin -> u_add_lin u i lin
-                  | None -> Log.warn "Set_guard: linearization failed; dropping"; u
+                  | None ->
+                      Log.warn "Set_guard: linearization failed; dropping";
+                      u
                 end
             | S_subset (S_var i, S_var j) ->
                 if debug_module then
@@ -813,7 +907,7 @@ module Set_lin =
 
 
     (** Forget (if the meaning of the SV changes, e.g., for an assignment) *)
-    let forget (sv: int) (t: t): t = (* will be used for assign *)
+    let sv_forget (sv: int) (t: t): t = (* will be used for assign *)
       let f i = i = sv in
       drop_symb_svs f t
 

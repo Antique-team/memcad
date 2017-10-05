@@ -14,6 +14,7 @@ open Data_structures
 open Graph_sig
 open Ind_sig
 open Nd_sig
+open Set_sig
 
 (** Materialization of one rule *)
 (* returns:
@@ -26,8 +27,9 @@ val materialize_rule:
     -> (nid * ind_args) option
       -> bool (* whether segment of length 1 (segment case) *)
         -> irule -> graph
-          -> (graph * PairSet.t) list * n_cons list * IntSet.t
-              
+        -> (graph * PairSet.t * PairSet.t) list * n_cons list * set_cons list 
+           * n_path list * IntSet.t * IntSet.t
+
 (** Materialization of an inductive *)
 (* returns a list of tuples of the same form as for materialize_rule *)
 val materialize_ind:
@@ -44,3 +46,10 @@ val unfold:
     -> unfold_dir (* direction, for segment edges only *)
       -> graph    (* input graph *)
         -> unfold_res list
+
+(** unfold only the numerical constraints function *)
+val unfold_num:
+    int (* source: node where unfolding should take place *)
+  -> n_cons (* guard *)
+    -> graph    (* input graph *)
+      -> n_cons list * set_cons list

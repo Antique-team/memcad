@@ -51,6 +51,11 @@ let log_str (str: string): unit =
 module Make = functor (D: DOMSET) ->
   (struct
     (** Type of abstract values *)
+    let module_name = "set_dump"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s"
+        module_name D.module_name (D.config_2str ())
+
     type t =
         { t_idx:  int; (* the index of the abstract value *)
           t_u:    D.t; (* the real abstract value *) }
@@ -138,9 +143,9 @@ module Make = functor (D: DOMSET) ->
       make str (D.set_guard sc x.t_u)
 
     (** Forget (if the meaning of the sv changes) *)
-    let forget (i: int) (x: t): t =
-      let str = Printf.sprintf "D.forget %d x%d" i x.t_idx in
-      make str (D.forget i x.t_u)
+    let sv_forget (i: int) (x: t): t =
+      let str = Printf.sprintf "D.sv_forget %d x%d" i x.t_idx in
+      make str (D.sv_forget i x.t_u)
 
     (** Renaming (e.g., post join) *)
     let symvars_srename
@@ -160,4 +165,5 @@ module Make = functor (D: DOMSET) ->
     let symvars_filter (skeep: IntSet.t) (setvkeep: IntSet.t) (x: t): t =
       let str = Printf.sprintf "D.symvars_filter ? ? x%d" x.t_idx in
       make str (D.symvars_filter skeep setvkeep x.t_u)
+
   end: DOMSET)

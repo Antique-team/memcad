@@ -62,9 +62,12 @@ module DBuild = functor (Dv: DOM_VALSET) ->
   (struct
     (** Module name *)
     let module_name = "[flat]"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s"
+        module_name Dv.module_name (Dv.config_2str ())
     (** Dom ID *)
     let dom_id: mod_id ref = ref (-1, "flat")
-        
+
     (** Type definition *)
     (* Cell contents, defined by a SV name and a size *)
     type cell_contents =
@@ -130,7 +133,10 @@ module DBuild = functor (Dv: DOM_VALSET) ->
 
     let sve_sync_bot_up (x: t): t * svenv_mod =
       { x with t_envmod = svenv_empty }, x.t_envmod
-      
+    let sanity_sv (_: IntSet.t) (x: t): bool =
+      Log.todo "sanity_sv: unimp";
+      true
+
 
     (** Lattice elements *)
 
@@ -294,7 +300,7 @@ module DBuild = functor (Dv: DOM_VALSET) ->
       match l with
       | [ ] | [ _ ] -> l
       | x0 :: l1 -> [ List.fold_left join_flatten x0 l1 ]
- 
+
 
     (** Management of symbolic variables *)
     (* Will that symb. var. creation be allowed by the domain? *)
@@ -305,7 +311,7 @@ module DBuild = functor (Dv: DOM_VALSET) ->
       | _, Nheap _ | _, Nsubmem -> false
       | _ -> true
     (* Add a fresh symbolic variable, and generates an id *)
-    let sv_add_fresh 
+    let sv_add_fresh
         ?(attr: node_attribute = Attr_none) ?(root: bool = false)
         (t: ntyp) (na: nalloc) (x: t): int * t =
       let k, i = Keygen.gen_key x.t_nkey in
@@ -329,11 +335,11 @@ module DBuild = functor (Dv: DOM_VALSET) ->
         | Attr_array (size, Some fields), Ntraw ->
             (* For now the address node is also in the value domain
              * is it possible to eliminate them from the value domain *)
-            if !enable_array_domain then Dv.sv_array_add i size fields x.t_num 
-            else Dv.sv_add i x.t_num 
+            if !enable_array_domain then Dv.sv_array_add i size fields x.t_num
+            else Dv.sv_add i x.t_num
         | Attr_array (_,None), Ntaddr ->
-            if !enable_array_domain then Dv.sv_array_address_add i x.t_num 
-            else Dv.sv_add i x.t_num 
+            if !enable_array_domain then Dv.sv_array_address_add i x.t_num
+            else Dv.sv_add i x.t_num
         | _ -> Dv.sv_add i x.t_num in
       i, { x with
            t_nkey   = k;
@@ -342,9 +348,9 @@ module DBuild = functor (Dv: DOM_VALSET) ->
            t_envmod = { x.t_envmod with
                         svm_add = PMap.add i t x.t_envmod.svm_add } }
     (* Recover information about a symbolic variable *)
-    let sv_get_info (i: int) (x: t): nalloc option * ntyp option = 
+    let sv_get_info (i: int) (x: t): nalloc option * ntyp option =
       let f_i = get_f_node "sv_get_info" i x in
-      let onalloc = 
+      let onalloc =
         match f_i.f_block with
         | None -> Some Nnone
         | Some _ -> None (* flat domain keep no info about allocation zone *) in
@@ -558,7 +564,7 @@ module DBuild = functor (Dv: DOM_VALSET) ->
             let j = (Block_frag.find_addr Bounds.zero b).cc_val in
             let xilist = Dv.sv_array_deref j vo x.t_num in
             List.map
-              (fun (num, i) -> 
+              (fun (num, i) ->
                 { x with t_num = num }, (ovi, ovo) , Some (i, Offs.zero)
               ) xilist
           else
@@ -577,9 +583,9 @@ module DBuild = functor (Dv: DOM_VALSET) ->
       let sbnd = Bounds.of_offs so in
       let f = get_f_node "cell_create" si x in
       (* creates destination node *)
-      let dst, x = 
+      let dst, x =
         if !enable_array_domain then
-          sv_add_fresh ~attr:attr ~root:false nt Nnone x 
+          sv_add_fresh ~attr:attr ~root:false nt Nnone x
         else
           sv_add_fresh nt Nnone x in
       if !Flags.flag_debug_domfshape then
@@ -594,10 +600,7 @@ module DBuild = functor (Dv: DOM_VALSET) ->
               Block_frag.append_tail sbnd
                 (Bounds.add_size sbnd cc.cc_size) cc b in
             { f with f_block = Some b } in
-      let x = { x with t_mem = Aa_maps.add si f x.t_mem } in
-      Array_pred_utils.deref := IntMap.add si dst !Array_pred_utils.deref; 
-      sanity_check "cell_create,after" x;
-      x
+      { x with t_mem = Aa_maps.add si f x.t_mem }
 
     (* Deletion of a cell *)
     let cell_delete ?(free: bool = true) ?(root:bool = false)
@@ -648,12 +651,12 @@ module DBuild = functor (Dv: DOM_VALSET) ->
       x
 
     (* Read *)
-    let cell_read 
+    let cell_read
         (is_resolve: bool)(* is from cell-resolve*)
         ((vi,vo): onode)  (* address of the cell *)
-        (sz: int)         (* size of the cell *) 
+        (sz: int)         (* size of the cell *)
         (x: t)            (* input abstract memory *)
-        : (t              (* output, unchanged in this module *) 
+        : (t              (* output, unchanged in this module *)
            * onode        (* address of the cell, unchanged in this module *)
            * onode option (* Some content if successful, None otherwise *)
           ) list =        (* list of disjuncts *)
@@ -661,13 +664,13 @@ module DBuild = functor (Dv: DOM_VALSET) ->
       match f.f_block with
       | Some b -> (* f is an address *)
           begin
-            try 
-              if !enable_array_domain 
+            try
+              if !enable_array_domain
                   && Dv.is_array_address vi x.t_num then
                 let j = (Block_frag.find_addr (Bounds.zero) b).cc_val in
                 let xilist = Dv.sv_array_deref j vo x.t_num in
                 List.map
-                  (fun (num,i) -> 
+                  (fun (num,i) ->
                     { x with t_num = num }, (vi, vo), Some (i, Offs.zero)
                   ) xilist
               else
@@ -684,7 +687,7 @@ module DBuild = functor (Dv: DOM_VALSET) ->
             try Some (Aa_maps.find vi x.t_ptreqs)
             with Not_found -> None in
           match opt_ns with
-          | None -> 
+          | None ->
               if !flag_debug_domfshape then
                 Log.force "cell_read: %d ptreqs, not found" vi;
               [ x, (vi, vo), None ]
@@ -717,7 +720,7 @@ module DBuild = functor (Dv: DOM_VALSET) ->
         ((vi,vo): onode) (* address of the cell *)
         (sz: int)        (* size of the cell *)
         (x: t)           (* input abstract memory *)
-        : (t             (* output, unchanged in this module *) 
+        : (t             (* output, unchanged in this module *)
            * onode       (* address of the cell, unchanged in this module *)
            * bool        (* whether cell resolution was successful *)
           ) list =       (* list of disjuncts *)
@@ -777,7 +780,7 @@ module DBuild = functor (Dv: DOM_VALSET) ->
         | Some dsti ->
             (* forget old pointer equalities attached to contents *)
             let x =
-              if !enable_array_domain 
+              if !enable_array_domain
                   && Dv.is_array_address (fst dst) x.t_num then x
               else rem_ptr_equalities_node dsti x in
             (* numerical assignment *)
@@ -830,7 +833,7 @@ module DBuild = functor (Dv: DOM_VALSET) ->
     type expr_res =
       | Er_expr of n_expr list
       | Er_ptrs of NodeSet.t
-          
+
     (* Condition test *)
     let guard (c: n_cons) (x: t): t =
       sanity_check "guard,before" x;
@@ -860,15 +863,20 @@ module DBuild = functor (Dv: DOM_VALSET) ->
     let assume (op: meml_log_form) (t: t): t =
       match op with
       | SL_set _ -> Log.fatal_exn "set domain unsupported"
-      | SL_ind _ -> Log.fatal_exn "ind_assume (no support for inductives)"
-      | SL_seg _ -> Log.todo_exn "seg_assume"
-      | SL_array -> { t with t_num = Dv.assume Opd0.SL_array t.t_num }
+      | SL_ind (ic,(i,off)) ->
+          { t with t_num = Dv.assume (VA_aind (i,off,ic)) t.t_num }
+      | SL_seg  (ic,(i,off),ic_e,(i_e,off_e)) ->
+          { t with t_num = Dv.assume
+              (VA_aseg (i,off,ic,i_e,off_e,ic_e)) t.t_num }
+      | SL_array -> { t with t_num = Dv.assume VA_array t.t_num }
 
     (* Check construction, that an inductive be there *)
     let check (op: meml_log_form) (t: t): bool =
       match op with
       | SL_set _ -> Log.fatal_exn "set domain unsupported"
-      | SL_ind _ -> Log.fatal_exn "ind_check (no support for inductives)"
-      | SL_seg _ -> Log.todo_exn "seg_check"
-      | SL_array -> Dv.check Opd0.SL_array t.t_num
+      | SL_ind (ic,(i,off)) ->
+          Dv.check (VC_aind (i,off,ic)) t.t_num
+      | SL_seg (ic,(i,off),ic_e,(i_e,off_e)) ->
+          Dv.check (VC_aseg (i,off,ic,i_e,off_e,ic_e)) t.t_num
+      | SL_array -> Dv.check VC_array t.t_num
   end: DOM_MEM_LOW)

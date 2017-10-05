@@ -179,7 +179,7 @@ let n_is_le_ind
   let xw = list_edge_add is lc xw in
   let inj = Aa_maps.singleton is is in
   let r =
-    List_is_le.is_le_weaken_check x IntSet.empty sat setsat xw inj
+    List_is_le.is_le_weaken_check x IntSet.empty IntSet.empty sat setsat xw inj
       Aa_maps.empty in
   r, lc
 (* For segment predicates *)
@@ -187,6 +187,7 @@ let n_is_le_lseg
     (ld: l_def)                 (* definition to be used *)
     (x: lmem)                   (* shape to compare and weaken *)
     (is: int) (id: int)         (* source and destination *)
+    (intro: bool)               (* whether it is a segment introduction *)
     (sat: n_cons -> bool)       (* constraint verification *)
     (setsat: set_cons -> bool)  (* set constraint verification *)
     : is_le_weaken_check * l_call =
@@ -198,8 +199,10 @@ let n_is_le_lseg
   let xw = lseg_edge_add is id lc xw in
   let inj = Aa_maps.add id id (Aa_maps.singleton is is) in
   let r =
-    List_is_le.is_le_weaken_check x IntSet.empty sat setsat xw inj
-      Aa_maps.empty in
+    List_is_le.is_le_weaken_check x
+      (IntSet.singleton is) (* segment begin: no unfold empty from it *)
+      (IntSet.singleton id) (* segment end: stop SV *)
+      sat setsat xw inj Aa_maps.empty in
   r, lc
 
 (** Auxilliary functions supporting graph rewrites *)
@@ -296,6 +299,11 @@ let select_list_candidate (i: int) (lm: List_sig.lmem): l_call list =
       | Lhlseg (lc, _) -> do_ld lc.lc_def
       | Lhpt mc ->
           let lc_of_i i = { ld_name    = None;
+                            ld_emp_csti = 0;
+                            ld_emp_mcons = [];
+                            ld_next_mcons = [];
+                            ld_m_offs = [];
+                            ld_submem = None;
                             ld_nextoff = i;
                             ld_size    =  Block_frag.byte_size mc;
                             ld_onexts  = [ ];
@@ -482,7 +490,7 @@ let apply_gen_seg_intro
     let out, lcout = build_set_args ld.lc_def j.j_out in
     (* check the segment inclusion for the "other" side *)
     let insto, _ = Graph_algos.get_sides side (j.j_instset_l, j.j_instset_r) in
-    let le_res_o, lcwk = n_is_le_lseg ld.lc_def ino iso ido sato setsato in
+    let le_res_o, lcwk = n_is_le_lseg ld.lc_def ino iso ido true sato setsato in
     (* for the other side, we generate a segment edge, and set the additive
      * set parameters to empty, this keeps the soundness (sinfo def. below) *)
     match le_res_o with
@@ -563,7 +571,7 @@ let apply_seg_ext
         let out, lcout = build_set_args ldl.lc_def j.j_out in
         let j, id = find_in_config (idl, idr) { j with j_out = out } in
         let is_le, lcwk =
-          n_is_le_lseg ldl.lc_def j.j_inr isr idr j.j_satr j.j_setsatr in
+          n_is_le_lseg ldl.lc_def j.j_inr isr idr false j.j_satr j.j_setsatr in
         match is_le with
         | `Ilr_le_rem (lm_remain, sv_del, inj, sinj, setcons) ->
             let cons_r =

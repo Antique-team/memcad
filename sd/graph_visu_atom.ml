@@ -28,17 +28,18 @@ module Log =
 module Edge : EDGE =
 struct
   (* types of edges are describbed in graph_sig.ml *)
+  type args =
+    nid list * nid list * nid list
   type t =
     | Empty of nid (* nid = node id *)
-    | Inductive of string * nid * nid list (* (ind_name, nid, ind_args) *)
+    | Inductive of string * nid * args (* (ind_name, nid, ind_args) *)
     (* (ind_name, src_nid, src_args, src_offsets, dst_nid, dst_args) *)
-    | Segment of string * nid * nid list * Offs.OffSet.t * nid * nid list
+    | Segment of string * nid * args * Offs.OffSet.t * nid * args
     (* (src_node, src_offset, dst_node, dst_offset) *)
     | Points_to of (nid * Offs.t * nid * Offs.t) list
 
-  let extract_arg (arg: ind_args): nid list =
-    assert(arg.ia_int = []); (* not handled yet *)
-    arg.ia_ptr
+  let extract_arg (arg: ind_args): args =
+    arg.ia_ptr, arg.ia_int, arg.ia_set
 
   let extract_ind_args ind =
     extract_arg ind.ie_args
@@ -122,6 +123,11 @@ struct
   (* allowed_dest_nodes is used for pruning:
    * only edges with a destination in 'allowed_dest_nodes' are converted *)
   let to_string (n: t) (allowed_dest_nodes: node IntMap.t): string =
+    let arg_2str args =
+      let pa, ia, sa = args in
+      (Lib.intlist_2str pa)^"|"^
+      (Lib.intlist_2str ia)^"|"^
+      (Lib.intlist_2str sa) in
     match n with
     | Empty nid -> ""
           (* (\* if you want a dummy reflexive edge instead: *\) *)
@@ -145,7 +151,7 @@ struct
         if IntMap.mem dst_nid allowed_dest_nodes then
           Pr.sprintf "\"%d\":f0 -> \"%d\":f0 [ label = \"%s %s %s\" ];\n"
             src_nid dst_nid
-            (Lib.intlist_2str src_args) ind_name (Lib.intlist_2str dst_args)
+            (arg_2str src_args) ind_name (arg_2str dst_args)
         else
           ""
 end
@@ -214,7 +220,22 @@ struct
     | Edge.Inductive _ -> true
     | _ -> false
 
+  (* is it OK to fold this node *)
+  let can_fold (n: node): bool =
+    (* not on the stack *)
+    n.n_alloc <> Nstack &&
+    n.n_alloc <> Nstatic &&
+    (* only one outgoing edge *)
+    (match Edge.of_node n with
+     | Edge.Empty _ | Edge.Inductive _ | Edge.Segment _   -> true
+     | Edge.Points_to src_dsts -> List.length src_dsts = 1)
+
   let to_string (selected_vars: IntSet.t) (node: t): string =
+    let arg_2str args =
+      let pa, ia, sa = args in
+      (Lib.intlist_2str pa)^"|"^
+      (Lib.intlist_2str ia)^"|"^
+      (Lib.intlist_2str sa) in
     let label_str =
       IntSet.fold
         (fun offset acc ->
@@ -223,13 +244,10 @@ struct
               acc ^ (Pr.sprintf " | <f%d> +%d" offset offset)
             else
               let nalloc_str = nalloc_2str_short node.alloc in
+              let ntype_str = ntyp_2str_short node.typ in
               let ntype_str =
-                match ntyp_2str node.typ with (* make shorter strings *)
-                | "addr" -> "a"
-                | "int"  -> "i"
-                | "raw"  -> "r"
-                | "set"  -> "s"
-                | str    -> str in
+                if can_fold node.node then ntype_str ^ " f"
+                else ntype_str in
               if nalloc_str = "" then
                 Pr.sprintf "<f0> %d=%s: %s" node.id node.name ntype_str
               else
@@ -237,7 +255,7 @@ struct
                   node.id node.name nalloc_str ntype_str in
           match Edge.of_node node.node with
           | Edge.Inductive (ind_name, _ind, args) ->
-              let args_str = Lib.intlist_2str args in
+              let args_str = arg_2str args in
               Pr.sprintf "%s %s(%s)\\=\\=\\>" str ind_name args_str
           | Edge.Empty _ -> str ^ " NULL"
           | _ -> str

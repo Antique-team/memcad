@@ -42,6 +42,9 @@ module Dom_env = functor (D: DOM_MEM_EXPRS) ->
     (** Name *)
     (* For timing tags *)
     let module_name: string = "Env"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s"
+        module_name D.module_name (D.config_2str ())
 
     (** Type of abstract values *)
     type t =
@@ -59,7 +62,7 @@ module Dom_env = functor (D: DOM_MEM_EXPRS) ->
     (* Top element, with provided set of roots *)
     let top (): t =
       { t_vi  = VarMap.empty ;
-        t_si  = SvarMap.empty ; 
+        t_si  = SvarMap.empty ;
         t_u   = D.top () }
     (* Pretty-printing *)
     let t_2stri (ind: string) (t: t): string =
@@ -113,18 +116,18 @@ module Dom_env = functor (D: DOM_MEM_EXPRS) ->
       f_check "modified" svm.svm_mod;
       (* result with no synchronization to take into account *)
       { t with t_u = t_u }
-      
+
     (* Garbage collection *)
     let gc (t: t): t =
       let roots =
         VarMap.fold (fun _ (i, _) -> Aa_sets.add i) t.t_vi Aa_sets.empty in
       sve_fix { t with t_u = D.gc roots t.t_u }
-(*      
+(*
       (* get rid of sym var env pending synchros, that should have been
        * processed, after checking none of the variable addresses corresponds
        * to one of the removed or modified keys
        * (added is ok, when roots are created) *)
-      let t_u, svm = D.sve_sync_bot_up t_u0 in 
+      let t_u, svm = D.sve_sync_bot_up t_u0 in
       let sync_keys = PSet.union svm.svm_rem svm.svm_mod in
       PSet.iter
         (fun i ->
@@ -146,29 +149,29 @@ module Dom_env = functor (D: DOM_MEM_EXPRS) ->
       with Not_found -> Log.fatal_exn "set var %s not found" v.s_name
 
     (* Add a new variable *)
-    let unary_op (op: Opd2.unary_operand) (x: t): t =
+    let unary_op (op: env_op) (x: t): t =
       match op with
-      | Opd2.Add_var v ->
+      | EO_add_var v ->
           let n_address, u = D.create_mem_var v.v_typ x.t_u in
           assert (not (VarMap.mem v x.t_vi));
           let x = sve_fix { t_vi = VarMap.add v (n_address, v.v_typ) x.t_vi ;
                             t_si = x.t_si;
                             t_u  = u } in
-          Array_pred_utils.varm := x.t_vi; (* XR: seems like a gross hack *)
+          Array_node.varm := x.t_vi; (* XR: seems like a gross hack *)
           x
-      | Opd2.Add_setvar s ->
+      | EO_add_setvar s ->
           assert (not (SvarMap.mem s x.t_si));
           let sid, u = D.gen_setvar s.s_name x.t_u in
           let t_si =  SvarMap.add s sid  x.t_si in
           { x with
             t_si = t_si ;
             t_u = u }
-      | Opd2.Remove_var v ->
+      | EO_del_var v ->
           let sv = var_find x v in
           gc { t_vi = VarMap.remove v x.t_vi ;
-               t_si = x.t_si; 
+               t_si = x.t_si;
                t_u  = D.delete_mem_var sv x.t_u }
-      | Opd2.Remove_setvar v ->
+      | EO_del_setvar v ->
           let sv = setvar_find x v in
           gc { x with
                t_si = SvarMap.remove v x.t_si;
@@ -301,7 +304,7 @@ module Dom_env = functor (D: DOM_MEM_EXPRS) ->
     (* Lint translation *)
     let compute_lint_bin (x0: t) (x1: t) (dv: VarSet.t) (le: var lint_be)
       : (int tlval) lint_bs =
-      let dead = 
+      let dead =
         VarSet.fold (fun ele acc -> (Lvar ele, ele.v_typ) :: acc)
           dv le.lbe_dead in
       let s =
@@ -325,15 +328,15 @@ module Dom_env = functor (D: DOM_MEM_EXPRS) ->
       let rename (n: PairSet.t) (m: PairSet.t PairSetMap.t) =
         try PairSetMap.find n m, m
         with Not_found ->
-          let r_n = PairSet.fold 
+          let r_n = PairSet.fold
               (fun (off, uid) acc ->
-                try 
+                try
                   let nid = IntMap.find uid t_vi in
                   PairSet.add (off, nid) acc
                 with Not_found -> Log.fatal_exn "tr_encode, var not found"
               ) n PairSet.empty in
           r_n, PairSetMap.add n r_n m in
-      let g_i, _ = 
+      let g_i, _ =
         List.fold_left
           (fun (acc, m) (sc, p, dt) ->
             let r_sc, m = rename sc m in
@@ -346,16 +349,16 @@ module Dom_env = functor (D: DOM_MEM_EXPRS) ->
             PairSetSet.add sc (PairSetSet.add dt acc)
           ) PairSetSet.empty g_i in
       (g_i, n_i, disj_i)
-      
+
     (* Generic function for join and widening *)
-    let gen_join (j: join_kind) (ho: hint_be option) (lo: (var lint_be) option) 
+    let gen_join (j: join_kind) (ho: hint_be option) (lo: (var lint_be) option)
         ((x0, je0): t * join_ele) ((x1, je1): t * join_ele): t =
       if !Flags.flag_debug_join_gen then
         Log.force
           "[Env,al] start %s\n%s\n%s"
           (join_kind_2str j) (t_2stri "  " x0) (t_2stri "  " x1);
       let all_var =
-        VarMap.fold 
+        VarMap.fold
           (fun var _ acc -> VarSet.add var acc) x0.t_vi VarSet.empty in
       let dead_var = match ho with
         | None -> VarSet.empty
@@ -383,20 +386,19 @@ module Dom_env = functor (D: DOM_MEM_EXPRS) ->
           D.join j hu lu roots_rel setroots_rel inl inr in
       (* Output construction *)
       let res = { t_vi = ntable ;
-                  t_si = stable ;  
+                  t_si = stable ;
                   t_u  = under } in
       if !Flags.flag_debug_join_gen then
         Log.force "[Env,al] return %s\n%s"
           (join_kind_2str j) (t_2stri "    " res);
       res
     (* Join and widening *)
-    let join (ho: hint_be option) (lo: (var lint_be) option) 
+    let join (ho: hint_be option) (lo: (var lint_be) option)
         (x0: t * join_ele) (x1: t * join_ele): t =
       gen_join Jjoin ho lo x0 x1
-    let widen (ho: hint_be option) (lo: (var lint_be) option) 
-        (x0: t) (x1: t): t =
-      gen_join Jwiden ho lo
-        (x0, ext_graph None None) (x1, ext_graph None None)
+    let widen (ho: hint_be option) (lo: (var lint_be) option)
+        (x0: t *join_ele ) (x1: t *join_ele): t =
+      gen_join Jwiden ho lo x0 x1
     (* Directed weakening; over-approximates only the right element *)
     let directed_weakening (ho: hint_be option) (x0: t) (x1: t): t =
       gen_join Jdweak ho None
@@ -432,7 +434,7 @@ module Dom_env = functor (D: DOM_MEM_EXPRS) ->
       List.map
         (fun u ->
           let t1 = { t with t_u = u } in
-          if Flags.do_gc_on_assign then gc t1 
+          if Flags.do_gc_on_assign then gc t1
           else t1
         ) lt_u
     (* Condition test *)
@@ -445,16 +447,16 @@ module Dom_env = functor (D: DOM_MEM_EXPRS) ->
       let ex_u = map_texpr (var_find t) ex in
       D.sat ex_u t.t_u
     (* Memory alloc/free *)
-    let memory (op: var_mem_operand) (t: t): t list =
+    let memory (op: var_mem_op) (t: t): t list =
       let to_map =
         match op with
-        | Allocate (lv, ex) ->
+        | MO_alloc (lv, ex) ->
             let lv_u = map_tlval (var_find t) lv in
             let ex_u = map_texpr (var_find t) ex in
-            D.memory (Allocate (lv_u, ex_u)) t.t_u
-        | Deallocate lv ->
+            D.memory (MO_alloc (lv_u, ex_u)) t.t_u
+        | MO_dealloc lv ->
             let lv_u = map_tlval (var_find t) lv in
-            D.memory (Deallocate lv_u) t.t_u in
+            D.memory (MO_dealloc lv_u) t.t_u in
       List.map (fun u -> sve_fix { t with t_u = u }) to_map
 
     (** Set domain *)
@@ -513,6 +515,7 @@ module Dom_env = functor (D: DOM_MEM_EXPRS) ->
       match lx with
       | [ x ] -> x
       | [ ] | _ :: _ :: _ -> Log.fatal_exn "assert_one"
+
   end: DOM_ENV)
 
 
@@ -521,7 +524,8 @@ module Dom_env = functor (D: DOM_MEM_EXPRS) ->
 module Dom_env_timing = functor (De: DOM_ENV) ->
   (struct
     module T = Timer.Timer_Mod( struct let name = "Env" end )
-    let module_name = De.module_name
+    let module_name = "dom_env_timing"
+    let config_2str = T.app1 "config_2str" De.config_2str
     type t = De.t
     let bot = T.app1 "bot" De.bot
     let is_bot = T.app1 "is_bot" De.is_bot

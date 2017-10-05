@@ -13,7 +13,8 @@
 open Data_structures
 open Graph_sig
 open Nd_sig
-
+open Set_sig
+open Inst_sig
 (** Inclusion check *)
 
 (* The main function for inclusion testing:
@@ -27,10 +28,15 @@ val is_le:
     submem: bool (* sub-mem is_le is slightly different: no alloc check *)
   -> graph (* left input *)
     -> hint_ug option (* hint, in the left argument ("stop" nodes) *)
-      -> (n_cons -> bool) (* satisfiability, in the left argument *)
+    -> (n_cons -> bool) (* satisfiability, in the left argument *)
+      -> (set_cons -> bool) (* set satisfiability, in the left argument *)
         -> graph (* right input *)
-          -> node_emb (* relation between both inputs *)
-            -> int IntMap.t option (* extended relation if inclusion proved *)
+        -> node_emb (* relation between both inputs *)
+          -> node_emb (* injection from right SETV to left SETV *)
+          -> (int IntMap.t     (* extended relation if inclusion proved *)
+              * set_expr IntMap.t (* instantiated constraints of SETVs *)
+              * sv_inst           (* sv instantiation  *)
+             ) option  (* extended relation if inclusion proved *)
               
 (* Partial inclusion test:
  * used for weakening graphs (join, directed_weakening, graph_abs)
@@ -50,7 +56,9 @@ val is_le_partial:
       -> graph (* left input *)
         -> hint_ug option (* hint, in the left argument ("stop" nodes) *)
           -> IntSet.t (* segment end(s), if any *)
-            -> (n_cons -> bool) (* satisfiability, in the left argument *)
+          -> (n_cons -> bool) (* satisfiability, in the left argument *)
+          -> (set_cons -> bool) (* set satisfiability, in the left argument *)
               -> graph (* right input *)
-                -> node_emb (* relation between both inputs *)
+              -> node_emb (* relation between both inputs *)
+               -> node_emb (* injection from right SETV to left SETV *)
                   -> is_le_res (* generic iinclusion result *)

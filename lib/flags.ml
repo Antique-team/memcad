@@ -34,6 +34,8 @@ let rec_calls: bool ref = ref false
 let use_old_parser: bool ref = ref false
 (* the C header file used by clang *)
 let clang_header_fn: string ref = ref "memcad.h"
+(* additional directories where to look for C headers *)
+let include_dirs: string ref = ref ""
 (* dump file after clang and transformations *)
 let dump_parse: bool ref = ref false
 (* read in a previous parse dump *)
@@ -46,6 +48,11 @@ let abi_ptr_size:  int = 4
 let abi_int_size:  int = 4 (* default, size of integers, assuming 32 bits *)
 let abi_bool_size: int = 4 (* default, assuming C use of int *)
 let abi_char_size: int = 1
+
+(** Semantics *)
+(* whether cases where malloc returns true are considered
+ *  (false by default, as per the C semantics) *)
+let flag_malloc_never_null: bool ref = ref false
 
 (** Output format *)
 (* whether to print the null offset *)
@@ -67,8 +74,6 @@ type output_format = (* might be extended with Tikz for LaTeX *)
   | Out_dot of string list * string list
 (* export all points *)
 let flag_enable_ext_export_all: bool ref = ref false
-(* disable timing module to prevent shadowing of exceptions *)
-let no_analyze_prog_timer: bool ref = ref false
 (* show call graph from entry point *)
 let show_reachable_functions: bool ref = ref false
 
@@ -102,6 +107,8 @@ let widen_can: bool ref = ref false
 let disj_merge_before_join: bool ref = ref false
 (* Guided join (makes memcad join less smart if turned off) *)
 let guided_join: bool ref = ref true
+(* Guided widen (currently prototype feature in development) *)
+let guided_widen: bool ref = ref true
 
 (** Shape domain (shape), structure *)
 (* domain structure *)
@@ -111,6 +118,7 @@ type shape_dom =
   | Shd_flat                           (* flat, summary-less abstract domain *)
   | Shd_all                            (* all inductive definitions *)
   | Shd_list                           (* abstract domain specific for lists *)
+  | Shd_tvl                            (* TVL based shape domain *)
   | Shd_inds of string list            (* some inductive definitions *)
   | Shd_sep of shape_dom * shape_dom   (* separating product of abstraction *)
   | Shd_prod of shape_dom * shape_dom  (* product of abstractions *)
@@ -155,7 +163,7 @@ let auto_ind: bool ref = ref false
 
 (** Graph encoding behavior *)
 (* Control ignoring of prev pointers in inductives upon graph encoding *)
-let no_ind_prev_fields: bool ref = ref false
+let no_ind_prev_fields: bool ref = ref true
 
 (* Control of the inductive definitions analysis *)
 type ind_analysis_verbosity = 
@@ -197,8 +205,9 @@ let pl_max_ind_analysis_iter: int = 5
 
 (** Abstract domain (arrays) *)
 let enable_array_domain: bool ref =  ref false
-(* FBR: A FUNCTION THAT DOES NOTHING ?! *)
-let ljc_debug (s: string) = ()
+
+(** Equation Pack *)
+let enable_eq_pack: bool ref =  ref false
 
 (** Abstract domain (values) *)
 (* Kind of numerical domain *)
@@ -211,13 +220,17 @@ let num_dom_2str: num_dom -> string = function
 (* domain selector *)
 let nd_selector: num_dom ref = ref ND_pol
 (* Kind of set domain *)
-type set_dom = SD_none | SD_bdd | SD_lin | SD_quicr
+type set_dom =
+  | SD_none            (* no set domain *)
+  | SD_lin             (* lin set domain, local implementation *)
+  | SD_quicr           (* QUICr domain *)
+  | SD_setr of string  (* SETr library *)
 (* Pretty-print of numerical domain kind *)
 let set_dom_2str: set_dom -> string = function
-  | SD_bdd   -> "bdd"
-  | SD_lin   -> "lin"
-  | SD_none  -> "none"
-  | SD_quicr -> "QUICr"
+  | SD_lin    -> "lin"
+  | SD_none   -> "none"
+  | SD_quicr  -> "QUICr"
+  | SD_setr n -> Printf.sprintf "SETr[%s]" n
 (* Set domain selector *)
 let sd_selector: set_dom ref = ref SD_none
 (* Whether to use the submemory abstraction *)

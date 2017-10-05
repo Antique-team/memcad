@@ -30,6 +30,35 @@ let ntyp_2str (nt: ntyp): string =
   | Ntraw  -> "raw"
   | Ntint  -> "int"
   | Ntset  -> "set"
+let ntyp_2str_short (nt: ntyp): string =
+  match nt with
+  | Ntaddr -> "a"
+  | Ntraw  -> "r"
+  | Ntint  -> "i"
+  | Ntset  -> "s"
+let set_op_2str (op: set_op):string =
+  match op with
+  | Uplus -> "+"
+  | Union -> "U"
+let wk_typ_2str (t: wk_typ): string =
+  match t with
+  | `Eq -> "="
+  | `Non -> "non"
+  | `Leq -> "<="
+  | `Geq -> ">="
+  | `Add -> "+"
+  | `SAdd op -> set_op_2str op
+let ptr_wk_typ_2str (t: ptr_wk_typ): string =
+  wk_typ_2str (t :> wk_typ)
+let int_wk_typ_2str (t: int_wk_typ): string =
+  wk_typ_2str (t :> wk_typ)
+let set_wk_typ_2str (t: set_wk_typ): string =
+  wk_typ_2str (t :> wk_typ)
+let pars_wk_typ_2str (t: pars_wk_typ): string =
+  Printf.sprintf " ptr_pars:%s\n int_pars:%s\n set_pars: %s\n"
+    (IntMap.t_2str " | " ptr_wk_typ_2str t.ptr_typ)
+    (IntMap.t_2str " | " int_wk_typ_2str t.int_typ)
+    (IntMap.t_2str " | " set_wk_typ_2str t.set_typ)
 (* Parameters *)
 let formal_arg_2str: formal_arg -> string = function
   | `Fa_this      -> "this"
@@ -77,8 +106,11 @@ let hform_2str: hform -> string = gen_list_2str "emp" heapatom_2str " * "
 let sexpr_2str: sexpr -> string = function
   | Se_var s -> formal_set_arg_2str s
   | Se_uplus (s, x) ->
-      Printf.sprintf "%s + { %s }" (formal_set_arg_2str s)
-        (formal_arith_arg_2str x)
+      Printf.sprintf "%s + { %s }"
+        (gen_list_2str " " formal_set_arg_2str "+" s) (formal_arith_arg_2str x)
+  | Se_union (s, x) ->
+      Printf.sprintf "%s u { %s }"
+        (gen_list_2str " " formal_set_arg_2str "u" s) (formal_arith_arg_2str x)
 let rec aexpr_2str: aexpr -> string = function
   | Ae_cst c -> Printf.sprintf "%d" c
   | Ae_var x -> formal_arith_arg_2str x
@@ -96,10 +128,26 @@ let aform_2str: aform -> string = function
       Printf.sprintf "%s = %s" (aexpr_2str e0) (aexpr_2str e1)
   | Af_noteq (e0, e1) ->
       Printf.sprintf "%s != %s" (aexpr_2str e0) (aexpr_2str e1)
+  | Af_sup (e0, e1) ->
+      Printf.sprintf "%s > %s" (aexpr_2str e0) (aexpr_2str e1)
+  | Af_supeq (e0, e1) ->
+      Printf.sprintf "%s => %s" (aexpr_2str e0) (aexpr_2str e1)
+let pathexpr_2str pexpr =
+  match pexpr with
+  | Pe_epsilon -> "~"
+  | Pe_seg flds ->
+      Printf.sprintf "(%s)^*" (gen_list_2str "" Offs.t_2str "+" flds)
+  | Pe_single flds ->
+      Printf.sprintf "(%s)" (gen_list_2str "" Offs.t_2str "+" flds)
+let path_2str p =
+  let (sc, pt, dt) = p in
+  Printf.sprintf "(%s, %s, %s)" (formal_ptr_arg_2str sc)
+    (pathexpr_2str pt) (formal_ptr_arg_2str dt)
 let pform_atom_2str: pformatom -> string = function
   | Pf_alloc sz -> Printf.sprintf "alloc( this, %d )" sz
   | Pf_set f -> sform_2str f
   | Pf_arith f -> aform_2str f
+  | Pf_path f -> path_2str f
 let pform_2str: pform -> string = gen_list_2str "" pform_atom_2str " & "
 
 (* Rules *)
@@ -120,7 +168,8 @@ let irule_2str (r: irule): string =
 let ind_2str (i: ind): string =
   let srules = gen_list_2str "" irule_2str "" i.i_rules in
   let buf = Buffer.create 80 in
-  Printf.bprintf buf "%s<%d,%d> :=\n%s" i.i_name i.i_ppars i.i_ipars srules;
+  Printf.bprintf buf "%s<%d,%d> :=\n%s\n"
+    i.i_name i.i_ppars i.i_ipars srules;
   (* Printing the analysis results *)
   List.iteri
     (fun i ir ->
@@ -128,6 +177,18 @@ let ind_2str (i: ind): string =
         (IntSet.t_2str ", " ir.ir_uptr) (IntSet.t_2str ", " ir.ir_uint)
         (IntSet.t_2str ", " ir.ir_uset) ir.ir_unone
     ) i.i_rules;
+  Printf.bprintf buf "  %s\n"
+    (gen_list_2str "" path_2str ";" i.i_ppath);
+  Printf.bprintf buf "%s\n"
+    (gen_list_2str ""
+       (fun (a, b, c) ->
+         Printf.sprintf "%s, => (%s, %s)" (aform_2str a)
+           (gen_list_2str "" aform_2str ";" b)
+           (gen_list_2str "" sform_2str ";" c)
+       ) "\n" i.i_rules_cons);
+  Printf.bprintf buf "All-rules:\n%sEmp_rule:\n%s\n"
+    (pars_wk_typ_2str i.i_pars_wktyp)
+    (pars_wk_typ_2str i.i_emp_pars_wktyp);
   Buffer.contents buf
 
 (* shorter version of ind_2str *)
@@ -174,7 +235,10 @@ let visitor (fp: 'a -> int -> 'a) (fi: 'a -> int -> 'a) (fs: 'a -> int -> 'a)
   let do_hform (a: 'a) (h: hform): 'a = List.fold_left do_heapatom a h in
   let do_sexpr a = function
     | Se_var v -> do_formal_arg a v
-    | Se_uplus (v0, v1) -> do_formal_arg (do_formal_arg a v0) v1 in
+    | Se_uplus (v0, v1) ->
+        do_formal_arg (List.fold_left do_formal_arg a v0) v1
+    | Se_union (v0, v1) ->
+        do_formal_arg (List.fold_left do_formal_arg a v0) v1 in
   let rec do_aexpr a = function
     | Ae_cst _ -> a
     | Ae_var v -> do_formal_arg a v
@@ -185,11 +249,16 @@ let visitor (fp: 'a -> int -> 'a) (fi: 'a -> int -> 'a) (fs: 'a -> int -> 'a)
     | Sf_empty v -> do_formal_arg a v in
   let do_aform a = function
     | Af_equal (ae0, ae1)
-    | Af_noteq (ae0, ae1) -> do_aexpr (do_aexpr a ae0) ae1 in
+    | Af_noteq (ae0, ae1)
+    | Af_supeq (ae0, ae1)
+    | Af_sup (ae0, ae1) -> do_aexpr (do_aexpr a ae0) ae1 in
+  let do_pathform a (sc, _, dt) =
+    do_formal_arg (do_formal_arg a sc) dt in
   let do_pformatom a = function
     | Pf_alloc _ -> a
     | Pf_set   f -> do_sform a f
-    | Pf_arith f -> do_aform a f in
+    | Pf_arith f -> do_aform a f
+    | Pf_path p  -> do_pathform a p in
   let do_pform (a: 'a) (p: pform): 'a = List.fold_left do_pformatom a p in
   do_hform, do_pform
 let visitor_hform fp fi fs = fst (visitor fp fi fs)
@@ -443,13 +512,14 @@ let indpars_analysis (ind: ind): ind =
       match f with
       | Sf_empty sl -> sl, [ ], [ ]
       | Sf_equal (sl, Se_var sr) -> sl, [ sr ], [ ]
-      | Sf_equal (sl, Se_uplus (sr, u)) -> sl, [ sr ], [ u ]
+      | Sf_equal (sl, Se_uplus (sr, u)) -> sl, sr, [ u ]
+      | Sf_equal (sl, Se_union (sr, u)) -> sl, sr, [ u ]
       | Sf_mem _ -> Log.fatal_exn "non linearizable" in
     (* set variables known to be empty, and known set relations *)
     let emp, rel, vpars, vnews =
       List.fold_left
         (fun (emp, rel, vpars, vnews) -> function
-          | Pf_alloc _ | Pf_arith _ | Pf_set (Sf_mem _) ->
+          | Pf_alloc _ | Pf_arith _ | Pf_set (Sf_mem _) | Pf_path _ ->
               emp, rel, vpars, vnews
           | Pf_set f ->
               let dst, ls, ln = linearize f in
@@ -617,7 +687,9 @@ let indpars_analysis (ind: ind): ind =
         let m_linrel =
           List.fold_left
             (fun rels -> function
-              | Pf_alloc _ | Pf_set _ | Pf_arith (Af_noteq _) -> rels
+               | Pf_alloc _ | Pf_set _ | Pf_arith (Af_noteq _)
+               | Pf_path _ | Pf_arith (Af_sup _)
+               | Pf_arith (Af_supeq _)-> rels
               | Pf_arith (Af_equal (ae0, ae1)) ->
                   match ae0, ae1 with
                   | Ae_var (`Fa_var_new n),
@@ -930,6 +1002,394 @@ let ind_rules_kind (ind: ind): ind =
   { ind with i_rules = List.map f_rule ind.i_rules }
 
 
+(** Computation of rules_cons, a constraint of a rule
+ *  that differ from all the other rules
+ *  i.e., when this = 0 and this != 0 *)
+let ind_rules_cons (ind: ind): ind =
+  let weak_arith_arg = function
+    | `Fa_this | `Fa_par_int _ | `Fa_par_ptr _ -> true
+    | `Fa_var_new i -> false in
+  let weak_set_arg = function
+    | `Fa_par_set _ -> true
+    | `Fa_var_new i -> false in
+  let rec weak_aexpr = function
+    | Ae_cst i -> true
+    | Ae_var fa -> weak_arith_arg fa
+    | Ae_plus (la, ra) -> weak_aexpr la && weak_aexpr ra in
+  let weak_sexpr = function
+    | Se_var sa -> if weak_set_arg sa then Some (Se_var sa, true) else None
+    | Se_uplus (lsa, fa) ->
+        if weak_arith_arg fa then
+          Some (Se_uplus (lsa, fa), (List.for_all  weak_set_arg lsa))
+        else None
+    | Se_union (lsa, fa) ->
+        if weak_arith_arg fa then
+          Some (Se_union (lsa, fa), (List.for_all  weak_set_arg lsa))
+        else None in
+  let weak_aform = function
+    | Af_equal (le, re)
+    | Af_noteq (le, re)
+    | Af_sup (le, re)
+    | Af_supeq (le, re) -> weak_aexpr le && weak_aexpr re in
+  let weak_sform sf =
+    match sf with
+    | Sf_mem (fa, sa) ->
+        if weak_arith_arg fa && weak_set_arg sa then Some sf else None
+    | Sf_empty sa ->
+        if weak_set_arg sa then Some sf else None
+    | Sf_equal (sa, se) ->
+        if weak_set_arg sa then
+          match weak_sexpr se with
+          | None -> None
+          | Some (se, true) -> Some (Sf_equal (sa, se))
+          | Some (se, false) ->
+              match se with
+              | Se_union (_, fa) -> Some (Sf_mem (fa, sa))
+              | Se_uplus (_, fa) -> Some (Sf_mem (fa, sa))
+              | _ -> None
+      else None in
+  let f_rule (r: irule) =
+    try
+      let cons1 =
+        List.find
+          (function
+            | Pf_arith (Af_equal (Ae_var `Fa_this, _))
+            | Pf_arith (Af_equal (_, Ae_var `Fa_this))
+            | Pf_arith (Af_noteq (_, Ae_var `Fa_this))
+            | Pf_arith (Af_noteq (Ae_var `Fa_this, _)) -> true
+            | _ -> false
+          ) r.ir_pure in
+      let cons =
+        match cons1 with
+        | Pf_arith (Af_equal (Ae_var `Fa_this, le)) ->
+            Af_equal (Ae_var `Fa_this, le)
+        | Pf_arith (Af_equal (re, Ae_var `Fa_this)) ->
+            Af_equal (Ae_var `Fa_this, re)
+        | Pf_arith (Af_noteq (re, Ae_var `Fa_this)) ->
+            Af_noteq (Ae_var `Fa_this, re)
+        | Pf_arith (Af_noteq (Ae_var `Fa_this, le)) ->
+            Af_noteq (Ae_var `Fa_this, le)
+        | _ -> Log.fatal_exn "ind_rules_cons: cons is not arith" in
+      let cons_o =
+        List.fold_left
+          (fun (acca, accs) p ->
+            match p with
+            | Pf_set sf ->
+                begin
+                  match weak_sform sf with
+                  | None -> acca, accs
+                  | Some f -> acca, f :: accs
+                end
+            | Pf_arith pf ->
+                if weak_aform pf && p <> cons1 then
+                  pf :: acca, accs else acca, accs
+            | _ -> acca, accs
+          ) ([], []) r.ir_pure in
+      Some (cons, cons_o)
+    with Not_found -> None in
+  let is_conflict cons_l cons_r =
+    match cons_l, cons_r with
+    | Af_equal (Ae_var `Fa_this, Ae_cst i),
+      Af_equal (Ae_var `Fa_this, Ae_cst j) ->
+        i<>j
+    | Af_equal (Ae_var `Fa_this, le), Af_noteq (Ae_var `Fa_this, re) ->
+        le = re
+    | Af_noteq (Ae_var `Fa_this, le), Af_equal (Ae_var `Fa_this, re) ->
+        le = re
+    | Af_noteq (Ae_var `Fa_this, le), Af_noteq (Ae_var `Fa_this, re) ->
+        false
+    | _, _ -> false in
+  let rec check_conflict rules_cons =
+    match rules_cons with
+    | [ ] -> true
+    | (cons_h, _, _) :: tl ->
+        if List.for_all (fun (cons_t, _, _) -> is_conflict cons_h cons_t) tl
+        then
+          check_conflict tl
+        else false in
+  let i_rule_cons, i_rules, b =
+    List.fold_left
+      (fun (acc, accr, b) r ->
+        match f_rule r with
+        | None -> acc, r :: accr, false
+        | Some (af, (afl, sfl)) ->
+            (af, afl, sfl) :: acc,
+            { r with ir_cons = Some af } :: accr, b
+      ) ([],[],true) ind.i_rules in
+  if b && check_conflict i_rule_cons then
+    { ind with
+      i_rules = i_rules;
+      i_rules_cons = i_rule_cons; }
+  else ind
+
+(** Computation of the guard condition of the empty rule,
+ *  e.g.  this = null
+ *  or    this = e *)
+let emp_rule_cons (ind: ind): aform option =
+  try
+    let emp_rule = List.filter (fun r -> r.ir_kind = Ik_empz) ind.i_rules in
+    if List.length emp_rule <> 1 then None
+    else
+      let emp_rule = List.hd emp_rule in
+      emp_rule.ir_cons
+  with Not_found -> None
+
+
+(** Computation of weakening types for integer/set parameters *)
+
+(* Collects all the occurrences of the i-th int of set parameters
+ * as "new local names" (fails otherwise), from all the sub inductive calls *)
+let linear_ic (fa: formal_arg) (hf: hform) (name: string): IntSet.t =
+  let f_i_par (fa: formal_arg) (ic: indcall): int =
+    match fa with
+    | `Fa_par_int i ->
+        begin
+          match List.nth ic.ii_argi i with
+          | `Fa_var_new n -> n
+          | _ ->  raise Failure
+        end
+    | `Fa_par_set i ->
+        begin
+          match  List.nth ic.ii_args i with
+          | `Fa_var_new n -> n
+          | _ ->  raise Failure
+        end
+    | _ -> Log.fatal_exn "linear: improper arg" in
+  List.fold_left
+    (fun acc h ->
+      match h with
+      | Haind ic ->
+          if ic.ii_ind = name then
+            let n = f_i_par fa ic in
+            if IntSet.mem n acc then raise Failure
+            else IntSet.add n acc
+          else acc
+      | Hacell c -> acc
+    ) IntSet.empty hf
+
+(* Collect equality constraints over a set or integer parameters *)
+let linear_cons (fa: formal_arg) (pure: pform): pformatom =
+  let f (fa: formal_arg) (pf: pformatom): pformatom option =
+    match fa, pf with
+    | `Fa_par_int i, Pf_arith (Af_equal (al, ar)) ->
+        if al = Ae_var (`Fa_par_int i) then
+          Some (Pf_arith (Af_equal (al, ar)))
+        else if ar = Ae_var (`Fa_par_int i) then
+          Some (Pf_arith (Af_equal (ar, al)))
+        else None
+    | `Fa_par_set i, Pf_set (Sf_equal (al, ar)) ->
+        if al = `Fa_par_set i then
+          Some (Pf_set (Sf_equal (al, ar)))
+        else if ar = Se_var (`Fa_par_set i) then
+          Some (Pf_set (Sf_equal (`Fa_par_set i,  Se_var al)))
+        else None
+    | `Fa_par_set i, Pf_set (Sf_empty fa) ->
+        if fa = `Fa_par_set i then Some (Pf_set (Sf_empty fa))
+        else None
+    | _ -> None in
+  let fil_pure =
+    List.fold_left
+      (fun acc ele ->
+        match f fa ele with
+        | None -> acc
+        | Some pf -> pf :: acc
+      ) [] pure in
+  if List.length fil_pure <> 1 then raise Failure
+  else List.hd fil_pure
+
+(* Check whether the i-th set parameter commutes with uplus or additive
+ * with union *)
+let wk_sadd_pform (i: int) (op: set_op) (hf: hform) (pure: pform)
+    (name: string): bool =
+  try
+    let all_args = linear_ic (`Fa_par_set i) hf name in
+    let pf = linear_cons (`Fa_par_set i) pure in
+    let lin_lfs lfs set =
+      List.fold_left
+        (fun acc ele ->
+          match ele with
+          | `Fa_var_new i -> IntSet.add i acc
+          | _ -> raise Failure
+        ) set lfs in
+    let f_sexpr ae acc =
+      match ae with
+      | Se_var (`Fa_var_new i) -> IntSet.add i acc
+      | Se_uplus (al, ar) ->
+          if op = Uplus then lin_lfs al acc else raise Failure
+      | Se_union (al, ar) ->
+          if op = Union then lin_lfs al acc else raise Failure
+      | _ -> raise Failure in
+    let f_sform sf =
+      match sf with
+      | Pf_set (Sf_equal (fs, se)) -> f_sexpr se IntSet.empty
+      | Pf_set (Sf_empty fs) -> IntSet.empty
+      | _ -> IntSet.empty in
+    IntSet.subset all_args (f_sform pf)
+  with
+  | Failure -> false
+  | Not_found -> false
+
+(* Check whether the i-th int parameter is additive *)
+let wk_add_pform (i: int) (hf: hform) (pure: pform) (name: string): bool =
+  try
+    let all_args = linear_ic (`Fa_par_int i) hf name in
+    let pf = linear_cons (`Fa_par_int i) pure in
+    let rec f_aexpr ae acc =
+      match ae with
+      | Ae_var (`Fa_var_new i) -> IntSet.add i acc
+      | Ae_cst _ -> acc
+      | Ae_plus (al, ar) -> f_aexpr ar (f_aexpr al acc)
+      | _ -> raise Failure in
+    let f_aform = function
+      | Pf_arith (Af_equal (fs, se)) -> f_aexpr se IntSet.empty
+      | _ -> IntSet.empty in
+    IntSet.subset all_args (f_aform pf)
+  with
+  | Failure | Not_found -> false
+
+(* check whether the i-th pointer parameter is eq or none
+ * or check whether the i-th int parameter is eq, leq, geq or none
+ * or check whether the i-th set parameter is  eq or none
+ * (none means no such constraints for weakening) *)
+let  wk_pform (i: formal_arg) (tp: wk_typ) (pure: pform) (heap: hform)
+    (indname: string): bool =
+  let do_formal_arg (i: formal_arg) (fa: formal_arg): bool =
+    fa <> i in
+  let do_formal_arith_arg (i: formal_arg) (fa: formal_arith_arg): bool =
+    do_formal_arg i (fa :> formal_arg) in
+  let do_formal_set_arg (i: formal_arg) (fa: formal_set_arg): bool =
+    do_formal_arg i (fa :> formal_arg) in
+  let rec do_aexpr (i: formal_arg) (ae: aexpr): bool =
+    match ae with
+    | Ae_cst _ -> true
+    | Ae_var v -> do_formal_arith_arg i v
+    | Ae_plus (ae0, ae1) -> do_aexpr i ae0 && do_aexpr i ae1 in
+  let do_sexpr (i: formal_arg) (se: sexpr): bool=
+    match se with
+    | Se_var sa -> do_formal_set_arg i sa
+    | Se_uplus (ls, ar) | Se_union (ls, ar) ->
+        do_formal_arith_arg i ar && List.for_all (do_formal_set_arg i) ls in
+  let do_aform (i: formal_arg) (af: aform): bool =
+    match af with
+    | Af_equal (al, ar)
+    | Af_noteq (al, ar) -> (do_aexpr i al)&& (do_aexpr i ar)
+    | Af_sup (al, ar)  | Af_supeq (al, ar)->
+        begin
+          match al, ar, tp with
+          | Ae_var ag, _, `Leq ->
+              (ag :> formal_arg) = i || do_aexpr i al && do_aexpr i ar
+          | _, Ae_var ag, `Geq ->
+              (ag :> formal_arg) = i || do_aexpr i al && do_aexpr i ar
+          | _, _, _ -> do_aexpr i al && do_aexpr i ar
+        end in
+  let do_sform (i: formal_arg) (sf: sform): bool =
+    match sf with
+    | Sf_mem (ar, sr) ->
+        do_formal_arith_arg i ar && do_formal_set_arg i sr
+    | Sf_equal (sa, se) -> do_sexpr i se && do_formal_set_arg i sa
+    | Sf_empty sa -> do_formal_set_arg i sa in
+  let do_pformatom (i: formal_arg) (pf: pformatom): bool =
+    match pf with
+    | Pf_set sf -> do_sform i sf
+    | Pf_arith af -> do_aform i af
+    | _ -> true in
+  let do_ic (fa: formal_arg) (hf: hform) (name: string): bool =
+    let f_i_par (fa: formal_arg) (ic: indcall): bool =
+      match fa with
+      | `Fa_par_int i -> (List.nth ic.ii_argi i :> formal_arg) <> fa
+      | `Fa_par_set i -> (List.nth ic.ii_args i :> formal_arg) <> fa
+      | `Fa_par_ptr i -> (List.nth ic.ii_argp i :> formal_arg) <> fa
+      | _ ->  Log.fatal_exn "do_ic: improper arg" in
+    List.for_all
+      (function
+        | Haind ic -> if ic.ii_ind = name then f_i_par i ic else true
+        | Hacell c -> true
+      ) hf in
+  List.for_all
+    (fun p ->
+      match tp with
+      | `Eq -> true
+      | _ -> do_pformatom i p && do_ic i heap indname
+    ) pure
+
+(* Compute weakening types for all the parameters of an inductive definition *)
+let ind_rules_pars_wktyp (ind: ind): ind =
+  let lptr_typs = [ `Eq; `Non ] in
+  let lint_typs = [ `Eq; `Leq; `Geq; `Non ] in
+  let lset_typs = [ `Eq; `Non ] in
+  let emp_rules = List.filter (fun r -> r.ir_kind = Ik_empz) ind.i_rules in
+  (* Compute weakening types (eq, non) for all the pointer parameters *
+   * Compute weakening types (eq, leq, geq, non) for all the int parameters *
+   * Compute weakening types (eq, non) for all the set parameters *)
+  let rec f_wktyp (i: int) (f: int -> formal_arg)
+      (ls: [< Ind_sig.wk_typ ] list) (m: [< Ind_sig.wk_typ ] IntMap.t)
+      (rs: irule list): [< Ind_sig.wk_typ ] IntMap.t =
+    if i < 0 then m
+    else
+      let fi = f i in
+      let res =
+        List.fold_left
+          (fun acc t ->
+            let t1 = (t :> wk_typ) in
+            if List.for_all
+                (fun r -> wk_pform fi t1 r.ir_pure r.ir_heap ind.i_name) rs then
+              IntMap.add i t acc
+            else acc
+          ) m ls in
+      f_wktyp (i-1) f ls res rs in
+  (* Compute weakening types add for all the int parameters *)
+  let f_wktyp_int_add (is: IntSet.t) (m: int_wk_typ IntMap.t)
+      (rs: irule list): int_wk_typ IntMap.t =
+    IntSet.fold
+      (fun i acc ->
+        if List.for_all
+            (fun r -> wk_add_pform i r.ir_heap r.ir_pure ind.i_name) rs then
+          IntMap.add i `Add m
+        else m
+      ) is m in
+  (* Compute weakening types add (uplus, union) for all the set parameters *)
+  let f_wktyp_set_add (is: IntSet.t) (m: set_wk_typ IntMap.t)
+      (rs: irule list): set_wk_typ IntMap.t =
+    IntSet.fold
+      (fun i acc ->
+        let f op =
+          List.for_all
+            (fun r -> wk_sadd_pform i op r.ir_heap r.ir_pure ind.i_name) rs in
+        if f Uplus then IntMap.add i (`SAdd Uplus) m
+        else if f Union then IntMap.add i (`SAdd Union) m
+        else m
+      ) is m in
+  let init_wktyp (ind: ind)  (rs: irule list)=
+    let f_ptr = fun i -> `Fa_par_ptr i in
+    let f_int = fun i -> `Fa_par_int i in
+    let f_set = fun i -> `Fa_par_set i in
+    { ptr_typ = f_wktyp (ind.i_ppars-1) f_ptr lptr_typs IntMap.empty rs;
+      int_typ = f_wktyp (ind.i_ipars-1) f_int lint_typs IntMap.empty rs;
+      set_typ = f_wktyp (ind.i_spars-1) f_set lset_typs IntMap.empty rs; } in
+  let pars_wktyp = init_wktyp ind ind.i_rules in
+  let eq_index =
+    IntMap.fold (fun i m acc -> if m = `Eq then IntSet.add i acc else acc)
+      pars_wktyp.int_typ IntSet.empty in
+  let seq_index =
+    IntMap.fold (fun i m acc -> if m = `Eq then IntSet.add i acc else acc)
+      pars_wktyp.set_typ IntSet.empty in
+  (* only do additive type computing for "eq" type int and set parameters*)
+  let pars_wktyp =
+    { pars_wktyp with
+      int_typ = f_wktyp_int_add eq_index pars_wktyp.int_typ ind.i_rules;
+      set_typ = f_wktyp_set_add seq_index pars_wktyp.set_typ ind.i_rules } in
+  (* if the inductive definition has emp rule, then, compute parameters type
+   * only for empty rule *)
+  let emp_pars_wktyp =
+    if emp_rules = [ ] then pars_wktyp
+    else init_wktyp ind emp_rules in
+  let ind =
+    { ind with
+      i_pars_wktyp     = pars_wktyp;
+      i_emp_pars_wktyp = emp_pars_wktyp} in
+  ind
+
+
 (** Checks whether an inductive definition resembles a list inductive def
  ** (this is used in order to feed data into the list domain) *)
 let ind_list_check (ind: ind): ind =
@@ -990,6 +1450,96 @@ let ind_list_check (ind: ind): ind =
   with Failure -> { ind with i_list = None }
 
 
+(** Computation of access paths between pointer parameters *)
+let ptr_path_computation (ind: ind): ind =
+  try
+    (* there should be exactly two rules, and one should be empty *)
+    if not ind.i_mt_rule then raise Failure;
+    if List.length ind.i_rules != 2 then raise Failure;
+    (* empty rule and next rule *)
+    let erule, nrule =
+      List.find (fun r -> r.ir_kind = Ik_empz) ind.i_rules,
+      List.find (fun r -> r.ir_kind <> Ik_empz) ind.i_rules in
+    let rc_ptr =
+      List.fold_left
+        (fun acc ele ->
+          match ele with
+          | Haind ic ->
+              if ic.ii_ind = ind.i_name && acc = None then
+                Some ic.ii_argp
+              else raise Failure;
+          | _ -> acc
+        ) None nrule.ir_heap in
+    (* rename path predicate in empty rule *)
+    let init_paths =
+      List.fold_left
+        (fun acc ele ->
+          match ele with
+          | Pf_path (`Fa_par_ptr i, Pe_epsilon, `Fa_par_ptr j) ->
+              (List.nth (BatOption.get rc_ptr) i,
+               List.nth (BatOption.get rc_ptr) j) :: acc
+          | _ -> acc
+        ) [] erule.ir_pure in
+    (* replace new var by the euqual ptr from empty rule *)
+    let replace_new sc =
+      match sc with
+      | `Fa_var_new i ->
+          let fst, snd =
+            List.find (fun (fst, snd) -> fst = sc || snd = sc) init_paths in
+          if fst = sc then snd else fst
+      | _ -> sc in
+    let infer_paths =
+      List.fold_left
+        (fun acc ele ->
+          match ele with
+          | Pf_path (`Fa_var_new i , Pe_single ofs, dt) ->
+              (replace_new (`Fa_var_new i), Pe_seg ofs, dt) :: acc
+          | _ -> acc
+        ) [] nrule.ir_pure in
+    { ind with i_ppath = infer_paths }
+  with
+  | Failure -> ind
+  | Not_found -> ind
+  | Invalid_argument _ -> ind
+
+(* Collect SETVs in rules *)
+let ind_setvar_compute (ind: ind): ind =
+  let do_rule r =
+    List.fold_left
+      (fun (accs, accn) h ->
+        match h with
+        | Hacell _ -> accs, accn
+        | Haind ic ->
+          List.fold_left
+            (fun acc a->
+               match a with
+               | `Fa_var_new i -> IntSet.add i acc
+               | `Fa_par_set _ -> acc
+            ) accs ic.ii_args,
+          List.fold_left
+            (fun acc a->
+               match a with
+               | `Fa_var_new i -> IntSet.add i acc
+               | `Fa_par_int _ -> acc
+            ) accn ic.ii_argi
+      ) (IntSet.empty, IntSet.empty) r.ir_heap in
+  let irules =
+    List.map
+      (fun ele -> let svars, nvars = do_rule ele in
+        { ele with ir_snum = svars;
+                   ir_nnum = nvars })
+      ind.i_rules in
+  let isrules =
+    List.map
+      (fun ele -> let svars, nvars = do_rule ele in
+        { ele with ir_snum = svars;
+                   ir_nnum = nvars })
+      ind.i_srules in
+  { ind with
+    i_rules  = irules;
+    i_srules = isrules; }
+
+
 (** Set of inductive definitions *)
 let ind_defs: ind StringMap.t ref = ref StringMap.empty
 let ind_bind: string StringMap.t ref = ref StringMap.empty
@@ -1032,10 +1582,16 @@ let ind_init (l: p_iline list): unit =
           let ind = ind_rules_kind ind in
           (* check whether it resembles a list inductive definition *)
           let ind = ind_list_check ind in
+          (* computing new set variables in each rule *)
+          let ind = ind_setvar_compute ind in
+          (* comoute i_rules_cons *)
+          let ind = ind_rules_cons ind in
           (* analyze behavior of parameters *)
+          let ind = ind_rules_pars_wktyp ind in
           let ind =
             if !Flags.flag_indpars_analysis then indpars_analysis ind
             else ind in
+          let ind =  ptr_path_computation ind in
           ind_defs := StringMap.add name ind !ind_defs;
           Log.info "Inductive %s; mt result: %b\n%s"
             ind.i_name ind.i_mt_rule (ind_2str ind);

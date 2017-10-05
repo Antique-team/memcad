@@ -32,6 +32,8 @@ void main( ){
   // insert in list
   if( l0 != null && rand ){
     l1 = malloc( 8 ) ;
+    if( l1 == 0 )
+      exit( 0 );
     l1 -> n = l0 ;
     l1 -> id = -1 ;
     if( t0 != null ){ 

@@ -33,6 +33,11 @@ module Log =
 (** Lift functor *)
 module Make_val_num = functor (Dn: DOM_NUM) ->
   (struct
+    let module_name = "dom_val_num"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s"
+        module_name Dn.module_name (Dn.config_2str ())
+
     (** Type of abstract values *)
     type t = Dn.t
 
@@ -49,7 +54,7 @@ module Make_val_num = functor (Dn: DOM_NUM) ->
     let top: t = Dn.top
     (* Pretty-printing *)
     let t_2stri: sv_namer -> string -> t -> string = Dn.t_2stri
-    
+
     (** Management of symbolic variables *)
     (* For sanity check *)
     let check_nodes (s: IntSet.t) (x: t): bool = Dn.check_nodes s x
@@ -91,7 +96,9 @@ module Make_val_num = functor (Dn: DOM_NUM) ->
       | Jdweak -> Log.fatal_exn "no directed weakening"
 
     (** Checks a constraint is satisfied (i.e., attempts to prove it) *)
-    let sat (x: t) (c: n_cons): bool = Dn.sat c x
+    let sat (x: t) (c: n_cons): bool =
+      Log.info "cons is %s" (Nd_utils.n_cons_2str c);
+      Dn.sat c x
 
     (** Condition test *)
     let guard: bool -> n_cons -> t -> t = Dn.guard
@@ -121,10 +128,10 @@ module Make_val_num = functor (Dn: DOM_NUM) ->
     let expand = Dn.expand
     (* Upper bound of the constraits of two dimensions *)
     let compact = Dn.compact
-    (* Meet: a lattice operation  *)
+    (* Conjunction *)
     let meet = Dn.meet
     (* Forget the information on a dimension *)
-    let forget = Dn.forget
+    let sv_forget = Dn.sv_forget
     (** Export of range information *)
     let bound_variable = Dn.bound_variable
     (** Sub-memory specific functions *)
@@ -143,15 +150,18 @@ module Make_val_num = functor (Dn: DOM_NUM) ->
     let unfold (_: int) (_: nid) (_: unfold_dir) (_: t)
         : (int IntMap.t * t) list =
       Log.fatal_exn "unfold (no sub-mem dom)"
-    let check (op: Opd0.check_operand) (x: t): bool = 
+    let check (op: vcheck_op) (x: t): bool =
       match op with
-      | Opd0.SL_array -> Log.fatal_exn "array_check (no array dom)"
-      | Opd0.SL_ind (ind, i, name) ->
+      | VC_ind (ind, i, name) ->
           (* Regression testing support, inside sub-memories *)
           false
-    let assume (op: Opd0.assume_operand) (x: t): t = 
-      match op with
-      | Opd0.SL_array -> Log.fatal_exn "array assume (no array dom)"
+      | _ -> Log.fatal_exn "array_check (no array dom)"
+    let assume (op: vassume_op) (x: t): t =
+      Log.fatal_exn "array assume (no array dom)"
+
+    (* Extract all SVs that are equal to a given SV *)
+    let get_eq_class (i: int) (x: t): IntSet.t =
+      Dn.get_eq_class i x
   end: DOM_VALUE)
 
 
@@ -160,6 +170,8 @@ module Make_val_num = functor (Dn: DOM_NUM) ->
 module Dom_val_timing = functor (Dv: DOM_VALUE) ->
   (struct
     module T = Timer.Timer_Mod( struct let name = "Val" end )
+    let module_name = "dom_val_timing"
+    let config_2str = T.app1 "config_2str" Dv.config_2str
     type t = Dv.t
     let init_inductives = T.app2 "init_inductives" Dv.init_inductives
     let bot = Dv.bot
@@ -197,7 +209,8 @@ module Dom_val_timing = functor (Dv: DOM_VALUE) ->
     let expand = T.app3 "expand" Dv.expand
     let compact = T.app3 "compact" Dv.compact
     let meet = T.app2 "meet" Dv.meet
-    let forget = T.app2 "forget" Dv.forget
+    let sv_forget = T.app2 "sv_forget" Dv.sv_forget
     let bound_variable = T.app2 "bound_variable" Dv.bound_variable
     let assume = T.app2 "assume" Dv.assume
+    let get_eq_class = T.app2 "get_eq_class" Dv.get_eq_class
   end: DOM_VALUE)

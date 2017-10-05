@@ -27,11 +27,12 @@ let dic_side_2str = function
   | Dic_fst -> "D1"
   | Dic_snd -> "D2"
 
-(** Module signature for dictionary 
- ** a dictionary consists of binding local symvar to either 
+(** Module signature for dictionary
+ ** a dictionary consists of binding local symvar to either
  ** a symvar in D1 or a symvar in D2 *)
 module type DIC =
   sig
+    include INTROSPECT
     (** Type *)
     type t
     (* Empty environment *)
@@ -56,14 +57,18 @@ module type DIC =
     (* from SND to SEP *)
     val snd2local: t -> int -> int
 
-    (** Iterators *)        
+    (** Iterators *)
     val iter: (int -> (dic_side * int) -> unit) -> t -> unit
     val fold: (int -> (dic_side * int) -> 'a -> 'a) -> t -> 'a -> 'a
+
   end
 
 (** A implementation based on hash functions *)
 module Dic_hash =
   (struct
+    let module_name = "dic_hash"
+    let config_2str (): string =
+      "" (* leaf module *)
     (* Hash functions *)
     let s_hash (i: int): dic_side * int =
       match i mod 2 with
@@ -93,11 +98,11 @@ module Dic_hash =
     (* add a fresh binding *)
     let add_fresh ((loc, i): dic_side * int) (e: t): int * t =
       match loc with
-      | Dic_fst -> 
+      | Dic_fst ->
           let ilocal = s_hash1 i in
           assert (not (IntSet.mem ilocal e));
           ilocal, IntSet.add ilocal e
-      | Dic_snd -> 
+      | Dic_snd ->
           let ilocal = s_hash2 i in
           assert (not (IntSet.mem ilocal e));
           ilocal, IntSet.add ilocal e
@@ -117,29 +122,33 @@ module Dic_hash =
       IntSet.iter (fun i -> f i (s_hash i))
     let fold (f: int -> (dic_side * int) -> 'a -> 'a): t -> 'a -> 'a =
       IntSet.fold (fun i -> f i (s_hash i))
+
   end: DIC)
 
 (** A implementation based on maps *)
 module Dic_map =
   (struct
     (** Types *)
-    type t = 
+    let module_name = "dic_map"
+    let config_2str (): string =
+      "" (* leaf module *)
+    type t =
         { t_img:     (dic_side * int) IntMap.t; (* image DSep -> D1 + D2 *)
           t_rev_fst: int IntMap.t;             (* image D1 -> DSep *)
           t_rev_snd: int IntMap.t;             (* image D2 -> DSep *)
           t_nkey:    Keygen.t                  (* key allocator *) }
 
     (* Empty environment *)
-    let empty: t = 
+    let empty: t =
       { t_img     = IntMap.empty;
         t_rev_fst = IntMap.empty;
         t_rev_snd = IntMap.empty;
         t_nkey    = Keygen.empty }
 
     (* Pretty printing *)
-    let t_2stri (ind: string) (t: t): string = 
+    let t_2stri (ind: string) (t: t): string =
       IntMap.fold
-        (fun i (loc, iu) s -> 
+        (fun i (loc, iu) s ->
           Printf.sprintf "%s%s%i\t--->\t(%s, %i)\n"
             s ind i (dic_side_2str loc) iu
         ) t.t_img ""
@@ -186,7 +195,7 @@ module Dic_map =
                     t_rev_fst = IntMap.add i ilocal e.t_rev_fst;
                     t_nkey    = keys } in
           ilocal, r
-      | Dic_snd -> 
+      | Dic_snd ->
           assert (not (IntMap.mem i e.t_rev_snd));
           let keys, ilocal = Keygen.gen_key e.t_nkey in
           let r = { e with
@@ -196,7 +205,7 @@ module Dic_map =
           ilocal, r
     (* remove a binding *)
     let rem (i: int) (e: t): t =
-      let rev1, rev2 = 
+      let rev1, rev2 =
         match IntMap.find i e.t_img with (* this must not fail *)
         | Dic_fst, i1 -> IntMap.remove i1 e.t_rev_fst, e.t_rev_snd
         | Dic_snd, i2 -> e.t_rev_fst, IntMap.remove i2 e.t_rev_snd in
@@ -219,4 +228,3 @@ module Dic_map =
     let fold (f: int -> (dic_side * int) -> 'a -> 'a) (x: t): 'a -> 'a =
       IntMap.fold f x.t_img
   end: DIC)
-

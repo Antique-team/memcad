@@ -16,6 +16,8 @@ void main() {
     int prio_panne;
     Cell *free_cell;
     free_cell = malloc( 8 );
+    if( free_cell == 0 )
+      exit( 0 );
     if (deb == null) {
       deb = free_cell;
       deb->next = null;

@@ -23,6 +23,10 @@ module Log =
 (** Functor *)
 module Add_dyn_svenv = functor (D: DOM_NUM_NB) ->
   (struct
+    let module_name = "nd_add_dyn_svenv"
+    let config_2str (): string =
+      Printf.sprintf "%s -> %s\n%s"
+        module_name D.module_name (D.config_2str ())
     type t =
         { t_u: D.t;     (* underlying numerical *)
           t_s: IntSet.t (* not yet added in underlying env *) }
@@ -141,7 +145,8 @@ module Add_dyn_svenv = functor (D: DOM_NUM_NB) ->
                          t_s = IntSet.add lid (IntSet.remove rid x.t_s) }
       |  true,false -> { x with t_u = D.rem_node rid x.t_u }
       |  true, true -> { x with t_s = IntSet.remove rid x.t_s }
-    (* Meet: a lattice operation *)
+
+    (** Conjunction *)
     let meet (lx: t) (rx: t): t =
       let lx_strong = 
         IntSet.fold D.add_node (IntSet.diff lx.t_s rx.t_s) lx.t_u
@@ -149,8 +154,9 @@ module Add_dyn_svenv = functor (D: DOM_NUM_NB) ->
         IntSet.fold D.add_node (IntSet.diff rx.t_s lx.t_s) rx.t_u in
       { t_u = D.meet lx_strong rx_strong;
         t_s = IntSet.inter lx.t_s rx.t_s }
-    (* Forget the information on a dimension *)
-    let forget (id: int) (x: t): t =
+
+    (** Forget the information on a dimension *)
+    let sv_forget (id: int) (x: t): t =
       if IntSet.mem id x.t_s then x
       else
         { t_u = D.rem_node id x.t_u;
@@ -168,4 +174,9 @@ module Add_dyn_svenv = functor (D: DOM_NUM_NB) ->
     (** Extract the set of all SVs *)
     let get_svs (x: t): IntSet.t =
       IntSet.union (D.get_svs x.t_u) x.t_s
+
+    (** Extract all SVs that are equal to a given SV *)
+    let get_eq_class (i: int) (x: t): IntSet.t =
+      if IntSet.mem i x.t_s then (IntSet.singleton i)
+      else D.get_eq_class i x.t_u
   end: DOM_NUM_NB)

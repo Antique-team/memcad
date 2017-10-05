@@ -31,8 +31,12 @@ type test_spec =
       sp_src_file:   string;
       (* specific header for source file *)
       sp_header:     string;
+      (* include dirs for C headers *)
+      sp_idirs:     string;
       (* whether to use old parser *)
       sp_old_parser: bool;
+      (* malloc never returns null *)
+      sp_malloc_non0: bool;
       (* inductive file, with path *)
       sp_ind_file:   string;
       (* analysis of programs with recursive calls *)
@@ -71,6 +75,8 @@ type test_spec =
       sp_setdom:     Flags.set_dom;
       (* Array domain *)
       sp_array:      bool;
+      (* Equation pack *)
+      sp_eq_pack:    bool;
       (** Abstract domain and inductive definitions *)
       (* whether to perform inductive definitions parameters analysis *)
       sp_indpars:    bool;

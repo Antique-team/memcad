@@ -122,6 +122,8 @@ let extract_fields (s: c_aggregate): irule list =
   and nonnull = Af_noteq (Ae_var `Fa_this, Ae_cst 0) in
   let n, rl =
     do_fields (0, { ir_num   = 0;
+                    ir_nnum  = IntSet.empty;
+                    ir_snum  = IntSet.empty;
                     ir_typ   = IntMap.empty;
                     ir_heap  = [];
                     ir_pure  = [ Pf_alloc size; Pf_arith nonnull ];
@@ -129,7 +131,8 @@ let extract_fields (s: c_aggregate): irule list =
                     ir_uptr  = IntSet.empty;
                     ir_uint  = IntSet.empty;
                     ir_uset  = IntSet.empty;
-                    ir_unone = true } ) s.cag_fields in
+                    ir_unone = true;
+                    ir_cons = None; } ) s.cag_fields in
   Log.info "final: %d-%d" n size;
   assert (n = size);
   List.flatten
@@ -164,6 +167,8 @@ let compute_inductives (p: c_prog): ind list =
           let rule0 =
             let null = Af_equal (Ae_var `Fa_this, Ae_cst 0) in
             { ir_num   = 0;
+              ir_nnum  = IntSet.empty;
+              ir_snum  = IntSet.empty;
               ir_typ   = IntMap.empty;
               ir_heap  = [];
               ir_pure  = [ Pf_arith null ];
@@ -171,7 +176,8 @@ let compute_inductives (p: c_prog): ind list =
               ir_uptr  = IntSet.empty;
               ir_uint  = IntSet.empty;
               ir_uset  = IntSet.empty;
-              ir_unone = true } in
+              ir_unone = true;
+              ir_cons = None; } in
           (* compute rules for the body of the structure:
            *  - if there are union fields, one rule per combination
            *  - otherwise only one rule for the body of the union;
@@ -183,6 +189,7 @@ let compute_inductives (p: c_prog): ind list =
               i_ipars   = 0;
               i_spars   = 0;
               i_rules   = rule0 :: (List.rev rules);
+              i_rules_cons = [];
               i_srules  = [];
               i_mt_rule = true;
               i_emp_ipar = -1;
@@ -193,7 +200,14 @@ let compute_inductives (p: c_prog): ind list =
               i_fl_pars = IntMap.empty;
               i_pr_offs = OffSet.empty;
               i_list    = None;
-              i_pkind   = Ind_utils.pars_rec_top; } in
+              i_pkind   = Ind_utils.pars_rec_top;
+              i_ppath   = [];
+              i_pars_wktyp = { ptr_typ = IntMap.empty;
+                               int_typ = IntMap.empty;
+                               set_typ = IntMap.empty; };
+              i_emp_pars_wktyp = { ptr_typ = IntMap.empty;
+                                   int_typ = IntMap.empty;
+                                   set_typ = IntMap.empty; } } in
           l := ind :: !l
       | Ctstruct (Cad_named _) ->
           if local_debug then Log.info "named struct"

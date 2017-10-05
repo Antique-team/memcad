@@ -16,6 +16,8 @@ open Offs
 open Nd_sig
 open Sv_sig
 open Svenv_sig
+open Set_sig
+open Inst_sig
 
 (** Improvements to consider:
  ** - try to merge "node_wkinj" and "node_relation" (may not be doable)
@@ -38,17 +40,20 @@ type visu_option =
   | Successors (* only keep the successors of the selected nodes *)
   | Cut_leaves (* leaves which are not inductive edges are pruned *)
 
-
 (** Graph node IDs *)
 type nid = int (* a node name is an integer *)
 type onode = nid * Offs.t (* node with an offset *)
 type bnode = nid * Bounds.t (* node with a bound, i.e., a set of offsets *)
 
+(* Path strings *)
+type n_path = int * pathstr * int
+
 (** Arguments for inductives *)
 (* Each field denotes a list of nodes *)
 type ind_args =
     { ia_ptr:     nid list ;
-      ia_int:     nid list }
+      ia_int:     nid list;
+      ia_set:     nid list; }
 
 (** Heap regions: atoms *)
 (* Points-to edge *)
@@ -114,7 +119,12 @@ type graph =
       (* Local symbolic variable environment modifications *)
       g_svemod: svenv_mod ;
       (* Roots of the shape graph *)
-      g_roots:  IntSet.t ; (* set of root nodes *) }
+      g_roots:  IntSet.t ; (* set of root nodes *)
+      (* Management of SETVs *)
+      g_setvkey:   Keygen.t; (* key allocator for the set variables *)
+      g_setvroots: IntSet.t; (* setv which are root *)
+      g_setvkind:  set_par_type IntMap.t; (* kind of setvs *)
+    }
 (* Some sanity rules, regarding to sizes (assuming a 32 bits architecture):
  *  - for now, we assume pointer size to be equal to 4
  *  - address nodes should have size 4
@@ -167,7 +177,11 @@ type is_le_res =
   | Ilr_le_rem of graph     (* the remainder in the left hand side *)
         * IntSet.t          (* nodes removed in the left hand side *)
         * int IntMap.t      (* mapping inferred by the inclusion *)
-        * n_expr IntMap.t   (* instantiable constraints *)
+        * set_expr IntMap.t (* instantiated constraints of SETVs *)
+        * IntSet.t          (* new SETVs generated for instantiation *)
+        * sv_inst           (* sv instantiation  *)
+        * set_cons list     (* non-proved set constraints *)
+
   (* remainder in the left reduced to empty
    * corresponds to the syntehsis of an inductive edge
    * (used for weak abstraction) *)
@@ -179,10 +193,15 @@ type is_le_res =
 
 (* Result of unfold/materialization *)
 type unfold_res =
-    { ur_g:    graph;
-      ur_cons: n_cons list;
-      ur_eqs:  PairSet.t; (* equalities, i.e., nodes that can be merged *)
-      ur_news: IntSet.t }
+    { ur_g:        graph;
+      ur_cons:     n_cons list;   (* num constraints *)
+      ur_setcons:  set_cons list; (* set constraints *)
+      ur_newsetvs: IntSet.t;  (* set of new SETVs *)
+      ur_remsetvs: IntSet.t;  (* set of removed SETVs *)
+      ur_paths:    n_path list;
+      ur_eqs:      PairSet.t; (* equalities, i.e., nodes that can be merged *)
+      ur_seqs:     PairSet.t; (* equalities, i.e., setvars that can be merged *)
+      ur_news:     IntSet.t   (* new SVs *) }
 
 
 (** Exception used to communicate results *)
@@ -232,8 +251,7 @@ type n_collapsing =
  *     function to decide admissible sub-memory offsets,
  *     i.e., sub-memory environment offsets to preserve *)
 type n_instantiation =
-    { ins_expr:    n_expr IntMap.t; (* nid -> expr *)
-      ins_fold:    n_collapsing IntMap.t; (* added IDs -> collapse *)
+    { ins_fold:    n_collapsing IntMap.t; (* added IDs -> collapse *)
       (* when a pair of offsets cannot be unified, we may create a special
        * offset, that may be used to make a relation, e.g., with sub-memory
        * contents list of elements of the form:
@@ -294,3 +312,6 @@ type join_arg =
       (* the join result of the encodings of two input graphs *)
       abs_go:   abs_graph_arg option; }
 
+
+(* new encode graph path type *)
+type node_path = int * (step * int) list * int

@@ -24,10 +24,14 @@ let _ =
     [ "alloc",    T_alloc ;
       "addr",     T_addr ;
       "emp",      T_emp ;
+      "true",     T_true ;
       "int",      T_int ;
       "prec",     T_prec ;
       "raw",      T_raw ;
       "set",      T_set ;
+      "idx",      T_idx ;
+      "subi",     T_subi ;
+      "subp",     T_subp ;
       "this",     T_this ] in
   List.iter (fun (str, tok) -> Hashtbl.add hash_string_tokens str tok)
     lst_string_tokens
@@ -44,6 +48,8 @@ rule token = parse
 | '@''i'(['0'-'9'])+      { V_par_int (extract_p 2 (Lexing.lexeme lexbuf)) }
 | '@''p'(['0'-'9'])+      { V_par_ptr (extract_p 2 (Lexing.lexeme lexbuf)) }
 | '@''s'(['0'-'9'])+      { V_par_set (extract_p 2 (Lexing.lexeme lexbuf)) }
+| '@''m'(['0'-'9'])+      { V_par_maya (extract_p 2 (Lexing.lexeme lexbuf)) }
+| '@''n'(['0'-'9'])+      { V_par_nmaya (extract_p 2 (Lexing.lexeme lexbuf)) }
 | '$'(['0'-'9'])+         { let n = extract_p 1 (Lexing.lexeme lexbuf) in
                             V_new_var n }
 | "|-"['0'-'9']+'-''>'    { let str = Lexing.lexeme lexbuf in
@@ -58,10 +64,14 @@ rule token = parse
 | ":="                    { T_defeq }
 | "!="                    { T_notequal }
 | "=="                    { T_setequal }
+| "<="                    { T_le }
+| ">="                    { T_ge }
 | '#'                     { T_setmem }
+| "#="                    { T_setincluded }
 | '<'                     { T_lt }
 | '>'                     { T_gt }
 | ','                     { T_comma }
+| ';'                     { T_semicolon }
 | '.'                     { T_dot }
 | '|'                     { T_pipe }
 | '{'                     { T_lbrace }
@@ -73,6 +83,10 @@ rule token = parse
 | '='                     { T_equal }
 | '&'                     { T_and }
 | '+'                     { T_plus }
+| '^'                     { T_union }
 | '-'                     { T_minus }
 | '*'                     { T_star }
+| "(-"                    { T_lsub }
+| "-)"                    { T_rsub }
+| '~'                     { T_epsilon }
 | eof                     { T_eof }

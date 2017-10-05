@@ -18,7 +18,7 @@ open Apron
 (** Managing Apron variables *)
 val make_var: int -> Var.t
 
-(** Atom printers *)
+(** SV printers *)
 (* Nodes *)
 val node_2str: int -> string
 (* Variables *)
@@ -88,3 +88,19 @@ val node_mapping_2str: 'a node_mapping -> string
  * and a linear combination of factors *)
 val decomp_lin: n_expr -> int * n_expr
 val decomp_lin_opt: n_expr -> (int * n_expr) option
+
+(** Atoms used in add_eqs and add_diseqs *)
+(* Constraints involve atoms *)
+type atom =
+  | Acst of int (* stands for integer constant *)
+  | Anode of int (* stands for a graph node *)
+(* Ordered structure *)
+module AtomOrd: (Set.OrderedType with type t = atom)
+(* Dictionaries *)
+module AtomSet: (Set.S with type elt = atom)
+module AtomMap: (Map.S with type key = atom)
+(* Pretty-printing *)
+val atom_2str: sv_namer -> atom -> string
+val atomset_2str: sv_namer -> AtomSet.t -> string
+(* Conversion of n_expressions to atom *)
+val n_expr_2atom: n_expr -> atom option
